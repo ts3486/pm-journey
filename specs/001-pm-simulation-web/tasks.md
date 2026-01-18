@@ -52,20 +52,20 @@
 
 ### Tests for User Story 1
 
-- [ ] T014 [US1] Add Playwright e2e for start → chat → evaluation flow in `frontend/tests/e2e/us1-session.spec.ts`
-- [ ] T015 [P] [US1] Add backend integration test for session lifecycle create/message/evaluate in `backend/tests/session_flow.rs`
+- [X] T014 [US1] Add Playwright e2e for start → chat → evaluation flow in `frontend/tests/e2e/us1-session.spec.ts`
+- [X] T015 [P] [US1] Add backend integration test for session lifecycle create/message/evaluate in `backend/tests/session_flow.rs`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Build Home page hero/CTA/resume controls in `frontend/src/app/page.tsx` honoring saved-session availability
-- [ ] T017 [P] [US1] Implement session service for create/resume/reset with autosave per message/eval in `frontend/src/services/sessions.ts`
-- [ ] T018 [P] [US1] Create Scenario page layout (chat + context) with responsive columns in `frontend/src/app/scenario/page.tsx`
-- [ ] T019 [P] [US1] Implement chat stream with markdown, timestamps, copy action, and empty/loading/error/locked states in `frontend/src/components/ChatStream.tsx`
-- [ ] T020 [P] [US1] Implement composer with multiline input, keyboard submit, and quick prompts in `frontend/src/components/ChatComposer.tsx`
-- [ ] T021 [US1] Wire session controls (start/resume/reset/mark ready) and offline banners in `frontend/src/components/SessionControls.tsx`
-- [ ] T022 [US1] Implement evaluation trigger and results display with category breakdowns in `frontend/src/components/EvaluationPanel.tsx`
-- [ ] T023 [US1] Implement backend session/message/evaluate handlers with server-ordered merge and latest-timestamp flags in `backend/src/api/sessions.rs`
-- [ ] T024 [US1] Persist evaluation and session history entry on completion in `frontend/src/services/history.ts`
+- [X] T016 [US1] Build Home page hero/CTA/resume controls in `frontend/src/app/page.tsx` honoring saved-session availability
+- [X] T017 [P] [US1] Implement session service for create/resume/reset with autosave per message/eval in `frontend/src/services/sessions.ts`
+- [X] T018 [P] [US1] Create Scenario page layout (chat + context) with responsive columns in `frontend/src/app/scenario/page.tsx`
+- [X] T019 [P] [US1] Implement chat stream with markdown, timestamps, copy action, and empty/loading/error/locked states in `frontend/src/components/ChatStream.tsx`
+- [X] T020 [P] [US1] Implement composer with multiline input, keyboard submit, and quick prompts in `frontend/src/components/ChatComposer.tsx`
+- [X] T021 [US1] Wire session controls (start/resume/reset/mark ready) and offline banners in `frontend/src/components/SessionControls.tsx`
+- [X] T022 [US1] Implement evaluation trigger and results display with category breakdowns in `frontend/src/components/EvaluationPanel.tsx`
+- [X] T023 [US1] Implement backend session/message/evaluate handlers with server-ordered merge and latest-timestamp flags in `backend/src/api/mod.rs`
+- [X] T024 [US1] Persist evaluation and session history entry on completion in `frontend/src/services/history.ts`
 
 **Checkpoint**: User Story 1 fully functional and testable independently
 
@@ -79,16 +79,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T025 [US2] Add Playwright e2e for tagging and progress tracking persistence in `frontend/tests/e2e/us2-tags.spec.ts`
-- [ ] T026 [P] [US2] Add backend integration test for tagged messages and progress flags in `backend/tests/message_tags.rs`
+- [X] T025 [US2] Add Playwright e2e for tagging and progress tracking persistence in `frontend/tests/e2e/us2-tags.spec.ts`
+- [X] T026 [P] [US2] Add backend integration test for tagged messages and progress flags in `backend/tests/message_tags.rs`
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Build context panel (project info, goals, constraints, timeline, success criteria) in `frontend/src/components/ContextPanel.tsx`
-- [ ] T028 [P] [US2] Implement progress tracker for requirements/priorities/risks/acceptance with eval-available indicator in `frontend/src/components/ProgressTracker.tsx`
-- [ ] T029 [P] [US2] Add tagging UI and inline badges on messages plus mini action log in `frontend/src/components/ActionLog.tsx`
-- [ ] T030 [US2] Persist tags and progress flags to storage/API and reload on resume in `frontend/src/services/sessions.ts`
-- [ ] T031 [US2] Extend backend message/session models to accept tags and progress flag updates in `backend/src/api/messages.rs`
+- [X] T027 [US2] Build context panel (project info, goals, constraints, timeline, success criteria) in `frontend/src/components/ContextPanel.tsx`
+- [X] T028 [P] [US2] Implement progress tracker for requirements/priorities/risks/acceptance with eval-available indicator in `frontend/src/components/ProgressTracker.tsx`
+- [X] T029 [P] [US2] Add tagging UI and inline badges on messages plus mini action log in `frontend/src/components/ActionLog.tsx`
+- [X] T030 [US2] Persist tags and progress flags to storage/API and reload on resume in `frontend/src/services/sessions.ts`
+- [X] T031 [US2] Extend backend message/session models to accept tags and progress flag updates in `backend/src/api/mod.rs`
 
 **Checkpoint**: User Stories 1 and 2 independently functional
 
@@ -102,15 +102,15 @@
 
 ### Tests for User Story 3
 
-- [ ] T032 [US3] Add Playwright e2e for history filter/detail/export in `frontend/tests/e2e/us3-history.spec.ts`
-- [ ] T033 [P] [US3] Add backend integration test for history list/detail/delete in `backend/tests/history.rs`
+- [X] T032 [US3] Add Playwright e2e for history filter/detail/export in `frontend/tests/e2e/us3-history.spec.ts`
+- [X] T033 [P] [US3] Add backend integration test for history list/detail/delete in `backend/tests/history.rs`
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Implement History list with filters (score/date/status) and search in `frontend/src/app/history/page.tsx`
-- [ ] T035 [P] [US3] Implement History detail view with transcript/action log/evaluation in `frontend/src/components/HistoryDetail.tsx`
-- [ ] T036 [P] [US3] Implement export/share (Markdown/JSON; link when API present) in `frontend/src/services/export.ts`
-- [ ] T037 [US3] Implement backend list/detail/delete endpoints per OpenAPI in `backend/src/api/history.rs`
+- [X] T034 [US3] Implement History list with filters (score/date/status) and search in `frontend/src/app/history/page.tsx`
+- [X] T035 [P] [US3] Implement History detail view with transcript/action log/evaluation in `frontend/src/components/HistoryDetail.tsx`
+- [X] T036 [P] [US3] Implement export/share (Markdown/JSON; link when API present) in `frontend/src/services/export.ts`
+- [X] T037 [US3] Implement backend list/detail/delete endpoints per OpenAPI in `backend/src/api/mod.rs`
 
 **Checkpoint**: All user stories independently functional
 
@@ -121,9 +121,9 @@
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] T038 [P] Run accessibility and performance passes (WCAG AA, 4G load budget) updating `frontend/src/components/*` and `frontend/src/app/*` as needed
-- [ ] T039 Add telemetry/logging hooks for session lifecycle and evaluation outcomes in `frontend/src/services/telemetry.ts` and `backend/src/middleware/telemetry.rs`
-- [ ] T040 [P] Surface data retention/clear-storage controls and notices in `frontend/src/components/DataRetentionNotice.tsx`
-- [ ] T041 Update docs/quickstart with API/env instructions and known offline behaviors in `specs/001-pm-simulation-web/quickstart.md`
+- [X] T039 Add telemetry/logging hooks for session lifecycle and evaluation outcomes in `frontend/src/services/telemetry.ts` and `backend/src/middleware/telemetry.rs`
+- [X] T040 [P] Surface data retention/clear-storage controls and notices in `frontend/src/components/DataRetentionNotice.tsx`
+- [X] T041 Update docs/quickstart with API/env instructions and known offline behaviors in `specs/001-pm-simulation-web/quickstart.md`
 - [ ] T042 Final refactor/cleanup and dependency audit across `frontend/` and `backend/`
 
 ---

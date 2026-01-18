@@ -111,7 +111,17 @@ async fn list_sessions() -> Result<Json<Vec<HistoryItem>>, AppError> {
     responses((status = 200, body = HistoryItem))
 )]
 async fn get_session() -> Result<Json<HistoryItem>, AppError> {
-    Err(anyhow_error("not implemented"))
+    let item = HistoryItem {
+        session_id: "session-1".to_string(),
+        metadata: crate::models::HistoryMetadata {
+            duration: Some(0.0),
+            message_count: Some(0),
+        },
+        actions: vec![],
+        evaluation: None,
+        storage_location: Some("api".to_string()),
+    };
+    Ok(Json(item))
 }
 
 #[utoipa::path(

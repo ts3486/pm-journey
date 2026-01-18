@@ -14,3 +14,6 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7", features = ["axum"] }
 chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tower = "0.5"
