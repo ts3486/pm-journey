@@ -5,6 +5,14 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
+## Constitution Check *(must be addressed in this spec)*
+
+- Default offline-first operation with localStorage/IndexedDB, autosave per message/evaluation, and evaluation disabled offline unless API is available over HTTPS.
+- Independent, prioritized user stories that can ship/test in isolation (Home/Scenario/History slices).
+- Evaluation integrity: tagging of decisions/risks/assumptions/next actions, progress flags, history/export paths, and safe reset/clear behavior.
+- Accessibility/responsiveness/bilingual UI: WCAG AA, responsive layouts (desktop two-column, stacked mobile), Japanese-first scenario content with bilingual chrome, no Slack/command artifacts.
+- Contract-driven delivery with observability and tests: OpenAPI/utoipa alignment, lifecycle logging hooks, and Playwright/Vitest/cargo coverage for affected surfaces; performance targets (load <3s on 4G, evaluation <10s).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -72,8 +80,8 @@
   Fill them out with the right edge cases.
 -->
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- What happens when offline during messaging/evaluation or when storage is near capacity?
+- How does system handle evaluation failure/retry, session reset/clear with export, or concurrent updates (if API-enabled)?
 
 ## Requirements *(mandatory)*
 
@@ -84,16 +92,16 @@
 
 ### Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-001**: System MUST default to client-side persistence (localStorage/IndexedDB), autosave after each user/agent message and evaluation, and queue offline sends while disabling evaluation until online.
+- **FR-002**: System MUST keep user stories independent and testable (Home/Scenario/History or equivalent slices) with acceptance criteria and demo paths per story.
+- **FR-003**: UI MUST meet WCAG AA, be responsive (desktop two-column, stacked mobile), avoid Slack/command artifacts, and present Japanese-first content with bilingual chrome/tooltips where feasible.
+- **FR-004**: System MUST tag and persist decisions/risks/assumptions/next actions, maintain progress flags, and support history review/export with safe reset/clear confirmations.
+- **FR-005**: API/clients MUST adhere to OpenAPI/utoipa contracts, log session lifecycle/evaluation/export events, meet performance targets (load <3s on 4G; evaluation <10s), and use HTTPS when remote.
 
 *Example of marking unclear requirements:*
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **FR-006**: Observability hooks for [NEEDS CLARIFICATION: which events? start/resume/evaluate/export?]
+- **FR-007**: Data retention/archival rules for [NEEDS CLARIFICATION: how long to keep local/API data?]
 
 ### Key Entities *(include if feature involves data)*
 
@@ -109,7 +117,7 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- **SC-001**: [Performance metric, e.g., "Initial load <3s on 4G; evaluation results <10s with guidance when slower"]
+- **SC-002**: [Resilience metric, e.g., "Offline queue preserves 100% of messages; evaluation remains disabled until online"]
+- **SC-003**: [Accessibility/UX metric, e.g., "WCAG AA audit passes for focus/ARIA/contrast; mobile layout avoids horizontal scroll"]
+- **SC-004**: [Data integrity metric, e.g., "100% of decisions/risks/assumptions/next actions persisted to history/export with timestamps"]

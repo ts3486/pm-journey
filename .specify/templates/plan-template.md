@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command (automation will replace placeholders).
 
 ## Summary
 
@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Offline-first default: client-side persistence (localStorage/IndexedDB), offline queue, evaluation disabled until online, autosave after each message/evaluation.
+- Independent, testable user stories: keep journeys prioritized and self-contained; each plan deliverable/test maps to a single story.
+- Evaluation integrity & tagging: include progress flags, decision/risk/assumption/next-action tagging, history/export coverage, and reset/clear safety.
+- Accessibility/responsiveness/bilingual: WCAG AA focus/ARIA/contrast, responsive (desktop two-column, stacked mobile), Japanese scenario content with bilingual UI, no Slack/command artifacts.
+- Contract-driven & observable: OpenAPI/utoipa updated before backend changes land; logging hooks for session lifecycle/evaluation/exports; tests (Playwright/Vitest/cargo) required for touched surfaces; performance targets (load <3s on 4G, evaluation <10s) and HTTPS when API is enabled.
 
 ## Project Structure
 
