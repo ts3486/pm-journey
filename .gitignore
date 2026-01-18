@@ -1,0 +1,33 @@
+# Node/Next.js
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env*
+
+# Frontend tooling
+.eslintcache
+
+# Rust/Axum
+target/
+debug/
+release/
+*.rs.bk
+
+# Editors/OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# Misc
+*.log
+.npm-cache-local/
