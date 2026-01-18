@@ -1,0 +1,267 @@
+openapi: 3.1.0
+info:
+  title: Olivia PM Simulation API
+  version: 0.1.0
+servers:
+  - url: https://api.example.com
+paths:
+  /sessions:
+    post:
+      summary: Create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithKickoff'
+    get:
+      summary: List sessions
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, completed, evaluated]
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryItem'
+  /sessions/{id}:
+    get:
+      summary: Get session detail
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session with transcript/actions/evaluation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetail'
+    delete:
+      summary: Delete or archive session
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Deleted
+  /sessions/{id}/messages:
+    post:
+      summary: Send user message and receive agent reply
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '200':
+          description: Agent reply with updated session state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /sessions/{id}/evaluate:
+    post:
+      summary: Trigger evaluation
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evaluation'
+
+components:
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required: [scenarioId]
+      properties:
+        scenarioId:
+          type: string
+    CreateMessageRequest:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user]
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [decision, assumption, risk, next_action, summary]
+    SessionWithKickoff:
+      type: object
+      properties:
+        session:
+          $ref: '#/components/schemas/Session'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    SessionDetail:
+      type: object
+      properties:
+        session:
+          $ref: '#/components/schemas/Session'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        evaluation:
+          $ref: '#/components/schemas/Evaluation'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    MessageResponse:
+      type: object
+      properties:
+        reply:
+          $ref: '#/components/schemas/Message'
+        session:
+          $ref: '#/components/schemas/Session'
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        scenarioId:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, evaluated]
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastActivityAt:
+          type: string
+          format: date-time
+        userName:
+          type: string
+          nullable: true
+        progressFlags:
+          type: object
+          properties:
+            requirements:
+              type: boolean
+            priorities:
+              type: boolean
+            risks:
+              type: boolean
+            acceptance:
+              type: boolean
+        evaluationRequested:
+          type: boolean
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        role:
+          type: string
+          enum: [user, agent, system]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [decision, assumption, risk, next_action, summary]
+        queuedOffline:
+          type: boolean
+    Evaluation:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        overallScore:
+          type: number
+          format: float
+        passing:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationCategory'
+        summary:
+          type: string
+        improvementAdvice:
+          type: string
+    EvaluationCategory:
+      type: object
+      properties:
+        name:
+          type: string
+        weight:
+          type: number
+          format: float
+        score:
+          type: number
+          format: float
+        feedback:
+          type: string
+    HistoryItem:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        metadata:
+          type: object
+          properties:
+            duration:
+              type: number
+            messageCount:
+              type: integer
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        evaluation:
+          $ref: '#/components/schemas/Evaluation'
