@@ -84,8 +84,26 @@ export default function ScenarioPage() {
   const contextSuccess = ["評価4カテゴリで70点以上", "モバイル打刻成功率向上", "リスクと前提の明文化"];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="order-2 space-y-4 lg:order-1">
+        <ContextPanel
+          audience="社内従業員・マネージャー"
+          goals={contextGoals}
+          problems={contextProblems}
+          constraints={contextConstraints}
+          timeline="6ヶ月以内に社内展開"
+          successCriteria={contextSuccess}
+        />
+        <ProgressTracker
+          requirements={state?.session.progressFlags.requirements ?? false}
+          priorities={state?.session.progressFlags.priorities ?? false}
+          risks={state?.session.progressFlags.risks ?? false}
+          acceptance={state?.session.progressFlags.acceptance ?? false}
+          onComplete={handleProgressComplete}
+          disabled={!state}
+        />
+      </div>
+      <div className="order-1 space-y-4 lg:order-2">
         <SessionControls
           hasActive={hasActive}
           onStart={handleStart}
@@ -101,30 +119,6 @@ export default function ScenarioPage() {
           quickPrompts={["現状の打刻課題を整理してください", "リスクと前提をリスト化してください"]}
         />
         <EvaluationPanel evaluation={state?.evaluation} loading={loadingEval} />
-      </div>
-      <div className="space-y-4">
-        <ContextPanel
-          audience="社内従業員・マネージャー"
-          goals={contextGoals}
-          problems={contextProblems}
-          constraints={contextConstraints}
-          timeline="6ヶ月以内に社内展開"
-          successCriteria={contextSuccess}
-        />
-        <ProgressTracker
-          requirements={state?.session.progressFlags.requirements ?? false}
-          priorities={state?.session.progressFlags.priorities ?? false}
-          risks={state?.session.progressFlags.risks ?? false}
-          acceptance={state?.session.progressFlags.acceptance ?? false}
-        />
-        <button
-          type="button"
-          className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-          onClick={handleProgressComplete}
-          disabled={!state}
-        >
-          Mark progress complete
-        </button>
         <ActionLog messages={state?.messages ?? []} onUpdateTags={handleUpdateTags} />
       </div>
     </div>

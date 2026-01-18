@@ -3,9 +3,18 @@ type ProgressTrackerProps = {
   priorities: boolean;
   risks: boolean;
   acceptance: boolean;
+  onComplete?: () => void;
+  disabled?: boolean;
 };
 
-export function ProgressTracker({ requirements, priorities, risks, acceptance }: ProgressTrackerProps) {
+export function ProgressTracker({
+  requirements,
+  priorities,
+  risks,
+  acceptance,
+  onComplete,
+  disabled = false,
+}: ProgressTrackerProps) {
   const items = [
     { label: "Requirements", done: requirements },
     { label: "Priorities", done: priorities },
@@ -34,6 +43,16 @@ export function ProgressTracker({ requirements, priorities, risks, acceptance }:
       ) : (
         <div className="mt-2 text-xs text-gray-500">Complete all items to enable evaluation.</div>
       )}
+      {onComplete ? (
+        <button
+          type="button"
+          className="mt-3 w-full rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-gray-200"
+          onClick={onComplete}
+          disabled={disabled}
+        >
+          Mark progress complete
+        </button>
+      ) : null}
     </div>
   );
 }

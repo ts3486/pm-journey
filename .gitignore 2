@@ -1,0 +1,8 @@
+# Build artifacts
+backend/target/
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Frontend build output
+frontend/.next/
