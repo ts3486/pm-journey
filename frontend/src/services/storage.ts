@@ -1,38 +1,60 @@
 import { env } from "@/config/env";
-import type { Evaluation, Message, ProgressFlags, Session } from "@/types/session";
+import type { Evaluation, Message, Session } from "@/types/session";
 
 const isBrowser = typeof window !== "undefined";
 
 const key = (suffix: string) => `${env.storageKeyPrefix}:${suffix}`;
+const lastScenarioKey = () => key("lastScenarioId");
+const lastSessionKey = (scenarioId: string) => key(`session:last:${scenarioId}`);
 
 export type SessionSnapshot = {
   session: Session;
   messages: Message[];
   evaluation?: Evaluation;
-  progressFlags?: ProgressFlags;
+};
+
+const applyDefaults = (snapshot: SessionSnapshot): SessionSnapshot => {
+  const progressFlags =
+    snapshot.session.progressFlags ??
+    ({ requirements: false, priorities: false, risks: false, acceptance: false } as const);
+  return {
+    ...snapshot,
+    session: {
+      ...snapshot.session,
+      progressFlags,
+    },
+  };
 };
 
 export const storage = {
   saveSession(snapshot: SessionSnapshot) {
     if (!isBrowser) return;
-    localStorage.setItem(key(`session:${snapshot.session.id}`), JSON.stringify(snapshot));
-    localStorage.setItem(key("lastSessionId"), snapshot.session.id);
+    const normalized = applyDefaults(snapshot);
+    localStorage.setItem(key(`session:${normalized.session.id}`), JSON.stringify(normalized));
+    const scenarioId = normalized.session.scenarioId || "default";
+    localStorage.setItem(lastSessionKey(scenarioId), normalized.session.id);
+    localStorage.setItem(lastScenarioKey(), scenarioId);
   },
   loadSession(sessionId: string): SessionSnapshot | null {
     if (!isBrowser) return null;
     const raw = localStorage.getItem(key(`session:${sessionId}`));
-    return raw ? (JSON.parse(raw) as SessionSnapshot) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionSnapshot;
+    return applyDefaults(parsed);
   },
-  loadLastSessionId(): string | null {
+  loadLastSessionId(scenarioId?: string): string | null {
     if (!isBrowser) return null;
-    return localStorage.getItem(key("lastSessionId"));
+    const targetScenario = scenarioId ?? localStorage.getItem(lastScenarioKey());
+    if (!targetScenario) return null;
+    return localStorage.getItem(lastSessionKey(targetScenario));
   },
-  clearSession(sessionId: string) {
+  loadLastScenarioId(): string | null {
+    if (!isBrowser) return null;
+    return localStorage.getItem(lastScenarioKey());
+  },
+  clearLastSessionPointer(scenarioId: string, sessionId?: string) {
     if (!isBrowser) return;
-    localStorage.removeItem(key(`session:${sessionId}`));
-    const lastId = localStorage.getItem(key("lastSessionId"));
-    if (lastId === sessionId) {
-      localStorage.removeItem(key("lastSessionId"));
-    }
+    const stored = localStorage.getItem(lastSessionKey(scenarioId));
+    if (!sessionId || stored === sessionId) localStorage.removeItem(lastSessionKey(scenarioId));
   },
 };

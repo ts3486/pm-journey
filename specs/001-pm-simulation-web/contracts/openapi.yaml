@@ -5,6 +5,34 @@ info:
 servers:
   - url: https://api.example.com
 paths:
+  /scenarios:
+    get:
+      summary: List available scenarios
+      responses:
+        '200':
+          description: Scenario catalog grouped by discipline (PM, PMO)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Scenario'
+  /scenarios/{id}:
+    get:
+      summary: Get scenario detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Scenario detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scenario'
   /sessions:
     post:
       summary: Create session
@@ -165,6 +193,9 @@ components:
           type: string
         scenarioId:
           type: string
+        scenarioDiscipline:
+          type: string
+          enum: [PM, PMO]
         status:
           type: string
           enum: [active, completed, evaluated]
@@ -252,6 +283,11 @@ components:
       properties:
         sessionId:
           type: string
+        scenarioId:
+          type: string
+        scenarioDiscipline:
+          type: string
+          enum: [PM, PMO]
         metadata:
           type: object
           properties:
@@ -265,3 +301,75 @@ components:
             $ref: '#/components/schemas/Message'
         evaluation:
           $ref: '#/components/schemas/Evaluation'
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        discipline:
+          type: string
+          enum: [PM, PMO]
+        description:
+          type: string
+        product:
+          $ref: '#/components/schemas/ScenarioProduct'
+        mode:
+          type: string
+          enum: [freeform]
+        kickoffPrompt:
+          type: string
+        evaluationCriteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationCategory'
+        passingScore:
+          type: number
+          format: float
+    ScenarioProduct:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+        audience:
+          type: string
+        problems:
+          type: array
+          items:
+            type: string
+        goals:
+          type: array
+          items:
+            type: string
+        differentiators:
+          type: array
+          items:
+            type: string
+        scope:
+          type: array
+          items:
+            type: string
+        constraints:
+          type: array
+          items:
+            type: string
+        timeline:
+          type: string
+        successCriteria:
+          type: array
+          items:
+            type: string
+        uniqueEdge:
+          type: string
+          nullable: true
+        techStack:
+          type: array
+          items:
+            type: string
+        coreFeatures:
+          type: array
+          items:
+            type: string

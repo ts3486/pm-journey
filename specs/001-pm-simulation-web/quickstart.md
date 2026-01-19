@@ -13,7 +13,8 @@
    - `NEXT_PUBLIC_API_BASE` (empty for local-only storage; set to Axum host for API mode)
    - `NEXT_PUBLIC_OFFLINE_QUEUE=true` to enable queued sends when offline
    - `NEXT_PUBLIC_STORAGE_PREFIX=olivia_pm` to isolate local storage keys
-5) Tests: `pnpm test` (Vitest), `pnpm exec playwright test` for e2e chat/history flows.
+5) Scenario catalog: defined in frontend config (grouped PM/PMO) for Home selection; keep ids stable for session resume/history.
+6) Tests: `pnpm test` (Vitest), `pnpm exec playwright test` for e2e chat/history flows.
 
 ## Backend (Axum + utoipa) - optional API mode
 1) `cd backend`
@@ -24,6 +25,7 @@
 
 ## Flows to validate
 - Start session from Home → Scenario kickoff visible <3s on 4G.
+- Home shows PM/PMO scenario rows; selecting a card starts a fresh session for that scenario with autosave.
 - Resume saved session → transcript/actions/progress restored.
 - Tag decisions/risks → action log updates; autosave after each message.
 - Mark ready for evaluation → spinner, result within ~10s, history entry saved.

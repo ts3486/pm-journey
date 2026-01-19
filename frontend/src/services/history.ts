@@ -15,6 +15,8 @@ export function getHistoryItem(sessionId: string): HistoryItem | null {
   if (!snap) return null;
   return {
     sessionId,
+    scenarioId: snap.session.scenarioId,
+    scenarioDiscipline: snap.session.scenarioDiscipline,
     metadata: {
       duration: undefined,
       messageCount: snap.messages.length,

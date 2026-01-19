@@ -1,13 +1,13 @@
 # Implementation Plan: Olivia PM Simulation Web Experience
 
-**Branch**: `001-pm-simulation-web` | **Date**: 2026-01-18 | **Spec**: specs/001-pm-simulation-web/spec.md
+**Branch**: `001-scenario-selection` | **Date**: 2026-01-19 | **Spec**: `/specs/001-pm-simulation-web/spec.md`
 **Input**: Feature specification from `/specs/001-pm-simulation-web/spec.md`
 
-**Note**: This plan captures Phase 0–1 outputs for the PM simulation web app (Next.js/Tailwind/TanStack frontend; optional Rust/Axum/utoipa API).
+**Note**: This template is filled in by the `/speckit.plan` command (automation will replace placeholders).
 
 ## Summary
 
-Deliver a web-based PM simulation (Home, Scenario, History) that replaces Slack flows, runs chat with AI “鈴木,” tracks decisions/progress, and produces evaluations for the attendance-app scenario. Frontend: Next.js + Tailwind + TanStack Query with client-side persistence (localStorage/IndexedDB) and autosave per message; optional Axum API with utoipa OpenAPI for multi-device sync, server-ordered message merge, and HTTPS-only remote mode.
+Deliver a web-based PM simulation where learners start/resume sessions, choose PM vs PMO scenarios on Home, collaborate with the AI partner “鈴木,” and drive requirements to evaluation, using Next.js 16 (app router) + Tailwind 4 + TanStack Query for an offline-first client with localStorage/IndexedDB persistence and optional Axum/utoipa REST API for multi-device sync. Evaluation, tagging, history/export, and bilingual WCAG-compliant UX anchor the experience; session lifecycle is observable and test-covered across frontend and backend.
 
 ## Technical Context
 
@@ -17,21 +17,27 @@ Deliver a web-based PM simulation (Home, Scenario, History) that replaces Slack 
   the iteration process.
 -->
 
-**Language/Version**: TypeScript (Next.js 14+), Rust 1.75+ (Axum)  
-**Primary Dependencies**: Next.js (app router), Tailwind CSS, TanStack Query; Axum + utoipa for API contracts; client persistence via localStorage/IndexedDB  
-**Storage**: Client-side localStorage/IndexedDB by default; optional REST persistence behind Axum (HTTPS)  
-**Testing**: Frontend: Vitest + Testing Library + Playwright for e2e; Backend: cargo test + integration tests via reqwest/schemas  
-**Target Platform**: Web (desktop/mobile), Node 18+ for SSR/build; Linux server for Axum API  
-**Project Type**: Web application (frontend + optional backend service)  
-**Performance Goals**: Initial load <3s on 4G; eval response <10s when available; responsive UI under offline/lock states  
-**Constraints**: Offline-capable messaging queue; accessibility WCAG AA; HTTPS required for remote API; autosave every message + on eval/manual save  
-**Scale/Scope**: Single-user sessions with local persistence; light API load (interactive chat + evaluation) suitable for small internal pilot
+**Language/Version**: TypeScript (Next.js 16.1, React 19, Tailwind CSS 4) + Rust 1.75+ (Axum 0.7)  
+**Primary Dependencies**: Next.js app router, Tailwind CSS 4, TanStack Query 5, Axios/fetch clients, Vitest/Testing Library/Playwright, Axum + utoipa, tokio, tracing  
+**Storage**: Client-side localStorage/IndexedDB by default; optional Axum REST API with HTTPS for multi-device sync  
+**Testing**: Frontend Vitest + Testing Library + Playwright e2e; backend `cargo test`/`cargo clippy`  
+**Target Platform**: Web (desktop + mobile) via Next.js app router; optional Axum API service  
+**Project Type**: Web application with separate frontend (Next.js) and backend (Axum) workspaces  
+**Performance Goals**: Initial Home/Scenario load <3s on 4G; evaluation responses <10s; lazy-load long history; keep UI responsive on mobile with sticky composer  
+**Constraints**: Offline-first with queued sends and autosave after each message/evaluation; WCAG AA + bilingual JP-first content; avoid Slack/command artifacts; HTTPS required when API enabled; evaluation gated until session ready  
+**Scale/Scope**: Single-learner local mode with multiple saved sessions and history; optional multi-device API sync with server-ordered merge and latest-timestamp wins
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Constitution file is placeholder (no active principles recorded). No blocking gates detected; proceed. Revisit once governance is defined.
+- PASS: Offline-first default with localStorage/IndexedDB, queued sends, autosave after each message/evaluation, evaluation blocked when offline.
+- PASS: Independent, testable journeys remain P1-P3 slices (Home start/resume, Scenario tagging/progress/evaluation, History review/export); plan artifacts map to these.
+- PASS: Evaluation integrity + tagging maintained (progress flags, decisions/risks/assumptions/next actions, reset/clear confirmations, history/export coverage).
+- PASS: Accessibility/responsiveness/bilingual upheld (WCAG AA focus/ARIA/contrast, desktop two-column/stacked mobile, JP-first scenario content, no Slack commands).
+- PASS: Contract-driven & observable approach (OpenAPI/utoipa updates before backend merge, structured lifecycle logs, Playwright/Vitest/cargo coverage, load <3s/eval <10s, HTTPS for API).
+
+**Post-Design Check**: Scenario catalog (PM/PMO) and session-start flow remain offline-first, testable per story slices, and keep accessibility/contract/logging requirements intact. No new violations introduced.
 
 ## Project Structure
 
@@ -48,23 +54,38 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
+
 ```text
 backend/
 ├── src/
+│   ├── api/
+│   ├── middleware/
 │   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+│   ├── error.rs
+│   ├── lib.rs
+│   └── main.rs
 
 frontend/
+├── app/               # Next.js app router routes (home/history/scenario)
 ├── src/
 │   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
+│   ├── config/
+│   ├── services/
+│   └── types/
+├── public/
+└── tests/             # e2e + unit helpers
+
+specs/
+└── 001-pm-simulation-web/  # plan/research/data-model/contracts/quickstart
 ```
 
-**Structure Decision**: Web application split: `frontend/` (Next.js app router with components/pages/services/tests) and `backend/` (Axum service with models/services/api/tests). Add shared contracts under `specs/001-pm-simulation-web/contracts/` for OpenAPI artifacts referenced by both.
+**Structure Decision**: Web application with separate frontend (Next.js app router) and backend (Axum) workspaces plus spec artifacts under `specs/001-pm-simulation-web/`.
 
 ## Complexity Tracking
 

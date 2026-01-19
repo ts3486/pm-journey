@@ -5,11 +5,13 @@ use utoipa::ToSchema;
 pub struct Scenario {
     pub id: String,
     pub title: String,
+    pub discipline: ScenarioDiscipline,
     pub description: String,
     pub product: ProductInfo,
     pub mode: String,
     pub kickoff_prompt: String,
     pub evaluation_criteria: Vec<EvaluationCategory>,
+    pub passing_score: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
@@ -49,6 +51,7 @@ pub struct ProgressFlags {
 pub struct Session {
     pub id: String,
     pub scenario_id: String,
+    pub scenario_discipline: Option<ScenarioDiscipline>,
     pub status: SessionStatus,
     pub started_at: String,
     pub ended_at: Option<String>,
@@ -108,6 +111,8 @@ pub struct Evaluation {
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct HistoryItem {
     pub session_id: String,
+    pub scenario_id: Option<String>,
+    pub scenario_discipline: Option<ScenarioDiscipline>,
     pub metadata: HistoryMetadata,
     pub actions: Vec<Message>,
     pub evaluation: Option<Evaluation>,
@@ -118,4 +123,76 @@ pub struct HistoryItem {
 pub struct HistoryMetadata {
     pub duration: Option<f32>,
     pub message_count: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum ScenarioDiscipline {
+    PM,
+    PMO,
+}
+
+pub fn default_scenarios() -> Vec<Scenario> {
+    vec![
+        Scenario {
+            id: "pm-attendance-modernization".to_string(),
+            title: "勤怠アプリ刷新 (PM)".to_string(),
+            discipline: ScenarioDiscipline::PM,
+            description: "打刻漏れを減らし、モバイルから使いやすい勤怠体験を短期で立ち上げる。".to_string(),
+            product: ProductInfo {
+                name: "モバイル勤怠アプリ".to_string(),
+                summary: "現場従業員が毎日使う勤怠アプリを刷新し、打刻漏れを減らす。".to_string(),
+                audience: "社内従業員・現場マネージャー・人事労務チーム".to_string(),
+                problems: vec!["旧勤怠システムの打刻漏れ".to_string(), "モバイル非対応".to_string()],
+                goals: vec!["打刻漏れ 50%削減".to_string(), "モバイル完了率向上".to_string()],
+                differentiators: vec!["評価カテゴリと連動した進捗可視化".to_string()],
+                scope: vec!["勤怠打刻".to_string(), "日次/週次エラー通知".to_string()],
+                constraints: vec!["社内ネットワーク優先".to_string(), "個人情報の社外送信なし".to_string()],
+                timeline: "6ヶ月で社内ローンチ".to_string(),
+                success_criteria: vec!["評価70点以上でGO判断".to_string()],
+                unique_edge: Some("PM視点の要件整理と評価フレームが組み込まれている".to_string()),
+                tech_stack: Some(vec!["Next.js".to_string(), "Axum".to_string()]),
+                core_features: Some(vec!["勤怠打刻".to_string(), "エラー通知".to_string()]),
+            },
+            mode: "freeform".to_string(),
+            kickoff_prompt: "あなたはPMとして勤怠アプリ刷新をリードします。現状課題と成功条件を整理し、AIエンジニア/デザイナーの鈴木と対話しながら要件を詰めてください。".to_string(),
+            evaluation_criteria: vec![
+                EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "計画と実行可能性".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "コラボレーションとフィードバック".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "リスク/前提管理と改善姿勢".to_string(), weight: 25.0, score: None, feedback: None },
+            ],
+            passing_score: Some(70.0),
+        },
+        Scenario {
+            id: "pmo-portfolio-hygiene".to_string(),
+            title: "プロジェクト運営ガバナンス (PMO)".to_string(),
+            discipline: ScenarioDiscipline::PMO,
+            description: "複数プロジェクトの健全性を可視化し、リスクと前提を統制する。".to_string(),
+            product: ProductInfo {
+                name: "PMO ハブ".to_string(),
+                summary: "ポートフォリオ横断の進行状況とリスクを共通フォーマットで集約する。".to_string(),
+                audience: "経営層、PM、PMOチーム".to_string(),
+                problems: vec!["プロジェクト間で報告粒度がバラバラ".to_string()],
+                goals: vec!["共通フォーマット定着".to_string(), "リスク検知の前倒し".to_string()],
+                differentiators: vec!["評価カテゴリと連動したレビュー指標".to_string()],
+                scope: vec!["ステータス更新テンプレート".to_string(), "リスク/課題トラッキング".to_string()],
+                constraints: vec!["HTTPS必須".to_string(), "個別プロジェクトの機密保持".to_string()],
+                timeline: "3ヶ月で全プロジェクトに展開".to_string(),
+                success_criteria: vec!["週次レポート遵守率90%".to_string()],
+                unique_edge: Some("PMOらしい統制と透明性を両立する仕組み".to_string()),
+                tech_stack: Some(vec!["Next.js".to_string(), "Axum".to_string()]),
+                core_features: Some(vec!["ステータス入力".to_string(), "リスク/前提整理".to_string()]),
+            },
+            mode: "freeform".to_string(),
+            kickoff_prompt: "あなたはPMOとして複数プロジェクトをレビューします。リスクと前提を整理し、判断材料を揃えてください。".to_string(),
+            evaluation_criteria: vec![
+                EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "計画と実行可能性".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "コラボレーションとフィードバック".to_string(), weight: 25.0, score: None, feedback: None },
+                EvaluationCategory { name: "リスク/前提管理と改善姿勢".to_string(), weight: 25.0, score: None, feedback: None },
+            ],
+            passing_score: Some(70.0),
+        },
+    ]
 }

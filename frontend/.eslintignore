@@ -1,0 +1,13 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+
+# Generated env and lock artifacts
+.env*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

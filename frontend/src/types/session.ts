@@ -14,6 +14,15 @@ export type Evaluation = {
   improvementAdvice?: string;
 };
 
+export type ScenarioDiscipline = "PM" | "PMO";
+
+export type ScenarioSummary = {
+  id: string;
+  title: string;
+  description: string;
+  discipline: ScenarioDiscipline;
+};
+
 export type ProgressFlags = {
   requirements: boolean;
   priorities: boolean;
@@ -26,6 +35,7 @@ export type SessionStatus = "active" | "completed" | "evaluated";
 export type Session = {
   id: string;
   scenarioId: string;
+  scenarioDiscipline?: ScenarioDiscipline;
   status: SessionStatus;
   startedAt: string;
   endedAt?: string;
@@ -56,6 +66,8 @@ export type HistoryMetadata = {
 
 export type HistoryItem = {
   sessionId: string;
+  scenarioId?: string;
+  scenarioDiscipline?: ScenarioDiscipline;
   metadata: HistoryMetadata;
   actions: Message[];
   evaluation?: Evaluation;
@@ -84,4 +96,11 @@ export type Scenario = {
   mode: string;
   kickoffPrompt: string;
   evaluationCriteria: EvaluationCategory[];
+  passingScore?: number;
+};
+
+export type ScenarioCatalogSection = {
+  discipline: ScenarioDiscipline;
+  title: string;
+  scenarios: ScenarioSummary[];
 };
