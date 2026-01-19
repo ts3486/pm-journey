@@ -9,6 +9,7 @@ import type {
   MessageTag,
   ProgressFlags,
   Session,
+  ScenarioDiscipline,
 } from "@/types/session";
 
 const randomId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -20,9 +21,10 @@ const defaultProgressFlags = (): ProgressFlags => ({
   acceptance: false,
 });
 
-const defaultSession = (scenarioId: string): Session => ({
+const defaultSession = (scenarioId: string, scenarioDiscipline?: ScenarioDiscipline): Session => ({
   id: randomId("session"),
   scenarioId,
+  scenarioDiscipline,
   status: "active",
   startedAt: new Date().toISOString(),
   endedAt: undefined,
@@ -41,6 +43,20 @@ const createAgentReply = (userMessage: string): Message => ({
   tags: ["summary"],
 });
 
+const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
+  if (!prompt) return [];
+  return [
+    {
+      id: randomId("msg"),
+      sessionId,
+      role: "system",
+      content: prompt,
+      createdAt: new Date().toISOString(),
+      tags: ["summary"],
+    },
+  ];
+};
+
 const createEvaluation = (sessionId: string): Evaluation => ({
   sessionId,
   overallScore: 75,
@@ -58,31 +74,47 @@ const createEvaluation = (sessionId: string): Evaluation => ({
 export type SessionState = SessionSnapshot & {
   history: HistoryItem[];
   loading: boolean;
+  offline: boolean;
 };
 
-export async function startSession(scenarioId: string): Promise<SessionState> {
+const isOffline = (): boolean => {
+  if (!env.offlineQueue) return false;
+  if (typeof navigator === "undefined") return false;
+  return !navigator.onLine;
+};
+
+export async function startSession(
+  scenarioId: string,
+  scenarioDiscipline?: ScenarioDiscipline,
+  kickoffPrompt?: string,
+): Promise<SessionState> {
   let session: Session;
   if (env.apiBase) {
     session = await api.createSession(scenarioId);
   } else {
-    session = defaultSession(scenarioId);
+    session = defaultSession(scenarioId, scenarioDiscipline);
   }
-  const snapshot: SessionSnapshot = { session, messages: [], evaluation: undefined };
+  session = {
+    ...session,
+    scenarioDiscipline: session.scenarioDiscipline ?? scenarioDiscipline,
+  };
+  const messages = kickoffMessage(session.id, kickoffPrompt);
+  const snapshot: SessionSnapshot = { session, messages, evaluation: undefined };
   storage.saveSession(snapshot);
-  return { ...snapshot, history: [], loading: false };
+  return { ...snapshot, history: [], loading: false, offline: isOffline() };
 }
 
-export function resumeSession(): SessionState | null {
-  const lastId = storage.loadLastSessionId();
+export function resumeSession(scenarioId?: string): SessionState | null {
+  const lastId = storage.loadLastSessionId(scenarioId);
   if (!lastId) return null;
   const snapshot = storage.loadSession(lastId);
   if (!snapshot) return null;
-  return { ...snapshot, history: [], loading: false };
+  return { ...snapshot, history: [], loading: false, offline: isOffline() };
 }
 
-export function resetSession(sessionId: string | undefined): void {
-  if (!sessionId) return;
-  storage.clearSession(sessionId);
+export function resetSession(sessionId: string | undefined, scenarioId: string | undefined): void {
+  if (!sessionId || !scenarioId) return;
+  storage.clearLastSessionPointer(scenarioId, sessionId);
 }
 
 export async function sendMessage(
@@ -99,10 +131,17 @@ export async function sendMessage(
     content,
     createdAt: new Date().toISOString(),
     tags,
+    queuedOffline: isOffline() ? true : undefined,
   };
 
   const messages = [...state.messages, message];
   let reply: Message | null = null;
+
+  if (isOffline()) {
+    const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
+    storage.saveSession(snapshot);
+    return { ...state, session, messages, offline: true };
+  }
 
   if (env.apiBase) {
     const apiMessage = await api.postMessage(session.id, role, content, tags);
@@ -118,10 +157,13 @@ export async function sendMessage(
 
   const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
   storage.saveSession(snapshot);
-  return { ...state, session, messages };
+  return { ...state, session, messages, offline: isOffline() };
 }
 
 export async function evaluate(state: SessionState): Promise<SessionState> {
+  if (isOffline()) {
+    throw new Error("Offline: evaluation is disabled until connectivity returns.");
+  }
   let evaluation: Evaluation;
   if (env.apiBase) {
     evaluation = await api.evaluate(state.session.id);
@@ -136,7 +178,7 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
   };
   const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation };
   storage.saveSession(snapshot);
-  return { ...state, session, evaluation };
+  return { ...state, session, evaluation, offline: isOffline() };
 }
 
 export function updateProgress(
@@ -149,7 +191,7 @@ export function updateProgress(
   };
   const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
   storage.saveSession(snapshot);
-  return { ...state, session };
+  return { ...state, session, offline: isOffline() };
 }
 
 export async function loadHistory(): Promise<HistoryItem[]> {
@@ -166,6 +208,8 @@ export async function loadHistory(): Promise<HistoryItem[]> {
       const snapshot = JSON.parse(raw) as SessionSnapshot;
       return {
         sessionId: snapshot.session.id,
+        scenarioId: snapshot.session.scenarioId,
+        scenarioDiscipline: snapshot.session.scenarioDiscipline,
         metadata: {
           duration: undefined,
           messageCount: snapshot.messages.length,

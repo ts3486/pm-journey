@@ -34,7 +34,7 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 
 export const api = {
   async createSession(scenarioId: string): Promise<Session> {
-    return request<Session>("/sessions", { method: "POST", body: { scenario_id: scenarioId } });
+    return request<Session>("/sessions", { method: "POST", body: { scenarioId } });
   },
   async listSessions(): Promise<HistoryItem[]> {
     return request<HistoryItem[]>("/sessions");

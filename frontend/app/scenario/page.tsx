@@ -7,12 +7,26 @@ import { ContextPanel } from "@/components/ContextPanel";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { SessionControls } from "@/components/SessionControls";
-import { evaluate, resumeSession, sendMessage, startSession, updateProgress } from "@/services/sessions";
-import { useEffect, useState } from "react";
+import { defaultScenario, getScenarioById } from "@/config/scenarios";
+import { evaluate, resetSession, resumeSession, sendMessage, startSession, type SessionState, updateProgress } from "@/services/sessions";
+import { logEvent } from "@/services/telemetry";
+import { storage } from "@/services/storage";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 export default function ScenarioPage() {
-  const [state, setState] = useState(() => resumeSession());
+  const [state, setState] = useState<SessionState | null>(null);
   const [loadingEval, setLoadingEval] = useState(false);
+  const [canResume, setCanResume] = useState(false);
+  const searchParams = useSearchParams();
+  const restart = searchParams.get("restart") === "1";
+
+  const scenarioIdParam = searchParams.get("scenarioId");
+  const activeScenario = useMemo(() => {
+    if (scenarioIdParam) return getScenarioById(scenarioIdParam) ?? defaultScenario;
+    if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
+    return defaultScenario;
+  }, [scenarioIdParam, state?.session?.scenarioId]);
 
   const hasActive = !!state?.session;
   const evaluationReady =
@@ -20,23 +34,48 @@ export default function ScenarioPage() {
     state.session.progressFlags.requirements &&
     state.session.progressFlags.priorities &&
     state.session.progressFlags.risks &&
-    state.session.progressFlags.acceptance;
+    state.session.progressFlags.acceptance &&
+    !state.offline;
 
-  const handleStart = async () => {
-    const snapshot = await startSession("olivia-attendance");
-    setState(snapshot);
+  const handleStart = async (scenario = activeScenario) => {
+    const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
+    setState({ ...snapshot, session: { ...snapshot.session, scenarioDiscipline: scenario.discipline } });
+    setCanResume(true);
+    logEvent({
+      type: "session_start",
+      sessionId: snapshot.session.id,
+      scenarioId: scenario.id,
+      scenarioDiscipline: scenario.discipline,
+    });
   };
 
-  const handleResume = async () => {
-    const snapshot = resumeSession();
-    setState(snapshot);
+  const handleResume = async (scenarioId?: string) => {
+    const snapshot = resumeSession(scenarioId ?? activeScenario.id);
+    if (snapshot) {
+      setState(snapshot);
+      setCanResume(true);
+      logEvent({
+        type: "session_resume",
+        sessionId: snapshot.session.id,
+        scenarioId: snapshot.session.scenarioId,
+        scenarioDiscipline: snapshot.session.scenarioDiscipline,
+      });
+    }
   };
 
   const handleReset = async () => {
     if (state?.session) {
       const confirmed = window.confirm("セッションをリセットしますか？");
       if (!confirmed) return;
+      resetSession(state.session.id, state.session.scenarioId);
       setState(null);
+      setCanResume(false);
+      logEvent({
+        type: "session_reset",
+        sessionId: state.session.id,
+        scenarioId: state.session.scenarioId,
+        scenarioDiscipline: state.session.scenarioDiscipline,
+      });
     }
   };
 
@@ -49,9 +88,22 @@ export default function ScenarioPage() {
   const handleEvaluate = async () => {
     if (!state) return;
     setLoadingEval(true);
-    const next = await evaluate(state);
-    setState(next);
-    setLoadingEval(false);
+    try {
+      const next = await evaluate(state);
+      setState(next);
+      logEvent({
+        type: "evaluation",
+        sessionId: next.session.id,
+        scenarioId: next.session.scenarioId,
+        scenarioDiscipline: next.session.scenarioDiscipline,
+        score: next.evaluation?.overallScore,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(err instanceof Error ? err.message : "評価はオフライン時に実行できません。");
+    } finally {
+      setLoadingEval(false);
+    }
   };
 
   const handleUpdateTags = (messageId: string, tags: string[]) => {
@@ -73,25 +125,35 @@ export default function ScenarioPage() {
   };
 
   useEffect(() => {
-    if (state) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void handleStart();
-  }, [state]);
+    const targetScenario = getScenarioById(scenarioIdParam) ?? activeScenario ?? defaultScenario;
+    if (!restart) {
+      const existing = resumeSession(targetScenario.id);
+      if (existing && !state) {
+        setState(existing);
+      } else if (!existing && !state) {
+        void handleStart(targetScenario);
+      }
+    } else if (!state) {
+      void handleStart(targetScenario);
+    }
+    setCanResume(!!storage.loadLastSessionId(targetScenario.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioIdParam, restart]);
 
-  const contextGoals = ["打刻漏れ削減", "モバイルからの打刻改善", "要件を6ヶ月で確定"];
-  const contextProblems = ["旧勤怠システムの使いにくさ", "モバイル非対応", "打刻漏れが多い"];
-  const contextConstraints = ["社内利用のみ", "セキュリティ遵守", "評価カテゴリを提示する"];
-  const contextSuccess = ["評価4カテゴリで70点以上", "モバイル打刻成功率向上", "リスクと前提の明文化"];
+  const contextGoals = activeScenario.product.goals;
+  const contextProblems = activeScenario.product.problems;
+  const contextConstraints = activeScenario.product.constraints;
+  const contextSuccess = activeScenario.product.successCriteria;
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
       <div className="order-2 space-y-4 lg:order-1">
         <ContextPanel
-          audience="社内従業員・マネージャー"
+          audience={activeScenario.product.audience}
           goals={contextGoals}
           problems={contextProblems}
           constraints={contextConstraints}
-          timeline="6ヶ月以内に社内展開"
+          timeline={activeScenario.product.timeline}
           successCriteria={contextSuccess}
         />
         <ProgressTracker
@@ -104,19 +166,31 @@ export default function ScenarioPage() {
         />
       </div>
       <div className="order-1 space-y-4 lg:order-2">
+        {state?.offline ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            オフラインのためメッセージはキューされます。評価はオンラインに戻ってから有効になります。
+          </div>
+        ) : null}
         <SessionControls
           hasActive={hasActive}
-          onStart={handleStart}
+          canResume={canResume}
+          onStart={() => void handleStart(activeScenario)}
           onResume={handleResume}
           onReset={handleReset}
           onEvaluate={handleEvaluate}
           evaluationReady={evaluationReady}
+          scenarioTitle={activeScenario.title}
+          offline={state?.offline ?? false}
         />
         <ChatStream messages={state?.messages ?? []} />
         <ChatComposer
           onSend={handleSend}
           disabled={!hasActive}
-          quickPrompts={["現状の打刻課題を整理してください", "リスクと前提をリスト化してください"]}
+          quickPrompts={[
+            "現状の打刻課題を整理してください",
+            "リスクと前提をリスト化してください",
+            "評価基準に沿って方針をまとめてください",
+          ]}
         />
         <EvaluationPanel evaluation={state?.evaluation} loading={loadingEval} />
         <ActionLog messages={state?.messages ?? []} onUpdateTags={handleUpdateTags} />

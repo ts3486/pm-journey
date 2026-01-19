@@ -1,4 +1,5 @@
 use axum::{
+    extract::Path,
     routing::{get, post},
     Json, Router,
 };
@@ -8,8 +9,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::error::{anyhow_error, AppError};
 use crate::models::{
-    Evaluation, HistoryItem, Message, MessageRole, MessageTag, ProgressFlags, Scenario, Session,
-    SessionStatus,
+    default_scenarios, Evaluation, HistoryItem, Message, MessageRole, MessageTag, ProgressFlags, Scenario,
+    ScenarioDiscipline, Session, SessionStatus,
 };
 
 #[allow(dead_code)]
@@ -18,6 +19,8 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        list_scenarios,
+        get_scenario,
         health,
         create_session,
         list_sessions,
@@ -35,7 +38,9 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         MessageRole,
         MessageTag,
         Evaluation,
-        HistoryItem
+        HistoryItem,
+        ScenarioDiscipline,
+        crate::models::ProductInfo
     ))
 )]
 struct ApiDoc;
@@ -43,6 +48,8 @@ struct ApiDoc;
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/scenarios", get(list_scenarios))
+        .route("/scenarios/:id", get(get_scenario))
         .route("/sessions", post(create_session).get(list_sessions))
         .route(
             "/sessions/:id",
@@ -62,8 +69,31 @@ async fn health() -> Json<&'static str> {
     Json("ok")
 }
 
+#[utoipa::path(
+    get,
+    path = "/scenarios",
+    responses((status = 200, body = [Scenario]))
+)]
+async fn list_scenarios() -> Json<Vec<Scenario>> {
+    Json(default_scenarios())
+}
+
+#[utoipa::path(
+    get,
+    path = "/scenarios/{id}",
+    responses((status = 200, body = Scenario))
+)]
+async fn get_scenario(Path(id): Path<String>) -> Result<Json<Scenario>, AppError> {
+    let scenario = default_scenarios()
+        .into_iter()
+        .find(|s| s.id == id)
+        .ok_or_else(|| anyhow_error("scenario not found"))?;
+    Ok(Json(scenario))
+}
+
 #[derive(Deserialize)]
 #[derive(ToSchema)]
+#[serde(rename_all = "camelCase")]
 struct CreateSessionRequest {
     scenario_id: String,
 }
@@ -77,9 +107,14 @@ struct CreateSessionRequest {
 async fn create_session(
     Json(body): Json<CreateSessionRequest>,
 ) -> Result<Json<Session>, AppError> {
+    let discipline = default_scenarios()
+        .into_iter()
+        .find(|s| s.id == body.scenario_id)
+        .map(|s| s.discipline);
     let session = Session {
         id: "session-1".to_string(),
         scenario_id: body.scenario_id,
+        scenario_discipline: discipline,
         status: SessionStatus::Active,
         started_at: chrono::Utc::now().to_rfc3339(),
         ended_at: None,
@@ -113,6 +148,8 @@ async fn list_sessions() -> Result<Json<Vec<HistoryItem>>, AppError> {
 async fn get_session() -> Result<Json<HistoryItem>, AppError> {
     let item = HistoryItem {
         session_id: "session-1".to_string(),
+        scenario_id: Some("pm-attendance-modernization".to_string()),
+        scenario_discipline: Some(ScenarioDiscipline::PM),
         metadata: crate::models::HistoryMetadata {
             duration: Some(0.0),
             message_count: Some(0),
