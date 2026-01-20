@@ -1,11 +1,6 @@
 use std::time::Instant;
 
-use axum::{
-    body::Body,
-    http::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{body::Body, http::Request, middleware::Next, response::Response};
 use tracing::{error, info, warn};
 
 pub async fn tracing_middleware(req: Request<Body>, next: Next) -> Response {
@@ -17,8 +12,12 @@ pub async fn tracing_middleware(req: Request<Body>, next: Next) -> Response {
     let elapsed = start.elapsed();
 
     match status {
-        s if s.is_server_error() => error!(%method, %path, %status, elapsed_ms = elapsed.as_millis(), "request failed"),
-        s if s.is_client_error() => warn!(%method, %path, %status, elapsed_ms = elapsed.as_millis(), "request returned client error"),
+        s if s.is_server_error() => {
+            error!(%method, %path, %status, elapsed_ms = elapsed.as_millis(), "request failed")
+        }
+        s if s.is_client_error() => {
+            warn!(%method, %path, %status, elapsed_ms = elapsed.as_millis(), "request returned client error")
+        }
         _ => info!(%method, %path, %status, elapsed_ms = elapsed.as_millis(), "request handled"),
     }
 

@@ -125,6 +125,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Evaluation'
+  /sessions/{id}/comments:
+    post:
+      summary: Add a manager comment to a session
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerComment'
+    get:
+      summary: List manager comments for a session
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManagerComment'
 
 components:
   parameters:
@@ -155,6 +186,15 @@ components:
           items:
             type: string
             enum: [decision, assumption, risk, next_action, summary]
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        authorName:
+          type: string
+          nullable: true
+        content:
+          type: string
     SessionWithKickoff:
       type: object
       properties:
@@ -179,6 +219,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Message'
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagerComment'
     MessageResponse:
       type: object
       properties:
@@ -225,6 +269,10 @@ components:
               type: boolean
         evaluationRequested:
           type: boolean
+        missionStatus:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissionStatus'
     Message:
       type: object
       properties:
@@ -301,6 +349,10 @@ components:
             $ref: '#/components/schemas/Message'
         evaluation:
           $ref: '#/components/schemas/Evaluation'
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagerComment'
     Scenario:
       type: object
       properties:
@@ -327,6 +379,13 @@ components:
         passingScore:
           type: number
           format: float
+        missions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mission'
+        supplementalInfo:
+          type: string
+          description: Markdown/plain text for Scenario side info
     ScenarioProduct:
       type: object
       properties:
@@ -373,3 +432,39 @@ components:
           type: array
           items:
             type: string
+    Mission:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        order:
+          type: integer
+    MissionStatus:
+      type: object
+      properties:
+        missionId:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ManagerComment:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        authorName:
+          type: string
+          nullable: true
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

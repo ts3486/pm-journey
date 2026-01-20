@@ -38,6 +38,12 @@ const scenarioList: Scenario[] = [
       "あなたはPMとして勤怠アプリ刷新をリードします。現状課題と成功条件を整理し、AIエンジニア/デザイナーの鈴木と対話しながら要件を詰めてください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pm-attendance-m1", title: "課題と現状整理を行う", order: 1 },
+      { id: "pm-attendance-m2", title: "成功条件とKPIを定義する", order: 2 },
+      { id: "pm-attendance-m3", title: "主要リスクと前提を洗い出す", order: 3 },
+    ],
+    supplementalInfo: "勤怠打刻漏れの要因（モバイル/UX/ネットワーク）を重点的に整理し、評価基準70点以上を目指してください。",
   },
   {
     id: "pm-mobile-checkin",
@@ -63,6 +69,12 @@ const scenarioList: Scenario[] = [
     kickoffPrompt: "フィールド環境での確実な打刻体験をPMとして設計してください。オフライン前提で課題とリスクを洗い出してください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pm-mobile-m1", title: "オフライン要件と同期方針を決める", order: 1 },
+      { id: "pm-mobile-m2", title: "通知/失敗リカバリ設計を固める", order: 2 },
+      { id: "pm-mobile-m3", title: "リスクとテレメトリ計画を整理する", order: 3 },
+    ],
+    supplementalInfo: "電波不安定環境での再送/リトライ、位置情報の取り扱い、管理者通知を考慮してください。",
   },
   {
     id: "pm-shift-visibility",
@@ -88,6 +100,12 @@ const scenarioList: Scenario[] = [
     kickoffPrompt: "シフト欠員を早期に検知し通知するシステムをPMとして設計してください。優先度と通知設計に着目してください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pm-shift-m1", title: "欠員検知ロジックとデータ要件を定義する", order: 1 },
+      { id: "pm-shift-m2", title: "通知優先度と運用ルールを設計する", order: 2 },
+      { id: "pm-shift-m3", title: "ダッシュボード最小機能を決める", order: 3 },
+    ],
+    supplementalInfo: "モバイル閲覧最適化と個人情報最小化を意識してください。",
   },
   {
     id: "pmo-portfolio-hygiene",
@@ -114,6 +132,12 @@ const scenarioList: Scenario[] = [
       "あなたはPMOとして複数プロジェクトをレビューします。リスクと前提を整理し、判断材料を揃えてください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pmo-hygiene-m1", title: "共通フォーマットと更新リズムを定義する", order: 1 },
+      { id: "pmo-hygiene-m2", title: "リスク/前提の収集とエスカレーション基準をまとめる", order: 2 },
+      { id: "pmo-hygiene-m3", title: "レビュー指標と可視化要件を決める", order: 3 },
+    ],
+    supplementalInfo: "HTTPS必須・機密保持に留意しつつ、週次遵守とリスク検知前倒しを狙ってください。",
   },
   {
     id: "pmo-risk-register",
@@ -139,6 +163,12 @@ const scenarioList: Scenario[] = [
     kickoffPrompt: "PMOとしてリスク/前提を標準化するレジスターを設計してください。重大度評価とエスカレーション基準に焦点を当ててください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pmo-register-m1", title: "重大度評価ロジックを定義する", order: 1 },
+      { id: "pmo-register-m2", title: "通知/エスカレーション導線を設計する", order: 2 },
+      { id: "pmo-register-m3", title: "監査ログとデータ保持方針を整理する", order: 3 },
+    ],
+    supplementalInfo: "HTTPSと監査ログ保持を前提に、重大リスク即時共有を実現してください。",
   },
   {
     id: "pmo-portfolio-ops",
@@ -164,6 +194,12 @@ const scenarioList: Scenario[] = [
     kickoffPrompt: "PMOとして週次のポートフォリオ運営リズムを設計してください。共通フォーマットと通知を意識してください。",
     evaluationCriteria: evaluationCriteria.map((c) => ({ ...c })),
     passingScore: 70,
+    missions: [
+      { id: "pmo-ops-m1", title: "週次入力テンプレと必須項目を決める", order: 1 },
+      { id: "pmo-ops-m2", title: "リマインド通知と遅延検知の設計を行う", order: 2 },
+      { id: "pmo-ops-m3", title: "ダッシュボード表示要件とアクセス制御方針を整理する", order: 3 },
+    ],
+    supplementalInfo: "HTTPS必須・アクセス制御後続を意識しつつ、更新遵守率を上げる仕組みを優先してください。",
   },
 ];
 

@@ -3,11 +3,19 @@
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
-import { evaluate, resetSession, resumeSession, sendMessage, startSession, type SessionState } from "@/services/sessions";
+import {
+  evaluate,
+  resetSession,
+  resumeSession,
+  sendMessage,
+  startSession,
+  updateMissionStatus,
+  type SessionState,
+} from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
 import { storage } from "@/services/storage";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 export default function ScenarioPage() {
   return (
@@ -26,6 +34,7 @@ function ScenarioContent() {
   const [loadingEval, setLoadingEval] = useState(false);
   const [canResume, setCanResume] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const autoEvalAttempted = useRef<Record<string, boolean>>({});
   const searchParams = useSearchParams();
   const restart = searchParams.get("restart") === "1";
   const scenarioIdParam = searchParams.get("scenarioId");
@@ -44,6 +53,13 @@ function ScenarioContent() {
     state.session.progressFlags.risks &&
     state.session.progressFlags.acceptance &&
     !state.offline;
+  const missions = activeScenario.missions ?? [];
+  const missionStatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    (state?.session.missionStatus ?? []).forEach((m) => map.set(m.missionId, true));
+    return map;
+  }, [state?.session?.missionStatus]);
+  const allMissionsComplete = missions.length > 0 && missions.every((m) => missionStatusMap.get(m.id));
 
   const handleStart = async (scenario = activeScenario) => {
     const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
@@ -85,6 +101,12 @@ function ScenarioContent() {
         scenarioDiscipline: state.session.scenarioDiscipline,
       });
     }
+  };
+
+  const handleMissionToggle = (missionId: string, completed: boolean) => {
+    if (!state) return;
+    const next = updateMissionStatus(state, missionId, completed);
+    setState(next);
   };
 
   const handleSend = async (content: string) => {
@@ -130,6 +152,38 @@ function ScenarioContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
 
+  useEffect(() => {
+    const sessionId = state?.session?.id;
+    if (
+      !state ||
+      !sessionId ||
+      state.evaluation ||
+      !allMissionsComplete ||
+      state.offline ||
+      !evaluationReady
+    ) {
+      return;
+    }
+    if (autoEvalAttempted.current[sessionId]) return;
+    autoEvalAttempted.current[sessionId] = true;
+    setLoadingEval(true);
+    void evaluate(state)
+      .then((next) => {
+        setState(next);
+        logEvent({
+          type: "evaluation",
+          sessionId: next.session.id,
+          scenarioId: next.session.scenarioId,
+          scenarioDiscipline: next.session.scenarioDiscipline,
+          score: next.evaluation?.overallScore,
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+      })
+      .finally(() => setLoadingEval(false));
+  }, [state, allMissionsComplete, evaluationReady]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
@@ -147,7 +201,17 @@ function ScenarioContent() {
             {isCollapsed ? "開く" : "閉じる"}
           </button>
         </div>
-        {!isCollapsed && <p className="mt-2 text-sm text-slate-700">{activeScenario.description}</p>}
+        {!isCollapsed && (
+          <div className="mt-2 space-y-2 text-sm text-slate-700">
+            <p>{activeScenario.description}</p>
+            {activeScenario.supplementalInfo ? (
+              <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-slate-800">
+                <p className="text-xs font-semibold text-sky-800">補足情報</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm">{activeScenario.supplementalInfo}</p>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {state?.offline ? (
@@ -156,17 +220,71 @@ function ScenarioContent() {
         </div>
       ) : null}
 
-      <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
-        <ChatStream messages={state?.messages ?? []} maxHeight="65vh" />
-        <ChatComposer
-          onSend={handleSend}
-          disabled={!hasActive}
-          quickPrompts={[
-            "現状の課題をまとめてください",
-            "リスクと前提を洗い出してください",
-            "次の打ち手を提案してください",
-          ]}
-        />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 shadow-sm lg:col-span-2">
+          <ChatStream messages={state?.messages ?? []} maxHeight="65vh" />
+          <ChatComposer
+            onSend={handleSend}
+            disabled={!hasActive}
+            quickPrompts={[
+              "現状の課題をまとめてください",
+              "リスクと前提を洗い出してください",
+              "次の打ち手を提案してください",
+            ]}
+          />
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">ミッション</p>
+              {allMissionsComplete ? (
+                <span className="text-xs font-semibold text-emerald-600">完了</span>
+              ) : (
+                <span className="text-xs text-slate-500">進行中</span>
+              )}
+            </div>
+            <ul className="mt-2 space-y-2">
+              {missions.length === 0 ? (
+                <li className="text-xs text-slate-500">設定されたミッションはありません。</li>
+              ) : (
+                missions
+                  .slice()
+                  .sort((a, b) => a.order - b.order)
+                  .map((mission) => {
+                    const done = missionStatusMap.get(mission.id) ?? false;
+                    return (
+                      <li key={mission.id} className="flex items-start gap-2 rounded-md border border-sky-100 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+                          checked={done}
+                          onChange={(e) => handleMissionToggle(mission.id, e.target.checked)}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{mission.title}</p>
+                          {mission.description ? (
+                            <p className="text-xs text-slate-600">{mission.description}</p>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })
+              )}
+            </ul>
+          </div>
+          {activeScenario.supplementalInfo ? (
+            <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-slate-800">
+              <p className="text-xs font-semibold text-sky-800">補足情報</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{activeScenario.supplementalInfo}</p>
+            </div>
+          ) : null}
+          {allMissionsComplete && !state?.offline ? (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              全ミッション完了。評価を実行しています…{loadingEval ? "（処理中）" : ""}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

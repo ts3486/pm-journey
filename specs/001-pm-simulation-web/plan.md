@@ -1,13 +1,13 @@
 # Implementation Plan: Olivia PM Simulation Web Experience
 
-**Branch**: `001-scenario-selection` | **Date**: 2026-01-19 | **Spec**: `/specs/001-pm-simulation-web/spec.md`
+**Branch**: `001-scenario-renewal` | **Date**: 2026-01-20 | **Spec**: `/specs/001-pm-simulation-web/spec.md`
 **Input**: Feature specification from `/specs/001-pm-simulation-web/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command (automation will replace placeholders).
 
 ## Summary
 
-Deliver a web-based PM simulation where learners start/resume sessions, choose PM vs PMO scenarios on Home, collaborate with the AI partner “鈴木,” and drive requirements to evaluation, using Next.js 16 (app router) + Tailwind 4 + TanStack Query for an offline-first client with localStorage/IndexedDB persistence and optional Axum/utoipa REST API for multi-device sync. Evaluation, tagging, history/export, and bilingual WCAG-compliant UX anchor the experience; session lifecycle is observable and test-covered across frontend and backend. Chat is powered by Mastra agents (per-scenario prompts) using Gemini with configurable API key.
+Deliver a web-based PM/PMO simulation where learners pick scenarios from a two-row Home (PM/PMO), jump into Scenario with per-scenario prompts preloaded, chat with the AI partner “鈴木,” complete missions with supplemental info, and on completion get auto-notified and routed to a detail view with AI evaluation and manager comments. Stack: Next.js 16 (app router) + Tailwind 4 + TanStack Query for an offline-first client (localStorage/IndexedDB) with optional Axum/utoipa REST API for sync. Evaluation, tagging, history/export, and bilingual WCAG-compliant UX are required; Mastra + Gemini provides chat when a key is present, with observability across lifecycle events.
 
 ## Technical Context
 
@@ -25,7 +25,12 @@ Deliver a web-based PM simulation where learners start/resume sessions, choose P
 **Project Type**: Web application with separate frontend (Next.js) and backend (Axum) workspaces  
 **Performance Goals**: Initial Home/Scenario load <3s on 4G; evaluation responses <10s; lazy-load long history; keep UI responsive on mobile with sticky composer  
 **Constraints**: Offline-first with queued sends and autosave after each message/evaluation; WCAG AA + bilingual JP-first content; avoid Slack/command artifacts; HTTPS required when API enabled; evaluation gated until session ready  
-**Scale/Scope**: Single-learner local mode with multiple saved sessions and history; optional multi-device API sync with server-ordered merge and latest-timestamp wins
+**Scale/Scope**: Single-learner local mode with multiple saved sessions (per-scenario parallel allowed) and history; optional multi-device API sync with server-ordered merge and latest-timestamp wins  
+**Unknowns to Clarify (Phase 0)**:
+- Missions: source of mission definitions and completion tracking (scenario config vs API) — RESOLVED in research (scenario config + session state).
+- Evaluation trigger: auto-run upon mission completion vs manual “ready for evaluation” — RESOLVED in research (auto-attempt + manual fallback).
+- Manager comments: authentication/attribution approach for 上長コメント — RESOLVED in research (optional name, no auth in local mode).
+- Font strategy: allow remote Google font vs bundle/local fallback to avoid build-time fetch failures — RESOLVED in research (system stack/local bundle, avoid remote fetch).
 
 ## Constitution Check
 

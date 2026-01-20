@@ -41,3 +41,23 @@
 - **Decision**: Log lifecycle events (start/resume/reset/evaluate) with scenarioId and storage location to the console by default, keeping the hook pluggable for API telemetry.
 - **Rationale**: Meets constitution observability without backend dependency; aids debugging of offline/queue behaviors during development.
 - **Alternatives considered**: No-op logging (less traceability), external analytics SDK (unneeded for current scope).
+
+### Missions definition and tracking
+- **Decision**: Define missions per scenario in the frontend catalog (static JSON/TS config) and track completion in session state (local storage/API snapshot) with timestamped statuses.
+- **Rationale**: Matches offline-first, keeps Home→Scenario fast, and aligns with wireframe showing fixed mission set per scenario.
+- **Alternatives considered**: Fetch missions from API (adds dependency/latency), derive from messages (ambiguous and brittle).
+
+### Evaluation trigger on mission completion
+- **Decision**: Auto-attempt evaluation when all missions are marked complete and the client is online; if offline or evaluation fails, keep the manual “ready for evaluation” control as fallback with a retry banner.
+- **Rationale**: Matches user flow (“完了通知→詳細画面→評価”) while preserving resilience/offline guardrails and FR-010 gating.
+- **Alternatives considered**: Manual-only evaluation (misses flow expectation), background eval without user notice (opaque and riskier).
+
+### Manager comment attribution
+- **Decision**: Allow 上長コメント with optional manager name field (plain text) and timestamp; no auth in default local mode, with a note to require auth if API/multi-user is enabled.
+- **Rationale**: Satisfies review need without blocking offline/local use; keeps path to authenticated API mode open.
+- **Alternatives considered**: Enforce auth now (not feasible in anonymous/local default), anonymous-only comments (no attribution).
+
+### Font strategy and build resilience
+- **Decision**: Use system font stack with optional locally bundled JP font; avoid build-time remote font fetch to prevent Turbopack failures when offline.
+- **Rationale**: Prior build errors came from Google font fetch; system stack ensures reliability and WCAG contrast remains controllable.
+- **Alternatives considered**: Keep remote Google Fonts (fragile offline), drop JP-friendly fonts (hurts readability).

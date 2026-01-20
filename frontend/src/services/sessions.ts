@@ -33,6 +33,7 @@ const defaultSession = (scenarioId: string, scenarioDiscipline?: ScenarioDiscipl
   userName: undefined,
   progressFlags: defaultProgressFlags(),
   evaluationRequested: false,
+  missionStatus: [],
 });
 
 const createAgentReply = (userMessage: string): Message => ({
@@ -166,8 +167,9 @@ export async function sendMessage(
   }
 
   if (env.apiBase) {
-    const apiMessage = await api.postMessage(session.id, role, content, tags);
-    reply = apiMessage;
+    const apiMessage = await api.postMessage(session.id, role, content, tags, session.missionStatus);
+    reply = apiMessage.reply;
+    session.missionStatus = apiMessage.session.missionStatus;
   } else if (role === "user") {
     const agentText =
       (await requestAgentReply({
@@ -228,6 +230,31 @@ export function updateProgress(
   return { ...state, session, offline: isOffline() };
 }
 
+export function updateMissionStatus(
+  state: SessionState,
+  missionId: string,
+  completed: boolean,
+): SessionState {
+  const missionStatus = [...(state.session.missionStatus ?? [])];
+  const existingIndex = missionStatus.findIndex((m) => m.missionId === missionId);
+  if (completed) {
+    const entry = { missionId, completedAt: new Date().toISOString() };
+    if (existingIndex >= 0) missionStatus[existingIndex] = entry;
+    else missionStatus.push(entry);
+  } else if (existingIndex >= 0) {
+    missionStatus.splice(existingIndex, 1);
+  }
+
+  const session: Session = {
+    ...state.session,
+    missionStatus,
+    lastActivityAt: new Date().toISOString(),
+  };
+  const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
+  storage.saveSession(snapshot);
+  return { ...state, session, offline: isOffline() };
+}
+
 export async function loadHistory(): Promise<HistoryItem[]> {
   if (env.apiBase) {
     return api.listSessions();
@@ -251,6 +278,7 @@ export async function loadHistory(): Promise<HistoryItem[]> {
         actions: snapshot.messages.filter((m) => m.tags && m.tags.length > 0),
         evaluation: snapshot.evaluation,
         storageLocation: "local",
+        comments: storage.loadComments(snapshot.session.id),
       } as HistoryItem;
     })
     .filter(Boolean) as HistoryItem[];

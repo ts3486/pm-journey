@@ -25,5 +25,6 @@ export function getHistoryItem(sessionId: string): HistoryItem | null {
     actions: snap.messages.filter((m) => m.tags && m.tags.length > 0),
     evaluation: snap.evaluation,
     storageLocation: "local",
+    comments: storage.loadComments(sessionId),
   };
 }

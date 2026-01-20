@@ -12,6 +12,8 @@ pub struct Scenario {
     pub kickoff_prompt: String,
     pub evaluation_criteria: Vec<EvaluationCategory>,
     pub passing_score: Option<f32>,
+    pub missions: Option<Vec<Mission>>,
+    pub supplemental_info: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
@@ -59,6 +61,7 @@ pub struct Session {
     pub user_name: Option<String>,
     pub progress_flags: ProgressFlags,
     pub evaluation_requested: bool,
+    pub mission_status: Option<Vec<MissionStatus>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
@@ -109,6 +112,20 @@ pub struct Evaluation {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct Mission {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub order: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct MissionStatus {
+    pub mission_id: String,
+    pub completed_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct HistoryItem {
     pub session_id: String,
     pub scenario_id: Option<String>,
@@ -117,12 +134,22 @@ pub struct HistoryItem {
     pub actions: Vec<Message>,
     pub evaluation: Option<Evaluation>,
     pub storage_location: Option<String>,
+    pub comments: Option<Vec<ManagerComment>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct HistoryMetadata {
     pub duration: Option<f32>,
     pub message_count: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct ManagerComment {
+    pub id: String,
+    pub session_id: String,
+    pub author_name: Option<String>,
+    pub content: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
@@ -163,6 +190,12 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 EvaluationCategory { name: "リスク/前提管理と改善姿勢".to_string(), weight: 25.0, score: None, feedback: None },
             ],
             passing_score: Some(70.0),
+            missions: Some(vec![
+                Mission { id: "pm-attendance-m1".to_string(), title: "課題と現状整理を行う".to_string(), description: None, order: 1 },
+                Mission { id: "pm-attendance-m2".to_string(), title: "成功条件とKPIを定義する".to_string(), description: None, order: 2 },
+                Mission { id: "pm-attendance-m3".to_string(), title: "主要リスクと前提を洗い出す".to_string(), description: None, order: 3 },
+            ]),
+            supplemental_info: Some("勤怠打刻漏れの要因（モバイル/UX/ネットワーク）を整理し、評価70点以上を目指す。".to_string()),
         },
         Scenario {
             id: "pmo-portfolio-hygiene".to_string(),
@@ -193,6 +226,12 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 EvaluationCategory { name: "リスク/前提管理と改善姿勢".to_string(), weight: 25.0, score: None, feedback: None },
             ],
             passing_score: Some(70.0),
+            missions: Some(vec![
+                Mission { id: "pmo-hygiene-m1".to_string(), title: "共通フォーマットと更新リズムを定義する".to_string(), description: None, order: 1 },
+                Mission { id: "pmo-hygiene-m2".to_string(), title: "リスク/前提の収集とエスカレーション基準をまとめる".to_string(), description: None, order: 2 },
+                Mission { id: "pmo-hygiene-m3".to_string(), title: "レビュー指標と可視化要件を決める".to_string(), description: None, order: 3 },
+            ]),
+            supplemental_info: Some("HTTPS必須・機密保持を意識しつつ週次遵守とリスク検知前倒しを狙う。".to_string()),
         },
     ]
 }

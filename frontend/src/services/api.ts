@@ -5,7 +5,9 @@ import type {
   Message,
   MessageRole,
   MessageTag,
+  ManagerComment,
   Session,
+  MissionStatus,
 } from "@/types/session";
 
 const base = env.apiBase;
@@ -50,13 +52,26 @@ export const api = {
     role: MessageRole,
     content: string,
     tags?: MessageTag[],
-  ): Promise<Message> {
-    return request<Message>(`/sessions/${sessionId}/messages`, {
+    missionStatus?: MissionStatus[],
+  ): Promise<{ reply: Message; session: Session }> {
+    return request<{ reply: Message; session: Session }>(`/sessions/${sessionId}/messages`, {
       method: "POST",
-      body: { role, content, tags },
+      body: { role, content, tags, missionStatus },
     });
   },
   async evaluate(sessionId: string): Promise<Evaluation> {
     return request<Evaluation>(`/sessions/${sessionId}/evaluate`, { method: "POST" });
+  },
+  async listComments(sessionId: string): Promise<ManagerComment[]> {
+    return request<ManagerComment[]>(`/sessions/${sessionId}/comments`);
+  },
+  async createComment(
+    sessionId: string,
+    payload: { content: string; authorName?: string },
+  ): Promise<ManagerComment> {
+    return request<ManagerComment>(`/sessions/${sessionId}/comments`, {
+      method: "POST",
+      body: payload,
+    });
   },
 };
