@@ -119,6 +119,10 @@
 - [ ] T034 [P] Extend telemetry for history/export/offline-queue events in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/telemetry.ts` and `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/middleware/telemetry.rs`
 - [ ] T035 Update quickstart with scenario catalog usage, offline queue defaults, and HTTPS guidance in `/Users/taoshimomura/Desktop/dev/pm-journey/specs/001-pm-simulation-web/quickstart.md`
 - [ ] T036 Final refactor/cleanup and dependency audit in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/package.json` and `/Users/taoshimomura/Desktop/dev/pm-journey/backend/Cargo.toml`
+- [X] T037 [P] Add Mastra/Gemini dependency and env config (`NEXT_PUBLIC_GEMINI_API_KEY`) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/package.json` and `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/.env.example`
+- [X] T038 [US1] Create scenario-aware Mastra agent config with per-scenario prompts in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/mastraAgent.ts`
+- [X] T039 [P] [US1] Wire chat flow to Mastra agent responses (fallback offline/local echo) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
+- [X] T040 [US1] Document Gemini key setup and prompt overrides in `/Users/taoshimomura/Desktop/dev/pm-journey/specs/001-pm-simulation-web/quickstart.md`
 
 ---
 

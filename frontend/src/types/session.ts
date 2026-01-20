@@ -78,6 +78,7 @@ export type Scenario = {
   id: string;
   title: string;
   description: string;
+  discipline: ScenarioDiscipline;
   product: {
     name: string;
     summary: string;

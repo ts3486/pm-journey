@@ -7,7 +7,7 @@
 
 ## Summary
 
-Deliver a web-based PM simulation where learners start/resume sessions, choose PM vs PMO scenarios on Home, collaborate with the AI partner “鈴木,” and drive requirements to evaluation, using Next.js 16 (app router) + Tailwind 4 + TanStack Query for an offline-first client with localStorage/IndexedDB persistence and optional Axum/utoipa REST API for multi-device sync. Evaluation, tagging, history/export, and bilingual WCAG-compliant UX anchor the experience; session lifecycle is observable and test-covered across frontend and backend.
+Deliver a web-based PM simulation where learners start/resume sessions, choose PM vs PMO scenarios on Home, collaborate with the AI partner “鈴木,” and drive requirements to evaluation, using Next.js 16 (app router) + Tailwind 4 + TanStack Query for an offline-first client with localStorage/IndexedDB persistence and optional Axum/utoipa REST API for multi-device sync. Evaluation, tagging, history/export, and bilingual WCAG-compliant UX anchor the experience; session lifecycle is observable and test-covered across frontend and backend. Chat is powered by Mastra agents (per-scenario prompts) using Gemini with configurable API key.
 
 ## Technical Context
 
@@ -18,7 +18,7 @@ Deliver a web-based PM simulation where learners start/resume sessions, choose P
 -->
 
 **Language/Version**: TypeScript (Next.js 16.1, React 19, Tailwind CSS 4) + Rust 1.75+ (Axum 0.7)  
-**Primary Dependencies**: Next.js app router, Tailwind CSS 4, TanStack Query 5, Axios/fetch clients, Vitest/Testing Library/Playwright, Axum + utoipa, tokio, tracing  
+**Primary Dependencies**: Next.js app router, Tailwind CSS 4, TanStack Query 5, Axios/fetch clients, Mastra agents + Gemini LLM, Vitest/Testing Library/Playwright, Axum + utoipa, tokio, tracing  
 **Storage**: Client-side localStorage/IndexedDB by default; optional Axum REST API with HTTPS for multi-device sync  
 **Testing**: Frontend Vitest + Testing Library + Playwright e2e; backend `cargo test`/`cargo clippy`  
 **Target Platform**: Web (desktop + mobile) via Next.js app router; optional Axum API service  

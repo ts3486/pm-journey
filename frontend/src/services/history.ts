@@ -1,4 +1,5 @@
-import type { HistoryItem, SessionSnapshot } from "@/services/storage";
+import type { SessionSnapshot } from "@/services/storage";
+import type { HistoryItem } from "@/types/session";
 import { storage } from "@/services/storage";
 import { loadHistory } from "@/services/sessions";
 

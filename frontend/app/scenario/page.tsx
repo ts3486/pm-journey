@@ -1,27 +1,35 @@
 "use client";
 
-import { ActionLog } from "@/components/ActionLog";
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
-import { ContextPanel } from "@/components/ContextPanel";
-import { EvaluationPanel } from "@/components/EvaluationPanel";
-import { ProgressTracker } from "@/components/ProgressTracker";
-import { SessionControls } from "@/components/SessionControls";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
-import { evaluate, resetSession, resumeSession, sendMessage, startSession, type SessionState, updateProgress } from "@/services/sessions";
+import { evaluate, resetSession, resumeSession, sendMessage, startSession, type SessionState } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
 import { storage } from "@/services/storage";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 export default function ScenarioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm text-slate-700">読み込み中...</div>
+      }
+    >
+      <ScenarioContent />
+    </Suspense>
+  );
+}
+
+function ScenarioContent() {
   const [state, setState] = useState<SessionState | null>(null);
   const [loadingEval, setLoadingEval] = useState(false);
   const [canResume, setCanResume] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const searchParams = useSearchParams();
   const restart = searchParams.get("restart") === "1";
-
   const scenarioIdParam = searchParams.get("scenarioId");
+
   const activeScenario = useMemo(() => {
     if (scenarioIdParam) return getScenarioById(scenarioIdParam) ?? defaultScenario;
     if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
@@ -65,7 +73,7 @@ export default function ScenarioPage() {
 
   const handleReset = async () => {
     if (state?.session) {
-      const confirmed = window.confirm("セッションをリセットしますか？");
+      const confirmed = window.confirm("このシナリオのセッションを終了して新しく始めますか？");
       if (!confirmed) return;
       resetSession(state.session.id, state.session.scenarioId);
       setState(null);
@@ -100,28 +108,10 @@ export default function ScenarioPage() {
       });
     } catch (err) {
       // eslint-disable-next-line no-alert
-      alert(err instanceof Error ? err.message : "評価はオフライン時に実行できません。");
+      alert(err instanceof Error ? err.message : "オンラインに戻ってから評価を実行してください。");
     } finally {
       setLoadingEval(false);
     }
-  };
-
-  const handleUpdateTags = (messageId: string, tags: string[]) => {
-    if (!state) return;
-    const messages = state.messages.map((m) => (m.id === messageId ? { ...m, tags } : m));
-    const next = { ...state, messages };
-    setState(next);
-  };
-
-  const handleProgressComplete = () => {
-    if (!state) return;
-    const next = updateProgress(state, {
-      requirements: true,
-      priorities: true,
-      risks: true,
-      acceptance: true,
-    });
-    setState(next);
   };
 
   useEffect(() => {
@@ -140,60 +130,43 @@ export default function ScenarioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
 
-  const contextGoals = activeScenario.product.goals;
-  const contextProblems = activeScenario.product.problems;
-  const contextConstraints = activeScenario.product.constraints;
-  const contextSuccess = activeScenario.product.successCriteria;
-
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
-      <div className="order-2 space-y-4 lg:order-1">
-        <ContextPanel
-          audience={activeScenario.product.audience}
-          goals={contextGoals}
-          problems={contextProblems}
-          constraints={contextConstraints}
-          timeline={activeScenario.product.timeline}
-          successCriteria={contextSuccess}
-        />
-        <ProgressTracker
-          requirements={state?.session.progressFlags.requirements ?? false}
-          priorities={state?.session.progressFlags.priorities ?? false}
-          risks={state?.session.progressFlags.risks ?? false}
-          acceptance={state?.session.progressFlags.acceptance ?? false}
-          onComplete={handleProgressComplete}
-          disabled={!state}
-        />
-      </div>
-      <div className="order-1 space-y-4 lg:order-2">
-        {state?.offline ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
-            オフラインのためメッセージはキューされます。評価はオンラインに戻ってから有効になります。
+    <div className="space-y-4">
+      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-sky-700">{activeScenario.discipline} シナリオ</p>
+            <h1 className="text-xl font-semibold text-slate-900">{activeScenario.title}</h1>
           </div>
-        ) : null}
-        <SessionControls
-          hasActive={hasActive}
-          canResume={canResume}
-          onStart={() => void handleStart(activeScenario)}
-          onResume={handleResume}
-          onReset={handleReset}
-          onEvaluate={handleEvaluate}
-          evaluationReady={evaluationReady}
-          scenarioTitle={activeScenario.title}
-          offline={state?.offline ?? false}
-        />
-        <ChatStream messages={state?.messages ?? []} />
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+            aria-expanded={!isCollapsed}
+          >
+            {isCollapsed ? "開く" : "閉じる"}
+          </button>
+        </div>
+        {!isCollapsed && <p className="mt-2 text-sm text-slate-700">{activeScenario.description}</p>}
+      </div>
+
+      {state?.offline ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          オフラインです。メッセージはキューに保存され、評価はオンライン復帰後に実行できます。
+        </div>
+      ) : null}
+
+      <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+        <ChatStream messages={state?.messages ?? []} maxHeight="65vh" />
         <ChatComposer
           onSend={handleSend}
           disabled={!hasActive}
           quickPrompts={[
-            "現状の打刻課題を整理してください",
-            "リスクと前提をリスト化してください",
-            "評価基準に沿って方針をまとめてください",
+            "現状の課題をまとめてください",
+            "リスクと前提を洗い出してください",
+            "次の打ち手を提案してください",
           ]}
         />
-        <EvaluationPanel evaluation={state?.evaluation} loading={loadingEval} />
-        <ActionLog messages={state?.messages ?? []} onUpdateTags={handleUpdateTags} />
       </div>
     </div>
   );

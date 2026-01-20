@@ -1,5 +1,6 @@
 import { env } from "@/config/env";
 import { api } from "@/services/api";
+import { getScenarioById } from "@/config/scenarios";
 import { storage, type SessionSnapshot } from "@/services/storage";
 import type {
   Evaluation,
@@ -38,7 +39,7 @@ const createAgentReply = (userMessage: string): Message => ({
   id: randomId("msg"),
   sessionId: "",
   role: "agent",
-  content: `ありがとうございます。現状の入力: ${userMessage}`,
+  content: `ありがとうございます。`,
   createdAt: new Date().toISOString(),
   tags: ["summary"],
 });
@@ -81,6 +82,26 @@ const isOffline = (): boolean => {
   if (!env.offlineQueue) return false;
   if (typeof navigator === "undefined") return false;
   return !navigator.onLine;
+};
+
+const requestAgentReply = async (params: {
+  scenarioId: string;
+  prompt?: string;
+  messages: Message[];
+}): Promise<string | null> => {
+  try {
+    const res = await fetch("/api/agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { reply?: string };
+    return data.reply ?? null;
+  } catch (error) {
+    console.error("Agent request failed", error);
+    return null;
+  }
 };
 
 export async function startSession(
@@ -136,6 +157,7 @@ export async function sendMessage(
 
   const messages = [...state.messages, message];
   let reply: Message | null = null;
+  const scenario = getScenarioById(session.scenarioId);
 
   if (isOffline()) {
     const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
@@ -147,8 +169,20 @@ export async function sendMessage(
     const apiMessage = await api.postMessage(session.id, role, content, tags);
     reply = apiMessage;
   } else if (role === "user") {
-    reply = createAgentReply(content);
-    reply.sessionId = session.id;
+    const agentText =
+      (await requestAgentReply({
+        scenarioId: session.scenarioId,
+        prompt: scenario?.kickoffPrompt,
+        messages,
+      })) ?? "ありがとうございます。詳細を教えてください。";
+    reply = {
+      id: randomId("msg"),
+      sessionId: session.id,
+      role: "agent",
+      content: agentText,
+      createdAt: new Date().toISOString(),
+      tags: ["summary"],
+    };
   }
 
   if (reply) {

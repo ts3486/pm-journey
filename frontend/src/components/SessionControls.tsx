@@ -31,7 +31,7 @@ export function SessionControls({
         className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
         onClick={() => void onStart()}
       >
-        Start new session
+        新しく始める
       </button>
       <button
         type="button"
@@ -39,7 +39,7 @@ export function SessionControls({
         onClick={() => void onResume()}
         disabled={!canResume}
       >
-        Resume last session
+        再開する
       </button>
       <button
         type="button"
@@ -47,7 +47,7 @@ export function SessionControls({
         onClick={() => void onReset()}
         disabled={!hasActive}
       >
-        Reset session
+        終了してリセット
       </button>
       <button
         type="button"
@@ -55,7 +55,7 @@ export function SessionControls({
         onClick={() => void onEvaluate()}
         disabled={!evaluationReady || offline}
       >
-        {offline ? "オンライン復帰後に評価" : "Mark ready for evaluation"}
+        {offline ? "オンライン復帰後に評価" : "評価を依頼"}
       </button>
     </div>
   );
