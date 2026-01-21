@@ -1,7 +1,7 @@
 use axum::body::Body;
 use axum::http::Request;
 use backend::api;
-use tower::ServiceExt;
+use tower::util::ServiceExt;
 
 #[tokio::test]
 async fn history_list_exists() {

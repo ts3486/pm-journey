@@ -14,7 +14,7 @@ export type Evaluation = {
   improvementAdvice?: string;
 };
 
-export type ScenarioDiscipline = "PM" | "PMO";
+export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
 export type ScenarioSummary = {
   id: string;

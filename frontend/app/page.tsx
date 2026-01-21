@@ -30,9 +30,9 @@ export default function Home() {
     <div className="space-y-10">
       <section className="rounded-2xl border border-sky-100 bg-gradient-to-r from-white via-sky-50 to-blue-100 px-8 py-10 text-slate-900 shadow-lg">
         <p className="text-sm font-semibold uppercase tracking-wider text-sky-700">PM Journey</p>
-        <h1 className="mt-3 text-3xl font-bold text-slate-900">AIと一緒に現場のPM/PMO体験を積む</h1>
+        <h1 className="mt-3 text-3xl font-bold text-slate-900">AIと一緒に基礎〜チャレンジのPM体験を積む</h1>
         <p className="mt-3 max-w-2xl text-sm text-slate-700">
-          シナリオを選んで仮想プロジェクトに参画。エージェント「鈴木」と対話しながら要件整理・リスク管理・評価まで進めましょう。
+          シナリオを選んで仮想プロジェクトに参画。エージェント「鈴木」と対話しながら基礎スキルからチャレンジケースまで練習できます。
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -47,14 +47,14 @@ export default function Home() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-900">シナリオを選択</h2>
-          <p className="text-sm text-slate-600">PM と PMO の2つの視点で練習できます。</p>
+          <p className="text-sm text-slate-600">基礎とチャレンジ、2つのレベルで練習できます。</p>
         </div>
         {scenarioCatalog.map((section) => (
           <div key={section.discipline} className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
-                  {section.discipline}
+                  {section.title}
                 </span>
                 <h3 className="text-lg font-semibold text-slate-900">{section.title}</h3>
               </div>
@@ -98,7 +98,7 @@ export default function Home() {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-slate-900">使い方</h2>
           <p className="text-base text-slate-700">
-            PM/PMO として「鈴木」と対話し、要件やリスクを整理します。ホーム → シナリオ → 評価 → 履歴の流れで、
+            基礎/チャレンジシナリオで「鈴木」と対話し、要件やリスクを整理します。ホーム → シナリオ → 評価 → 履歴の流れで、
             オフラインでも進められるように設計されています。
           </p>
           <ol className="grid gap-4 text-base text-slate-800 md:grid-cols-3">
@@ -106,7 +106,7 @@ export default function Home() {
               <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Step 1</p>
               <p className="mt-2 text-lg font-semibold text-slate-900">シナリオを選ぶ</p>
               <p className="mt-2 text-slate-700">
-                PM と PMO の行を確認し、開始したいシナリオを選択。未保存時のみ開始ボタンが活性。
+                基礎とチャレンジの行を確認し、開始したいシナリオを選択。未保存時のみ開始ボタンが活性。
               </p>
             </li>
             <li className="rounded-xl border border-sky-100 bg-sky-50 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">

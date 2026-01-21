@@ -1,5 +1,5 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     routing::{get, post},
     Json, Router,
 };
@@ -8,7 +8,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
+use sqlx::{PgPool, Row};
+use serde_json::Value as JsonValue;
 use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -63,7 +65,13 @@ struct SessionRecord {
     evaluation: Option<Evaluation>,
 }
 
-static STORE: OnceLock<Mutex<HashMap<String, SessionRecord>>> = OnceLock::new();
+pub struct AppState {
+    pool: Option<PgPool>,
+    store: Mutex<HashMap<String, SessionRecord>>,
+}
+
+pub type SharedState = Arc<AppState>;
+
 static ID_GEN: AtomicU64 = AtomicU64::new(1);
 
 fn store_path() -> PathBuf {
@@ -82,6 +90,22 @@ fn load_store_from_disk() -> HashMap<String, SessionRecord> {
     HashMap::new()
 }
 
+async fn load_store_from_db(pool: &PgPool) -> HashMap<String, SessionRecord> {
+    let mut map = HashMap::new();
+    if let Ok(rows) = sqlx::query("SELECT payload FROM session_store")
+        .fetch_all(pool)
+        .await
+    {
+        for row in rows {
+            let val: JsonValue = row.get("payload");
+            if let Ok(rec) = serde_json::from_value::<SessionRecord>(val) {
+                map.insert(rec.session.id.clone(), rec);
+            }
+        }
+    }
+    map
+}
+
 fn persist_store(data: &HashMap<String, SessionRecord>) {
     let path = store_path();
     if let Ok(json) = serde_json::to_vec_pretty(data) {
@@ -92,8 +116,25 @@ fn persist_store(data: &HashMap<String, SessionRecord>) {
     }
 }
 
-fn store() -> &'static Mutex<HashMap<String, SessionRecord>> {
-    STORE.get_or_init(|| Mutex::new(load_store_from_disk()))
+async fn upsert_record_db(record: &SessionRecord, pool: Option<&PgPool>) {
+    if let (Some(pool), Ok(val)) = (pool, serde_json::to_value(record)) {
+        let _ = sqlx::query(
+            "INSERT INTO session_store (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET payload = $2",
+        )
+        .bind(&record.session.id)
+        .bind(val)
+        .execute(pool)
+        .await;
+    }
+}
+
+async fn delete_record_db(id: &str, pool: Option<&PgPool>) {
+    if let Some(pool) = pool {
+        let _ = sqlx::query("DELETE FROM session_store WHERE id = $1")
+            .bind(id)
+            .execute(pool)
+            .await;
+    }
 }
 
 fn next_id(prefix: &str) -> String {
@@ -105,7 +146,52 @@ fn now_ts() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
+fn make_state(store: HashMap<String, SessionRecord>, pool: Option<PgPool>) -> SharedState {
+    Arc::new(AppState {
+        pool,
+        store: Mutex::new(store),
+    })
+}
+
+pub fn default_state() -> SharedState {
+    make_state(load_store_from_disk(), None)
+}
+
+pub fn state_with_pool(pool: PgPool) -> SharedState {
+    make_state(HashMap::new(), Some(pool))
+}
+
+pub async fn init_db(pool: &PgPool) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS session_store (
+            id TEXT PRIMARY KEY,
+            payload JSONB NOT NULL
+        );
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| anyhow_error(&format!("db init failed: {}", e)))?;
+    Ok(())
+}
+
+pub async fn load_from_db(state: &SharedState) {
+    if let Some(pool) = &state.pool {
+        let map = load_store_from_db(pool).await;
+        let mut store_lock = state.store.lock().unwrap();
+        for (k, v) in map {
+            store_lock.insert(k, v);
+        }
+    }
+}
+
+#[allow(dead_code)]
 pub fn router() -> Router {
+    router_with_state(default_state())
+}
+
+pub fn router_with_state(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/scenarios", get(list_scenarios))
@@ -119,6 +205,7 @@ pub fn router() -> Router {
             get(list_comments).post(create_comment),
         )
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .with_state(state)
 }
 
 #[utoipa::path(
@@ -165,7 +252,10 @@ struct CreateSessionRequest {
     request_body = CreateSessionRequest,
     responses((status = 201, body = Session))
 )]
-async fn create_session(Json(body): Json<CreateSessionRequest>) -> Result<Json<Session>, AppError> {
+async fn create_session(
+    State(state): State<SharedState>,
+    Json(body): Json<CreateSessionRequest>,
+) -> Result<Json<Session>, AppError> {
     let scenario = default_scenarios()
         .into_iter()
         .find(|s| s.id == body.scenario_id);
@@ -194,9 +284,13 @@ async fn create_session(Json(body): Json<CreateSessionRequest>) -> Result<Json<S
         comments: vec![],
         evaluation: None,
     };
-    let mut data = store().lock().unwrap();
-    data.insert(session.id.clone(), record);
-    persist_store(&data);
+    let pool = state.pool.clone();
+    {
+        let mut data = state.store.lock().unwrap();
+        data.insert(session.id.clone(), record.clone());
+        persist_store(&data);
+    }
+    upsert_record_db(&record, pool.as_ref()).await;
     Ok(Json(session))
 }
 
@@ -205,8 +299,8 @@ async fn create_session(Json(body): Json<CreateSessionRequest>) -> Result<Json<S
     path = "/sessions",
     responses((status = 200, body = [HistoryItem]))
 )]
-async fn list_sessions() -> Result<Json<Vec<HistoryItem>>, AppError> {
-    let data = store().lock().unwrap();
+async fn list_sessions(State(state): State<SharedState>) -> Result<Json<Vec<HistoryItem>>, AppError> {
+    let data = state.store.lock().unwrap();
     let mut items = Vec::new();
     for record in data.values() {
         let messages = &record.messages;
@@ -236,8 +330,11 @@ async fn list_sessions() -> Result<Json<Vec<HistoryItem>>, AppError> {
     path = "/sessions/{id}",
     responses((status = 200, body = HistoryItem))
 )]
-async fn get_session(Path(id): Path<String>) -> Result<Json<HistoryItem>, AppError> {
-    let data = store().lock().unwrap();
+async fn get_session(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<Json<HistoryItem>, AppError> {
+    let data = state.store.lock().unwrap();
     let record = data
         .get(&id)
         .ok_or_else(|| anyhow_error("session not found"))?;
@@ -267,10 +364,17 @@ async fn get_session(Path(id): Path<String>) -> Result<Json<HistoryItem>, AppErr
     path = "/sessions/{id}",
     responses((status = 204, description = "Deleted"))
 )]
-async fn delete_session(Path(id): Path<String>) -> Result<Json<&'static str>, AppError> {
-    let mut data = store().lock().unwrap();
-    data.remove(&id);
-    persist_store(&data);
+async fn delete_session(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<Json<&'static str>, AppError> {
+    let pool = state.pool.clone();
+    {
+        let mut data = state.store.lock().unwrap();
+        data.remove(&id);
+        persist_store(&data);
+    }
+    delete_record_db(&id, pool.as_ref()).await;
     Ok(Json("deleted"))
 }
 
@@ -303,33 +407,38 @@ struct CreateCommentRequest {
     responses((status = 200, body = MessageResponse))
 )]
 async fn post_message(
+    State(state): State<SharedState>,
     Path(id): Path<String>,
     Json(body): Json<CreateMessageRequest>,
 ) -> Result<Json<MessageResponse>, AppError> {
-    let mut data = store().lock().unwrap();
-    let record = data
-        .get_mut(&id)
-        .ok_or_else(|| anyhow_error("session not found"))?;
-    let message = Message {
-        id: next_id("msg"),
-        session_id: id.clone(),
-        role: body.role,
-        content: body.content,
-        created_at: now_ts(),
-        tags: body.tags,
-        queued_offline: None,
+    let pool = state.pool.clone();
+    let (message, record_clone) = {
+        let mut data = state.store.lock().unwrap();
+        let record = data
+            .get_mut(&id)
+            .ok_or_else(|| anyhow_error("session not found"))?;
+        let message = Message {
+            id: next_id("msg"),
+            session_id: id.clone(),
+            role: body.role,
+            content: body.content,
+            created_at: now_ts(),
+            tags: body.tags,
+            queued_offline: None,
+        };
+        record.messages.push(message.clone());
+        if let Some(ms) = body.mission_status {
+            record.session.mission_status = Some(ms);
+        }
+        record.session.last_activity_at = now_ts();
+        let record_clone = record.clone();
+        persist_store(&data);
+        (message, record_clone)
     };
-    record.messages.push(message.clone());
-    if let Some(ms) = body.mission_status {
-        record.session.mission_status = Some(ms);
-    }
-    record.session.last_activity_at = now_ts();
-    let session = record.session.clone();
-    let reply = message.clone();
-    persist_store(&data);
+    upsert_record_db(&record_clone, pool.as_ref()).await;
     Ok(Json(MessageResponse {
-        reply,
-        session,
+        reply: message,
+        session: record_clone.session,
     }))
 }
 
@@ -338,49 +447,58 @@ async fn post_message(
     path = "/sessions/{id}/evaluate",
     responses((status = 200, body = Evaluation))
 )]
-async fn evaluate_session(Path(id): Path<String>) -> Result<Json<Evaluation>, AppError> {
-    let mut data = store().lock().unwrap();
-    let record = data
-        .get_mut(&id)
-        .ok_or_else(|| anyhow_error("session not found"))?;
-    let eval = Evaluation {
-        session_id: id.clone(),
-        overall_score: Some(80.0),
-        passing: Some(true),
-        categories: vec![
-            crate::models::EvaluationCategory {
-                name: "方針提示とリード力".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("方針が明確です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "計画と実行可能性".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("計画の粒度が適切です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "コラボレーションとフィードバック".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("対話が円滑です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "リスク/前提管理と改善姿勢".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("リスク感度が良好です。".to_string()),
-            },
-        ],
-        summary: Some("評価サンプル".to_string()),
-        improvement_advice: Some("リスク対応の優先度を明確にしてください。".to_string()),
+async fn evaluate_session(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<Json<Evaluation>, AppError> {
+    let pool = state.pool.clone();
+    let (eval, record_clone) = {
+        let mut data = state.store.lock().unwrap();
+        let record = data
+            .get_mut(&id)
+            .ok_or_else(|| anyhow_error("session not found"))?;
+        let eval = Evaluation {
+            session_id: id.clone(),
+            overall_score: Some(80.0),
+            passing: Some(true),
+            categories: vec![
+                crate::models::EvaluationCategory {
+                    name: "方針提示とリード力".to_string(),
+                    weight: 25.0,
+                    score: Some(80.0),
+                    feedback: Some("方針が明確です。".to_string()),
+                },
+                crate::models::EvaluationCategory {
+                    name: "計画と実行可能性".to_string(),
+                    weight: 25.0,
+                    score: Some(80.0),
+                    feedback: Some("計画の粒度が適切です。".to_string()),
+                },
+                crate::models::EvaluationCategory {
+                    name: "コラボレーションとフィードバック".to_string(),
+                    weight: 25.0,
+                    score: Some(80.0),
+                    feedback: Some("対話が円滑です。".to_string()),
+                },
+                crate::models::EvaluationCategory {
+                    name: "リスク/前提管理と改善姿勢".to_string(),
+                    weight: 25.0,
+                    score: Some(80.0),
+                    feedback: Some("リスク感度が良好です。".to_string()),
+                },
+            ],
+            summary: Some("評価サンプル".to_string()),
+            improvement_advice: Some("リスク対応の優先度を明確にしてください。".to_string()),
+        };
+        record.evaluation = Some(eval.clone());
+        record.session.status = SessionStatus::Evaluated;
+        record.session.evaluation_requested = true;
+        record.session.last_activity_at = now_ts();
+        let record_clone = record.clone();
+        persist_store(&data);
+        (eval, record_clone)
     };
-    record.evaluation = Some(eval.clone());
-    record.session.status = SessionStatus::Evaluated;
-    record.session.evaluation_requested = true;
-    record.session.last_activity_at = now_ts();
-    persist_store(&data);
+    upsert_record_db(&record_clone, pool.as_ref()).await;
     Ok(Json(eval))
 }
 
@@ -389,8 +507,11 @@ async fn evaluate_session(Path(id): Path<String>) -> Result<Json<Evaluation>, Ap
     path = "/sessions/{id}/comments",
     responses((status = 200, body = [ManagerComment]))
 )]
-async fn list_comments(Path(id): Path<String>) -> Result<Json<Vec<ManagerComment>>, AppError> {
-    let data = store().lock().unwrap();
+async fn list_comments(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<ManagerComment>>, AppError> {
+    let data = state.store.lock().unwrap();
     let record = data
         .get(&id)
         .ok_or_else(|| anyhow_error("session not found"))?;
@@ -404,20 +525,28 @@ async fn list_comments(Path(id): Path<String>) -> Result<Json<Vec<ManagerComment
     responses((status = 201, body = ManagerComment))
 )]
 async fn create_comment(
+    State(state): State<SharedState>,
     Path(id): Path<String>,
     Json(body): Json<CreateCommentRequest>,
 ) -> Result<Json<ManagerComment>, AppError> {
-    let mut data = store().lock().unwrap();
-    let record = data
-        .get_mut(&id)
-        .ok_or_else(|| anyhow_error("session not found"))?;
-    let comment = ManagerComment {
-        id: next_id("comment"),
-        session_id: id,
-        author_name: body.author_name,
-        content: body.content,
-        created_at: now_ts(),
+    let pool = state.pool.clone();
+    let (comment, record_clone) = {
+        let mut data = state.store.lock().unwrap();
+        let record = data
+            .get_mut(&id)
+            .ok_or_else(|| anyhow_error("session not found"))?;
+        let comment = ManagerComment {
+            id: next_id("comment"),
+            session_id: id,
+            author_name: body.author_name,
+            content: body.content,
+            created_at: now_ts(),
+        };
+        record.comments.push(comment.clone());
+        let record_clone = record.clone();
+        persist_store(&data);
+        (comment, record_clone)
     };
-    record.comments.push(comment.clone());
+    upsert_record_db(&record_clone, pool.as_ref()).await;
     Ok(Json(comment))
 }
