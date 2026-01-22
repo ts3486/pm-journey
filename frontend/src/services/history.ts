@@ -1,4 +1,5 @@
-import type { HistoryItem, SessionSnapshot } from "@/services/storage";
+import type { SessionSnapshot } from "@/services/storage";
+import type { HistoryItem } from "@/types/session";
 import { storage } from "@/services/storage";
 import { loadHistory } from "@/services/sessions";
 
@@ -24,5 +25,6 @@ export function getHistoryItem(sessionId: string): HistoryItem | null {
     actions: snap.messages.filter((m) => m.tags && m.tags.length > 0),
     evaluation: snap.evaluation,
     storageLocation: "local",
+    comments: storage.loadComments(sessionId),
   };
 }

@@ -59,6 +59,11 @@
 - [X] T015 [P] [US1] Implement backend `/scenarios` endpoints and scenario-aware session creation in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/api/mod.rs`
 - [X] T016 [P] [US1] Seed backend scenario data (PM/PMO attendance/PMO governance) with evaluation criteria in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/models/mod.rs`
 - [X] T017 [US1] Log lifecycle events (start/resume/evaluate/reset) with `scenarioId`/discipline to console in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/telemetry.ts`
+- [X] T041 [US1] Add scenario missions and supplemental info to config for PM/PMO catalog in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/config/scenarios.ts`
+- [X] T042 [US1] Render mission checklist + supplemental info on Scenario page, track missionStatus, autosave, and auto-attempt evaluation when all complete (online) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/scenario/page.tsx` and `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
+- [X] T043 [P] [US1] Extend backend session/message API to accept missionStatus updates and trigger evaluation per OpenAPI in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/api/mod.rs`
+- [X] T049 [US1] Move Mastra/Gemini agent to server route `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/api/agent/route.ts` to avoid client bundling issues
+- [X] T050 [US1] Update session service to call `/api/agent` for replies and remove client-side Mastra import in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
 
 **Checkpoint**: User Story 1 fully functional and testable independently
 
@@ -106,6 +111,9 @@
 - [ ] T030 [P] [US3] Implement export service for Markdown/JSON (and share link for API mode) with scenario metadata in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/export.ts`
 - [ ] T031 [US3] Implement backend history endpoints including delete/archive aligned to OpenAPI in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/api/mod.rs`
 - [ ] T032 [US3] Add data retention notice and clear storage controls integrated with history view in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/components/DataRetentionNotice.tsx`
+- [X] T044 [US3] Add manager comment form/display in history detail with attribution/timestamps in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/components/HistoryDetail.tsx`
+- [X] T045 [P] [US3] Wire comment API client (local/API modes) for create/list in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/api.ts`
+- [X] T046 [P] [US3] Implement backend comments endpoints per OpenAPI (`/sessions/{id}/comments`) in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/api/mod.rs`
 
 **Checkpoint**: All user stories independently functional
 
@@ -119,6 +127,11 @@
 - [ ] T034 [P] Extend telemetry for history/export/offline-queue events in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/telemetry.ts` and `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/middleware/telemetry.rs`
 - [ ] T035 Update quickstart with scenario catalog usage, offline queue defaults, and HTTPS guidance in `/Users/taoshimomura/Desktop/dev/pm-journey/specs/001-pm-simulation-web/quickstart.md`
 - [ ] T036 Final refactor/cleanup and dependency audit in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/package.json` and `/Users/taoshimomura/Desktop/dev/pm-journey/backend/Cargo.toml`
+- [X] T037 [P] Add Mastra/Gemini dependency and env config (`NEXT_PUBLIC_GEMINI_API_KEY`) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/package.json` and `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/.env.example`
+- [X] T038 [US1] Create scenario-aware Mastra agent config with per-scenario prompts in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/mastraAgent.ts`
+- [X] T039 [P] [US1] Wire chat flow to Mastra agent responses (fallback offline/local echo) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
+- [X] T040 [US1] Document Gemini key setup and prompt overrides in `/Users/taoshimomura/Desktop/dev/pm-journey/specs/001-pm-simulation-web/quickstart.md`
+- [X] T047 [P] Replace remote Google font usage with system/local fallback to prevent build-time fetch failures in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/layout.tsx` and `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/globals.css`
 
 ---
 

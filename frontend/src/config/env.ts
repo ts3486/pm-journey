@@ -8,4 +8,5 @@ export const env = {
   apiBase: getEnv("NEXT_PUBLIC_API_BASE", ""),
   offlineQueue: getEnv("NEXT_PUBLIC_OFFLINE_QUEUE", "true") === "true",
   storageKeyPrefix: getEnv("NEXT_PUBLIC_STORAGE_PREFIX", "olivia_pm"),
+  geminiApiKey: getEnv("NEXT_PUBLIC_GEMINI_API_KEY"),
 };

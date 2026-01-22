@@ -1,8 +1,8 @@
-use backend::api;
 use axum::body::Body;
 use axum::http::Request;
-use axum::routing::Router;
-use tower::ServiceExt;
+use axum::Router;
+use backend::api;
+use tower::util::ServiceExt;
 
 #[tokio::test]
 async fn session_lifecycle_smoke() {

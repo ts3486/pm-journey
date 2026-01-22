@@ -1,5 +1,5 @@
 import { env } from "@/config/env";
-import type { Evaluation, Message, Session } from "@/types/session";
+import type { Evaluation, ManagerComment, Message, Session } from "@/types/session";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -56,5 +56,21 @@ export const storage = {
     if (!isBrowser) return;
     const stored = localStorage.getItem(lastSessionKey(scenarioId));
     if (!sessionId || stored === sessionId) localStorage.removeItem(lastSessionKey(scenarioId));
+  },
+  loadComments(sessionId: string): ManagerComment[] {
+    if (!isBrowser) return [];
+    const raw = localStorage.getItem(key(`comments:${sessionId}`));
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) as ManagerComment[];
+    } catch {
+      return [];
+    }
+  },
+  saveComment(sessionId: string, comment: ManagerComment) {
+    if (!isBrowser) return;
+    const existing = this.loadComments(sessionId);
+    existing.push(comment);
+    localStorage.setItem(key(`comments:${sessionId}`), JSON.stringify(existing));
   },
 };

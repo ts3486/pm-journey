@@ -13,8 +13,10 @@
    - `NEXT_PUBLIC_API_BASE` (empty for local-only storage; set to Axum host for API mode)
    - `NEXT_PUBLIC_OFFLINE_QUEUE=true` to enable queued sends when offline
    - `NEXT_PUBLIC_STORAGE_PREFIX=olivia_pm` to isolate local storage keys
+   - `NEXT_PUBLIC_GEMINI_API_KEY` to enable Mastra agents with Gemini (leave empty to use offline stub replies)
 5) Scenario catalog: defined in frontend config (grouped PM/PMO) for Home selection; keep ids stable for session resume/history.
 6) Tests: `pnpm test` (Vitest), `pnpm exec playwright test` for e2e chat/history flows.
+7) Fonts: prefer system font stack or locally bundled JP font to avoid remote fetch failures during build/offline.
 
 ## Backend (Axum + utoipa) - optional API mode
 1) `cd backend`
@@ -22,10 +24,12 @@
 3) Tests: `cargo test` (unit/integration)
 4) Expose OpenAPI from `specs/001-pm-simulation-web/contracts/openapi.yaml`; serve via utoipa.
 5) Environment: set `RUST_LOG=info`, bind host/port in `src/main.rs` as needed.
+6) Manager comments: enable `/sessions/{id}/comments` endpoints if multi-user review is needed; anonymous/local mode requires no auth, API mode should enforce auth.
 
 ## Flows to validate
 - Start session from Home → Scenario kickoff visible <3s on 4G.
 - Home shows PM/PMO scenario rows; selecting a card starts a fresh session for that scenario with autosave.
+- Mastra chat agent uses scenario-specific prompts; set `NEXT_PUBLIC_GEMINI_API_KEY` to enable Gemini responses.
 - Resume saved session → transcript/actions/progress restored.
 - Tag decisions/risks → action log updates; autosave after each message.
 - Mark ready for evaluation → spinner, result within ~10s, history entry saved.

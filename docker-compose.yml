@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pmjourney
+      POSTGRES_PASSWORD: pmjourney
+      POSTGRES_DB: pmjourney
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://pmjourney:pmjourney@db:5432/pmjourney
+      RUST_LOG: info
+    depends_on:
+      - db
+    ports:
+      - "3001:3001"
+    command: ["./backend"]
+
+volumes:
+  db_data:

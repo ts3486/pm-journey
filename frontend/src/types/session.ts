@@ -14,7 +14,7 @@ export type Evaluation = {
   improvementAdvice?: string;
 };
 
-export type ScenarioDiscipline = "PM" | "PMO";
+export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
 export type ScenarioSummary = {
   id: string;
@@ -30,6 +30,18 @@ export type ProgressFlags = {
   acceptance: boolean;
 };
 
+export type Mission = {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+};
+
+export type MissionStatus = {
+  missionId: string;
+  completedAt?: string;
+};
+
 export type SessionStatus = "active" | "completed" | "evaluated";
 
 export type Session = {
@@ -43,6 +55,7 @@ export type Session = {
   userName?: string;
   progressFlags: ProgressFlags;
   evaluationRequested: boolean;
+  missionStatus?: MissionStatus[];
   storageLocation?: "local" | "api";
 };
 
@@ -72,12 +85,14 @@ export type HistoryItem = {
   actions: Message[];
   evaluation?: Evaluation;
   storageLocation?: "local" | "api";
+  comments?: ManagerComment[];
 };
 
 export type Scenario = {
   id: string;
   title: string;
   description: string;
+  discipline: ScenarioDiscipline;
   product: {
     name: string;
     summary: string;
@@ -97,6 +112,16 @@ export type Scenario = {
   kickoffPrompt: string;
   evaluationCriteria: EvaluationCategory[];
   passingScore?: number;
+  missions?: Mission[];
+  supplementalInfo?: string;
+};
+
+export type ManagerComment = {
+  id: string;
+  sessionId: string;
+  authorName?: string;
+  content: string;
+  createdAt: string;
 };
 
 export type ScenarioCatalogSection = {
