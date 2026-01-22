@@ -59,19 +59,36 @@ const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
   ];
 };
 
-const createEvaluation = (sessionId: string): Evaluation => ({
-  sessionId,
-  overallScore: 75,
-  passing: true,
-  categories: [
-    { name: "方針提示とリード力", weight: 25, score: 75, feedback: "明確な方針を提示できました。" },
-    { name: "計画と実行可能性", weight: 25, score: 70, feedback: "計画に優先順位を追加しましょう。" },
-    { name: "コラボレーションとフィードバック", weight: 25, score: 78, feedback: "対話の往復が十分です。" },
-    { name: "リスク/前提管理と改善姿勢", weight: 25, score: 76, feedback: "リスク洗い出しを補強してください。" },
-  ],
-  summary: "要件整理が進み、評価基準を満たしました。",
-  improvementAdvice: "優先度付けとリスク対策の明確化を追加で行ってください。",
-});
+const createEvaluation = (sessionId: string, scenarioId: string): Evaluation => {
+  const scenario = getScenarioById(scenarioId);
+  const criteria = scenario?.evaluationCriteria ?? [
+    { name: "方針提示とリード力", weight: 25 },
+    { name: "計画と実行可能性", weight: 25 },
+    { name: "コラボレーションとフィードバック", weight: 25 },
+    { name: "リスク/前提管理と改善姿勢", weight: 25 },
+  ];
+  const baseScore = 75;
+  const categories = criteria.map((c, idx) => {
+    const delta = (idx % 2 === 0 ? 5 : -2) + Math.floor(Math.random() * 6 - 3);
+    const score = Math.max(60, Math.min(95, baseScore + delta));
+    const feedback =
+      scenario?.supplementalInfo && idx === 0
+        ? `補足情報（${scenario.supplementalInfo.slice(0, 40)}…）を踏まえた方針提示は良好です。論点を3点に絞り、根拠と次アクションをセットで提示すると更に伝わります。`
+        : `${c.name} に関して、具体例・測定指標・関係者の反応を添えてください。合意形成の過程とリスクフォローも1文で触れると説得力が上がります。`;
+    return { name: c.name, weight: c.weight, score, feedback };
+  });
+
+  return {
+    sessionId,
+    overallScore: Math.round(categories.reduce((sum, c) => sum + (c.score ?? baseScore) * (c.weight / 100), 0)),
+    passing: true,
+    categories,
+    summary:
+      "シナリオの目標に沿って論点が整理され、会話のリードも安定しています。意思決定の根拠とステークホルダーへの伝え方を、事実・解釈・提案の3階層で示すと再現性が高まります。",
+    improvementAdvice:
+      "① 成果指標・期日・担当をセットで明文化する ② リスクと前提を担当/期日付きで棚卸しし、対策を1行で記載する ③ 主要ステークホルダー向けの要約（課題→提案→インパクト）を3行で用意する ④ 次の打ち手を時系列で箇条書きにし、依存と準備物を明記してください。",
+  };
+};
 
 export type SessionState = SessionSnapshot & {
   history: HistoryItem[];
@@ -204,7 +221,7 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
   if (env.apiBase) {
     evaluation = await api.evaluate(state.session.id);
   } else {
-    evaluation = createEvaluation(state.session.id);
+    evaluation = createEvaluation(state.session.id, state.session.scenarioId);
   }
   const session: Session = {
     ...state.session,

@@ -15,6 +15,7 @@ import {
 import { logEvent } from "@/services/telemetry";
 import { storage } from "@/services/storage";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 export default function ScenarioPage() {
@@ -34,8 +35,10 @@ function ScenarioContent() {
   const [loadingEval, setLoadingEval] = useState(false);
   const [canResume, setCanResume] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isGoalOpen, setIsGoalOpen] = useState(false);
   const autoEvalAttempted = useRef<Record<string, boolean>>({});
   const searchParams = useSearchParams();
+  const router = useRouter();
   const restart = searchParams.get("restart") === "1";
   const scenarioIdParam = searchParams.get("scenarioId");
 
@@ -107,6 +110,11 @@ function ScenarioContent() {
     if (!state) return;
     const next = updateMissionStatus(state, missionId, completed);
     setState(next);
+    const nextAllComplete =
+      missions.length > 0 && missions.every((m) => (next.session.missionStatus ?? []).some((s) => s.missionId === m.id));
+    if (nextAllComplete && !next.offline) {
+      void runEvalAndRedirect(next);
+    }
   };
 
   const handleSend = async (content: string) => {
@@ -117,9 +125,17 @@ function ScenarioContent() {
 
   const handleEvaluate = async () => {
     if (!state) return;
+    await runEvalAndRedirect(state, false);
+  };
+
+  const runEvalAndRedirect = async (snapshot: SessionState, navigate = true) => {
+    if (snapshot.offline) {
+      alert("オンラインに戻ってから評価を実行してください。");
+      return;
+    }
     setLoadingEval(true);
     try {
-      const next = await evaluate(state);
+      const next = await evaluate(snapshot);
       setState(next);
       logEvent({
         type: "evaluation",
@@ -128,6 +144,9 @@ function ScenarioContent() {
         scenarioDiscipline: next.session.scenarioDiscipline,
         score: next.evaluation?.overallScore,
       });
+      if (navigate) {
+        router.push(`/history/${next.session.id}`);
+      }
     } catch (err) {
       // eslint-disable-next-line no-alert
       alert(err instanceof Error ? err.message : "オンラインに戻ってから評価を実行してください。");
@@ -166,22 +185,7 @@ function ScenarioContent() {
     }
     if (autoEvalAttempted.current[sessionId]) return;
     autoEvalAttempted.current[sessionId] = true;
-    setLoadingEval(true);
-    void evaluate(state)
-      .then((next) => {
-        setState(next);
-        logEvent({
-          type: "evaluation",
-          sessionId: next.session.id,
-          scenarioId: next.session.scenarioId,
-          scenarioDiscipline: next.session.scenarioDiscipline,
-          score: next.evaluation?.overallScore,
-        });
-      })
-      .catch((err) => {
-        console.error(err);
-      })
-      .finally(() => setLoadingEval(false));
+    void runEvalAndRedirect(state);
   }, [state, allMissionsComplete, evaluationReady]);
 
   return (
@@ -204,6 +208,43 @@ function ScenarioContent() {
         {!isCollapsed && (
           <div className="mt-2 space-y-2 text-sm text-slate-700">
             <p>{activeScenario.description}</p>
+            <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => setIsGoalOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between text-left text-sky-800"
+              >
+                <span className="text-xs font-semibold">目標・背景</span>
+                <span className="text-xs">{isGoalOpen ? "閉じる" : "開く"}</span>
+              </button>
+              {isGoalOpen && (
+                <div className="mt-2 space-y-1 text-slate-800">
+                  {activeScenario.product.summary ? (
+                    <p className="text-xs">概要: {activeScenario.product.summary}</p>
+                  ) : null}
+                  {activeScenario.product.goals?.length ? (
+                    <div className="text-xs">
+                      <p className="font-semibold text-slate-900">ゴール</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {activeScenario.product.goals.map((g) => (
+                          <li key={g}>{g}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {activeScenario.product.problems?.length ? (
+                    <div className="text-xs">
+                      <p className="font-semibold text-slate-900">課題</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {activeScenario.product.problems.map((p) => (
+                          <li key={p}>{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
             {activeScenario.supplementalInfo ? (
               <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-slate-800">
                 <p className="text-xs font-semibold text-sky-800">補足情報</p>
