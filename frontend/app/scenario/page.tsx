@@ -2,6 +2,7 @@
 
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
+import { ProgressTracker } from "@/components/ProgressTracker";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
   evaluate,
@@ -21,7 +22,7 @@ export default function ScenarioPage() {
   return (
     <Suspense
       fallback={
-        <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm text-slate-700">読み込み中...</div>
+        <div className="card p-4 text-sm text-slate-700">読み込み中...</div>
       }
     >
       <ScenarioContent />
@@ -185,44 +186,102 @@ function ScenarioContent() {
   }, [state, allMissionsComplete, evaluationReady]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold text-sky-700">{activeScenario.discipline} シナリオ</p>
-            <h1 className="text-xl font-semibold text-slate-900">{activeScenario.title}</h1>
+    <div className="space-y-6">
+      <section className="card relative overflow-hidden p-6 reveal">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-teal-100/70 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-sky-100/70 blur-3xl" />
+        <div className="relative z-10 space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                {activeScenario.discipline} Scenario
+              </p>
+              <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
+              <p className="max-w-2xl text-sm text-slate-600">{activeScenario.description}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {state?.session?.id ? <span className="badge">Session {state.session.id.slice(0, 6)}</span> : null}
+              {state?.offline ? <span className="badge-accent">Offline</span> : null}
+              <button
+                type="button"
+                onClick={() => setIsCollapsed((prev) => !prev)}
+                className="btn-ghost"
+                aria-expanded={!isCollapsed}
+              >
+                {isCollapsed ? "ブリーフを開く" : "ブリーフを閉じる"}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
-            aria-expanded={!isCollapsed}
-          >
-            {isCollapsed ? "開く" : "閉じる"}
-          </button>
-        </div>
-        {!isCollapsed && (
-          <div className="mt-2 space-y-2 text-sm text-slate-700">
-            <p>{activeScenario.description}</p>
-            {activeScenario.supplementalInfo ? (
-              <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-slate-800">
-                <p className="text-xs font-semibold text-sky-800">補足情報</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{activeScenario.supplementalInfo}</p>
+
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className="btn-primary" onClick={() => void handleStart(activeScenario)}>
+              新しく始める
+            </button>
+            <button
+              type="button"
+              className="btn-secondary disabled:opacity-50"
+              onClick={() => void handleResume(activeScenario.id)}
+              disabled={!canResume}
+            >
+              再開する
+            </button>
+            <button
+              type="button"
+              className="btn-ghost disabled:opacity-50"
+              onClick={() => void handleReset()}
+              disabled={!hasActive}
+            >
+              終了してリセット
+            </button>
+            <button
+              type="button"
+              className="btn-primary disabled:opacity-50"
+              onClick={() => void handleEvaluate()}
+              disabled={!evaluationReady || state?.offline || loadingEval}
+            >
+              {state?.offline ? "オンライン復帰後に評価" : loadingEval ? "評価中..." : "評価を依頼"}
+            </button>
+          </div>
+
+          {!isCollapsed ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="card-muted p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Scenario Brief</p>
+                <p className="mt-2 text-sm text-slate-600">{activeScenario.description}</p>
+                {activeScenario.supplementalInfo ? (
+                  <div className="mt-3 rounded-xl bg-white/90 px-3 py-3 text-sm text-slate-700 shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-700">
+                      Supplemental
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap">{activeScenario.supplementalInfo}</p>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-        )}
-      </div>
+              <div className="card-muted p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation</p>
+                <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                  {activeScenario.evaluationCriteria.map((criterion) => (
+                    <li key={criterion.name} className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-2">
+                      <span>{criterion.name}</span>
+                      <span className="text-xs text-slate-500">{criterion.weight}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       {state?.offline ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="card-muted px-4 py-3 text-sm text-amber-900">
           オフラインです。メッセージはキューに保存され、評価はオンライン復帰後に実行できます。
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 shadow-sm lg:col-span-2">
-          <ChatStream messages={state?.messages ?? []} maxHeight="65vh" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
+          <ChatStream messages={state?.messages ?? []} maxHeight="60vh" />
           <ChatComposer
             onSend={handleSend}
             disabled={!hasActive}
@@ -234,8 +293,8 @@ function ScenarioContent() {
           />
         </div>
 
-        <div className="space-y-4 rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
-          <div>
+        <div className="space-y-4">
+          <div className="card p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">ミッション</p>
               {allMissionsComplete ? (
@@ -244,7 +303,7 @@ function ScenarioContent() {
                 <span className="text-xs text-slate-500">進行中</span>
               )}
             </div>
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-3 space-y-2">
               {missions.length === 0 ? (
                 <li className="text-xs text-slate-500">設定されたミッションはありません。</li>
               ) : (
@@ -254,10 +313,10 @@ function ScenarioContent() {
                   .map((mission) => {
                     const done = missionStatusMap.get(mission.id) ?? false;
                     return (
-                      <li key={mission.id} className="flex items-start gap-2 rounded-md border border-sky-100 px-3 py-2">
+                      <li key={mission.id} className="flex items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
                         <input
                           type="checkbox"
-                          className="mt-1 h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                           checked={done}
                           onChange={(e) => handleMissionToggle(mission.id, e.target.checked)}
                         />
@@ -273,14 +332,49 @@ function ScenarioContent() {
               )}
             </ul>
           </div>
-          {activeScenario.supplementalInfo ? (
-            <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-slate-800">
-              <p className="text-xs font-semibold text-sky-800">補足情報</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm">{activeScenario.supplementalInfo}</p>
-            </div>
+
+          {state?.session ? (
+            <ProgressTracker
+              requirements={state.session.progressFlags.requirements}
+              priorities={state.session.progressFlags.priorities}
+              risks={state.session.progressFlags.risks}
+              acceptance={state.session.progressFlags.acceptance}
+              disabled={state.offline}
+            />
           ) : null}
+
+          <div className="card p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation status</p>
+            {loadingEval ? (
+              <p className="mt-2 text-sm text-slate-700">評価中...</p>
+            ) : state?.evaluation ? (
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-semibold text-slate-900">
+                    {state.evaluation.overallScore ?? "-"}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">/ 100</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      state.evaluation.passing ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {state.evaluation.passing ? "Passing" : "Needs work"}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {state.evaluation.categories.length} categories
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">ミッション完了後に評価が実行されます。</p>
+            )}
+          </div>
+
           {allMissionsComplete && !state?.offline ? (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            <div className="card-muted px-4 py-3 text-xs text-emerald-800">
               全ミッション完了。評価を実行しています…{loadingEval ? "（処理中）" : ""}
             </div>
           ) : null}
