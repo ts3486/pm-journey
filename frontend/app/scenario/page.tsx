@@ -272,8 +272,9 @@ function ScenarioContent() {
               </div>
             ) : null}
           </div>
+        )}
 
-          {!isCollapsed ? (
+        {!isCollapsed ? (
             <div className="grid gap-4 md:grid-cols-2">
               <div className="card-muted p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Scenario Brief</p>
@@ -300,7 +301,6 @@ function ScenarioContent() {
               </div>
             </div>
           ) : null}
-        </div>
       </section>
 
       {state?.offline ? (
