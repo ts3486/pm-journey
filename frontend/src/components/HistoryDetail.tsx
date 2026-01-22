@@ -1,3 +1,5 @@
+"use client";
+
 import { addComment, listComments } from "@/services/comments";
 import { exportAsJson, exportAsMarkdown } from "@/services/export";
 import type { HistoryItem, ManagerComment } from "@/types/session";
@@ -10,7 +12,7 @@ type HistoryDetailProps = {
 export function HistoryDetail({ item }: HistoryDetailProps) {
   const md = useMemo(() => (item ? exportAsMarkdown(item) : ""), [item]);
   const json = useMemo(() => (item ? exportAsJson(item) : ""), [item]);
-   const [comments, setComments] = useState<ManagerComment[]>([]);
+  const [comments, setComments] = useState<ManagerComment[]>([]);
   const [authorName, setAuthorName] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -36,93 +38,119 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
   };
 
   if (!item) {
-    return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
-        セッションを選択してください。
-      </div>
-    );
+    return <div className="card-muted p-6 text-sm text-slate-500">セッションを選択してください。</div>;
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Session {item.sessionId.slice(0, 8)}</h2>
-        <div className="flex gap-2">
+    <div className="card space-y-5 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Session detail</p>
+          <h2 className="text-lg font-semibold text-slate-900">Session {item.sessionId.slice(0, 8)}</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700"
+            className="btn-secondary text-xs"
             onClick={() => navigator.clipboard.writeText(md)}
           >
             Copy Markdown
           </button>
           <button
             type="button"
-            className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700"
+            className="btn-secondary text-xs"
             onClick={() => navigator.clipboard.writeText(json)}
           >
             Copy JSON
           </button>
         </div>
       </div>
-      <div>
-        <div className="text-xs font-semibold text-gray-600">Evaluation</div>
-        <p className="text-sm text-gray-800">
-          {item.evaluation?.overallScore ?? "-"} / 100 · {item.evaluation?.passing ? "Passing" : "Pending"}
-        </p>
+
+      <div className="card-muted space-y-2 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation</p>
+        <div className="flex items-center gap-3">
+          <div className="text-2xl font-semibold text-slate-900">{item.evaluation?.overallScore ?? "-"}</div>
+          <span className="text-xs text-slate-500">/ 100</span>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              item.evaluation?.passing ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            {item.evaluation?.passing ? "Passing" : "Pending"}
+          </span>
+        </div>
+        {item.evaluation?.categories?.length ? (
+          <ul className="mt-2 space-y-1 text-xs text-slate-600">
+            {item.evaluation.categories.map((c) => (
+              <li key={c.name} className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-2">
+                <span>{c.name}</span>
+                <span className="text-[11px] text-slate-500">
+                  {c.score ?? "-"} ({c.weight}%)
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
-      <div>
-        <div className="text-xs font-semibold text-gray-600">Actions</div>
-        <ul className="mt-1 space-y-1 text-sm text-gray-800">
-          {item.actions?.map((a) => (
-            <li key={a.id} className="rounded-md bg-gray-50 px-2 py-1">
-              <span className="text-xs text-gray-500">{a.tags?.join(", ") ?? ""}</span> {a.content}
-            </li>
-          ))}
-        </ul>
+
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Actions</p>
+        {item.actions?.length ? (
+          <ul className="space-y-2 text-sm text-slate-700">
+            {item.actions.map((a) => (
+              <li key={a.id} className="rounded-xl border border-slate-200/70 bg-white/90 px-3 py-2">
+                <span className="text-[11px] text-slate-400">{a.tags?.join(", ") ?? ""}</span> {a.content}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-slate-500">タグ付きアクションはまだありません。</p>
+        )}
       </div>
-      <div>
-        <div className="text-xs font-semibold text-gray-600">上長コメント</div>
-        <div className="mt-2 space-y-2">
+
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">上長コメント</p>
+        <div className="space-y-2">
           {comments.length === 0 ? (
-            <p className="text-xs text-gray-500">コメントはまだありません。</p>
+            <p className="text-xs text-slate-500">コメントはまだありません。</p>
           ) : (
             comments.map((c) => (
-              <div key={c.id} className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
+              <div key={c.id} className="rounded-xl border border-slate-200/70 bg-white/90 px-3 py-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
                   <span>{c.authorName ?? "上長"}</span>
                   <span>{new Date(c.createdAt).toLocaleString()}</span>
                 </div>
-                <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{c.content}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{c.content}</p>
               </div>
             ))
           )}
-          <div className="space-y-2 rounded-md border border-gray-200 bg-white p-3">
+          <div className="card-muted space-y-2 p-3">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 placeholder="お名前 (任意)"
-                className="w-1/3 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                className="input-base w-1/3"
               />
               <input
                 type="text"
                 value={item.sessionId}
                 readOnly
-                className="w-2/3 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500"
+                className="input-base w-2/3 bg-slate-100 text-xs text-slate-500"
               />
             </div>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="コメントを入力してください"
-              className="h-20 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+              className="input-base h-24"
             />
             <button
               type="button"
               disabled={submitting || !content.trim()}
               onClick={handleSubmit}
-              className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+              className="btn-primary disabled:opacity-50"
             >
               {submitting ? "送信中..." : "コメントを追加"}
             </button>

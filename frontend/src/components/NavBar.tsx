@@ -1,24 +1,26 @@
 import Link from "next/link";
 
-type NavBarProps = {
-  activeSessionId?: string;
-};
-
-export function NavBar({ activeSessionId }: NavBarProps) {
+export function NavBar() {
   return (
-    <header className="border-b border-gray-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-30 border-b border-white/70 bg-white/70 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <div className="flex items-center gap-3">
-          <span className="text-base font-semibold tracking-tight text-slate-900">PM Journey</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-700 text-sm font-semibold text-white shadow-sm">
+            PJ
+          </div>
+          <div className="leading-tight">
+            <div className="font-display text-lg font-semibold text-slate-900">PM Journey</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Product leadership</div>
+          </div>
         </div>
-        <nav className="flex items-center gap-4 text-base font-semibold text-slate-800">
-          <Link href="/" className="hover:text-sky-700">
+        <nav className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Link href="/" className="rounded-full px-4 py-2 transition hover:bg-white/80 hover:text-slate-900">
             ホーム
           </Link>
-          <Link href="/scenario" className="hover:text-sky-700">
+          <Link href="/scenario" className="rounded-full px-4 py-2 transition hover:bg-white/80 hover:text-slate-900">
             シナリオ
           </Link>
-          <Link href="/history" className="hover:text-sky-700">
+          <Link href="/history" className="rounded-full px-4 py-2 transition hover:bg-white/80 hover:text-slate-900">
             履歴
           </Link>
         </nav>

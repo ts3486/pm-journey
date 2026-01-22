@@ -1,9 +1,10 @@
+"use client";
+
 import type { Message } from "@/types/session";
 import { useEffect, useRef } from "react";
 
 type ChatStreamProps = {
   messages: Message[];
-  onTag?: (messageId: string, tags: string[]) => void;
   maxHeight?: string;
 };
 
@@ -20,34 +21,48 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
   return (
     <div
       ref={containerRef}
-      className="space-y-3 overflow-y-auto rounded-lg border border-sky-200 bg-white p-4 shadow-sm"
+      className="space-y-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)]"
       style={{ maxHeight }}
     >
       {messages.length === 0 ? (
-        <p className="text-sm text-slate-700">まだメッセージがありません。開始してください。</p>
+        <p className="text-sm text-slate-600">まだメッセージがありません。開始してください。</p>
       ) : (
-        messages.map((m) => (
-          <article
-            key={m.id}
-            className="flex items-start gap-3 rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm text-slate-900"
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[12px] font-semibold text-slate-700">
-              <span className="leading-none">{m.role === "user" ? "U" : "鈴"}</span>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-medium text-sky-700">{m.role === "user" ? "You" : "鈴木"}</span>
-                <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
-                {m.tags && m.tags.length > 0 && (
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                    {m.tags.join(", ")}
-                  </span>
-                )}
+        messages.map((m) => {
+          const isUser = m.role === "user";
+          const isSystem = m.role === "system";
+          return (
+            <article
+              key={m.id}
+              className={`flex items-start gap-3 rounded-xl border px-3 py-3 text-sm ${
+                isSystem
+                  ? "border-slate-200/80 bg-slate-50/80 text-slate-700"
+                  : isUser
+                    ? "border-teal-100 bg-teal-50/60 text-slate-900"
+                    : "border-slate-200/80 bg-white text-slate-900"
+              }`}
+            >
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${
+                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                <span className="leading-none">{isSystem ? "SYS" : isUser ? "YOU" : "鈴"}</span>
               </div>
-              <div className="mt-1 whitespace-pre-wrap">{m.content}</div>
-            </div>
-          </article>
-        ))
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+                  <span className="font-semibold text-slate-700">{isSystem ? "System" : isUser ? "You" : "鈴木"}</span>
+                  <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
+                  {m.tags && m.tags.length > 0 && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      {m.tags.join(", ")}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 whitespace-pre-wrap">{m.content}</div>
+              </div>
+            </article>
+          );
+        })
       )}
     </div>
   );
