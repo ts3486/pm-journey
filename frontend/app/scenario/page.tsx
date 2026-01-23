@@ -2,7 +2,6 @@
 
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
-import { ProgressTracker } from "@/components/ProgressTracker";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
   evaluate,
@@ -17,7 +16,7 @@ import { logEvent } from "@/services/telemetry";
 import { storage } from "@/services/storage";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 export default function ScenarioPage() {
   return (
@@ -34,10 +33,9 @@ export default function ScenarioPage() {
 function ScenarioContent() {
   const [state, setState] = useState<SessionState | null>(null);
   const [loadingEval, setLoadingEval] = useState(false);
-  const [canResume, setCanResume] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isGoalOpen, setIsGoalOpen] = useState(false);
-  const autoEvalAttempted = useRef<Record<string, boolean>>({});
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [lastSessionStatus, setLastSessionStatus] =
+    useState<SessionState["session"]["status"] | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const restart = searchParams.get("restart") === "1";
@@ -64,11 +62,26 @@ function ScenarioContent() {
     return map;
   }, [state?.session?.missionStatus]);
   const allMissionsComplete = missions.length > 0 && missions.every((m) => missionStatusMap.get(m.id));
+  const canResume =
+    !!lastSessionId &&
+    lastSessionId !== state?.session?.id &&
+    (lastSessionStatus === "active" || lastSessionStatus === "completed");
+  const scenarioInfo = activeScenario.product;
+  const hasScenarioInfo =
+    !!activeScenario.supplementalInfo ||
+    !!scenarioInfo.summary ||
+    !!scenarioInfo.audience ||
+    (scenarioInfo.goals?.length ?? 0) > 0 ||
+    (scenarioInfo.problems?.length ?? 0) > 0 ||
+    (scenarioInfo.constraints?.length ?? 0) > 0 ||
+    (scenarioInfo.successCriteria?.length ?? 0) > 0 ||
+    !!scenarioInfo.timeline;
 
   const handleStart = async (scenario = activeScenario) => {
     const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
     setState({ ...snapshot, session: { ...snapshot.session, scenarioDiscipline: scenario.discipline } });
-    setCanResume(true);
+    setLastSessionId(snapshot.session.id);
+    setLastSessionStatus(snapshot.session.status);
     logEvent({
       type: "session_start",
       sessionId: snapshot.session.id,
@@ -80,8 +93,13 @@ function ScenarioContent() {
   const handleResume = async (scenarioId?: string) => {
     const snapshot = resumeSession(scenarioId ?? activeScenario.id);
     if (snapshot) {
+      if (snapshot.session.status === "evaluated" || snapshot.session.status === "completed") {
+        await handleStart(getScenarioById(snapshot.session.scenarioId) ?? activeScenario);
+        return;
+      }
       setState(snapshot);
-      setCanResume(true);
+      setLastSessionId(snapshot.session.id);
+      setLastSessionStatus(snapshot.session.status);
       logEvent({
         type: "session_resume",
         sessionId: snapshot.session.id,
@@ -97,7 +115,8 @@ function ScenarioContent() {
       if (!confirmed) return;
       resetSession(state.session.id, state.session.scenarioId);
       setState(null);
-      setCanResume(false);
+      setLastSessionId(null);
+      setLastSessionStatus(null);
       logEvent({
         type: "session_reset",
         sessionId: state.session.id,
@@ -111,11 +130,6 @@ function ScenarioContent() {
     if (!state) return;
     const next = updateMissionStatus(state, missionId, completed);
     setState(next);
-    const nextAllComplete =
-      missions.length > 0 && missions.every((m) => (next.session.missionStatus ?? []).some((s) => s.missionId === m.id));
-    if (nextAllComplete && !next.offline) {
-      void runEvalAndRedirect(next);
-    }
   };
 
   const handleSend = async (content: string) => {
@@ -124,9 +138,9 @@ function ScenarioContent() {
     setState(next);
   };
 
-  const handleEvaluate = async () => {
+  const handleCompleteScenario = async () => {
     if (!state) return;
-    await runEvalAndRedirect(state, false);
+    await runEvalAndRedirect(state);
   };
 
   const runEvalAndRedirect = async (snapshot: SessionState, navigate = true) => {
@@ -161,33 +175,26 @@ function ScenarioContent() {
     if (!restart) {
       const existing = resumeSession(targetScenario.id);
       if (existing && !state) {
-        setState(existing);
+        setLastSessionId(existing.session.id);
+        setLastSessionStatus(existing.session.status);
+        if (existing.session.status === "evaluated" || existing.session.status === "completed") {
+          void handleStart(targetScenario);
+        } else {
+          setState(existing);
+        }
       } else if (!existing && !state) {
         void handleStart(targetScenario);
       }
     } else if (!state) {
       void handleStart(targetScenario);
     }
-    setCanResume(!!storage.loadLastSessionId(targetScenario.id));
+    const storedId = storage.loadLastSessionId(targetScenario.id);
+    if (!storedId) {
+      setLastSessionId(null);
+      setLastSessionStatus(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
-
-  useEffect(() => {
-    const sessionId = state?.session?.id;
-    if (
-      !state ||
-      !sessionId ||
-      state.evaluation ||
-      !allMissionsComplete ||
-      state.offline ||
-      !evaluationReady
-    ) {
-      return;
-    }
-    if (autoEvalAttempted.current[sessionId]) return;
-    autoEvalAttempted.current[sessionId] = true;
-    void runEvalAndRedirect(state);
-  }, [state, allMissionsComplete, evaluationReady]);
 
   return (
     <div className="space-y-6">
@@ -203,112 +210,9 @@ function ScenarioContent() {
               <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
               <p className="max-w-2xl text-sm text-slate-600">{activeScenario.description}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {state?.session?.id ? <span className="badge">Session {state.session.id.slice(0, 6)}</span> : null}
-              {state?.offline ? <span className="badge-accent">Offline</span> : null}
-              <button
-                type="button"
-                onClick={() => setIsCollapsed((prev) => !prev)}
-                className="btn-ghost"
-                aria-expanded={!isCollapsed}
-              >
-                {isCollapsed ? "ブリーフを開く" : "ブリーフを閉じる"}
-              </button>
-            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
-            aria-expanded={!isCollapsed}
-          >
-            {isCollapsed ? "開く" : "閉じる"}
-          </button>
         </div>
-        {!isCollapsed && (
-          <div className="mt-2 space-y-2 text-sm text-slate-700">
-            <p>{activeScenario.description}</p>
-            <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2">
-              <button
-                type="button"
-                onClick={() => setIsGoalOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between text-left text-sky-800"
-              >
-                <span className="text-xs font-semibold">目標・背景</span>
-                <span className="text-xs">{isGoalOpen ? "閉じる" : "開く"}</span>
-              </button>
-              {isGoalOpen && (
-                <div className="mt-2 space-y-1 text-slate-800">
-                  {activeScenario.product.summary ? (
-                    <p className="text-xs">概要: {activeScenario.product.summary}</p>
-                  ) : null}
-                  {activeScenario.product.goals?.length ? (
-                    <div className="text-xs">
-                      <p className="font-semibold text-slate-900">ゴール</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {activeScenario.product.goals.map((g) => (
-                          <li key={g}>{g}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {activeScenario.product.problems?.length ? (
-                    <div className="text-xs">
-                      <p className="font-semibold text-slate-900">課題</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {activeScenario.product.problems.map((p) => (
-                          <li key={p}>{p}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-            {activeScenario.supplementalInfo ? (
-              <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-slate-800">
-                <p className="text-xs font-semibold text-sky-800">補足情報</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{activeScenario.supplementalInfo}</p>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {!isCollapsed ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="card-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Scenario Brief</p>
-                <p className="mt-2 text-sm text-slate-600">{activeScenario.description}</p>
-                {activeScenario.supplementalInfo ? (
-                  <div className="mt-3 rounded-xl bg-white/90 px-3 py-3 text-sm text-slate-700 shadow-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-700">
-                      Supplemental
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap">{activeScenario.supplementalInfo}</p>
-                  </div>
-                ) : null}
-              </div>
-              <div className="card-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation</p>
-                <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                  {activeScenario.evaluationCriteria.map((criterion) => (
-                    <li key={criterion.name} className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-2">
-                      <span>{criterion.name}</span>
-                      <span className="text-xs text-slate-500">{criterion.weight}%</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ) : null}
       </section>
-
-      {state?.offline ? (
-        <div className="card-muted px-4 py-3 text-sm text-amber-900">
-          オフラインです。メッセージはキューに保存され、評価はオンライン復帰後に実行できます。
-        </div>
-      ) : null}
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <ChatStream messages={state?.messages ?? []} maxHeight="60vh" />
@@ -326,12 +230,10 @@ function ScenarioContent() {
         <div className="space-y-4">
           <div className="card p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">ミッション</p>
-              {allMissionsComplete ? (
-                <span className="text-xs font-semibold text-emerald-600">完了</span>
-              ) : (
-                <span className="text-xs text-slate-500">進行中</span>
-              )}
+              <div>
+                <p className="text-sm font-semibold text-slate-900">ミッション</p>
+                <p className="text-[11px] text-slate-500">AIが会話内容から自動でチェックします。</p>
+              </div>
             </div>
             <ul className="mt-3 space-y-2">
               {missions.length === 0 ? (
@@ -363,49 +265,101 @@ function ScenarioContent() {
             </ul>
           </div>
 
-          {state?.session ? (
-            <ProgressTracker
-              requirements={state.session.progressFlags.requirements}
-              priorities={state.session.progressFlags.priorities}
-              risks={state.session.progressFlags.risks}
-              acceptance={state.session.progressFlags.acceptance}
-              disabled={state.offline}
-            />
+          {allMissionsComplete ? (
+            <div className="card-muted px-4 py-4 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">ミッション達成</p>
+                  <p className="text-xs text-slate-600">完了するタイミングはあなたが決められます。</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleCompleteScenario}
+                  disabled={!evaluationReady || state?.offline || loadingEval}
+                >
+                  シナリオを完了する
+                </button>
+              </div>
+              {loadingEval ? (
+                <p className="mt-2 text-xs text-slate-500">評価を実行しています…</p>
+              ) : null}
+            </div>
           ) : null}
 
-          <div className="card p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation status</p>
-            {loadingEval ? (
-              <p className="mt-2 text-sm text-slate-700">評価中...</p>
-            ) : state?.evaluation ? (
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-semibold text-slate-900">
-                    {state.evaluation.overallScore ?? "-"}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">/ 100</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      state.evaluation.passing ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {state.evaluation.passing ? "Passing" : "Needs work"}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {state.evaluation.categories.length} categories
-                  </span>
-                </div>
+          {hasScenarioInfo ? (
+            <div className="card p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900">背景・補足情報</p>
               </div>
-            ) : (
-              <p className="mt-2 text-sm text-slate-500">ミッション完了後に評価が実行されます。</p>
-            )}
-          </div>
-
-          {allMissionsComplete && !state?.offline ? (
-            <div className="card-muted px-4 py-3 text-xs text-emerald-800">
-              全ミッション完了。評価を実行しています…{loadingEval ? "（処理中）" : ""}
+              <details className="mt-3 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs text-slate-700">
+                <summary className="cursor-pointer select-none font-semibold text-slate-800">
+                  開く
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {scenarioInfo.summary ? (
+                    <p>
+                      <span className="font-semibold text-slate-800">背景:</span> {scenarioInfo.summary}
+                    </p>
+                  ) : null}
+                  {scenarioInfo.audience ? (
+                    <p>
+                      <span className="font-semibold text-slate-800">対象:</span> {scenarioInfo.audience}
+                    </p>
+                  ) : null}
+                  {scenarioInfo.goals?.length ? (
+                    <div>
+                      <p className="font-semibold text-slate-800">ゴール</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {scenarioInfo.goals.map((goal) => (
+                          <li key={goal}>{goal}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {scenarioInfo.problems?.length ? (
+                    <div>
+                      <p className="font-semibold text-slate-800">課題</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {scenarioInfo.problems.map((problem) => (
+                          <li key={problem}>{problem}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {scenarioInfo.constraints?.length ? (
+                    <div>
+                      <p className="font-semibold text-slate-800">制約</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {scenarioInfo.constraints.map((constraint) => (
+                          <li key={constraint}>{constraint}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {scenarioInfo.timeline ? (
+                    <p>
+                      <span className="font-semibold text-slate-800">タイムライン:</span> {scenarioInfo.timeline}
+                    </p>
+                  ) : null}
+                  {scenarioInfo.successCriteria?.length ? (
+                    <div>
+                      <p className="font-semibold text-slate-800">成功条件</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        {scenarioInfo.successCriteria.map((criterion) => (
+                          <li key={criterion}>{criterion}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {activeScenario.supplementalInfo ? (
+                    <div>
+                      <p className="font-semibold text-slate-800">補足情報</p>
+                      <p className="whitespace-pre-wrap">{activeScenario.supplementalInfo}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
             </div>
           ) : null}
         </div>

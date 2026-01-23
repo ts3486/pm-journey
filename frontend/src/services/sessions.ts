@@ -8,6 +8,8 @@ import type {
   Message,
   MessageRole,
   MessageTag,
+  Mission,
+  MissionStatus,
   ProgressFlags,
   Session,
   ScenarioDiscipline,
@@ -122,6 +124,28 @@ const requestAgentReply = async (params: {
   }
 };
 
+const requestMissionCompletion = async (params: {
+  scenarioId: string;
+  missions: Mission[];
+  messages: Message[];
+  existingMissionStatus?: MissionStatus[];
+}): Promise<string[] | null> => {
+  try {
+    const res = await fetch("/api/mission-detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { completedMissionIds?: string[] };
+    if (!Array.isArray(data.completedMissionIds)) return null;
+    return data.completedMissionIds.filter((id): id is string => typeof id === "string");
+  } catch (error) {
+    console.error("Mission detection failed", error);
+    return null;
+  }
+};
+
 export async function startSession(
   scenarioId: string,
   scenarioDiscipline?: ScenarioDiscipline,
@@ -208,6 +232,32 @@ export async function sendMessage(
     messages.push(reply);
   }
 
+  if (reply && !isOffline()) {
+    const scenarioMissions = scenario?.missions ?? [];
+    const existingIds = new Set((session.missionStatus ?? []).map((m) => m.missionId));
+    const allDone =
+      scenarioMissions.length > 0 && scenarioMissions.every((mission) => existingIds.has(mission.id));
+    if (scenarioMissions.length > 0 && !allDone) {
+      const completedMissionIds =
+        (await requestMissionCompletion({
+          scenarioId: session.scenarioId,
+          missions: scenarioMissions,
+          messages,
+          existingMissionStatus: session.missionStatus,
+        })) ?? [];
+      if (completedMissionIds.length > 0) {
+        const nextMissionStatus = [...(session.missionStatus ?? [])];
+        completedMissionIds.forEach((missionId) => {
+          if (!existingIds.has(missionId)) {
+            nextMissionStatus.push({ missionId, completedAt: new Date().toISOString() });
+            existingIds.add(missionId);
+          }
+        });
+        session.missionStatus = nextMissionStatus;
+      }
+    }
+  }
+
   const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
   storage.saveSession(snapshot);
   return { ...state, session, messages, offline: isOffline() };
@@ -283,7 +333,14 @@ export async function loadHistory(): Promise<HistoryItem[]> {
     .map((k) => {
       const raw = localStorage.getItem(k);
       if (!raw) return null;
-      const snapshot = JSON.parse(raw) as SessionSnapshot;
+      let snapshot: SessionSnapshot;
+      try {
+        snapshot = JSON.parse(raw) as SessionSnapshot;
+      } catch (error) {
+        console.warn("Skipping invalid session snapshot", { key: k, error });
+        return null;
+      }
+      if (!snapshot?.session?.id) return null;
       return {
         sessionId: snapshot.session.id,
         scenarioId: snapshot.session.scenarioId,
