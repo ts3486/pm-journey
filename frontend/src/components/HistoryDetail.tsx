@@ -73,7 +73,7 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
           <span className="text-xs text-slate-500">/ 100</span>
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              item.evaluation?.passing ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              item.evaluation?.passing ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
             }`}
           >
             {item.evaluation?.passing ? "Passing" : "Pending"}

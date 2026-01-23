@@ -198,10 +198,8 @@ function ScenarioContent() {
 
   return (
     <div className="space-y-6">
-      <section className="card relative overflow-hidden p-6 reveal">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-teal-100/70 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-sky-100/70 blur-3xl" />
-        <div className="relative z-10 space-y-4">
+      <section className="card p-6 reveal">
+        <div className="space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
@@ -232,7 +230,6 @@ function ScenarioContent() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-900">ミッション</p>
-                <p className="text-[11px] text-slate-500">AIが会話内容から自動でチェックします。</p>
               </div>
             </div>
             <ul className="mt-3 space-y-2">
@@ -248,7 +245,7 @@ function ScenarioContent() {
                       <li key={mission.id} className="flex items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
                         <input
                           type="checkbox"
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           checked={done}
                           onChange={(e) => handleMissionToggle(mission.id, e.target.checked)}
                         />
@@ -270,7 +267,6 @@ function ScenarioContent() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">ミッション達成</p>
-                  <p className="text-xs text-slate-600">完了するタイミングはあなたが決められます。</p>
                 </div>
                 <button
                   type="button"

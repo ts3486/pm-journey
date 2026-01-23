@@ -34,20 +34,20 @@ export default function HistoryDetailPage() {
     evaluation?.overallScore != null ? `${evaluation.overallScore} / 100` : "評価実行中または未実行";
   const categoryStyles = [
     {
-      bg: "bg-sky-50",
-      border: "border-sky-200",
-      text: "text-sky-900",
-      accent: "text-sky-700",
-      badge: "bg-sky-100 text-sky-700",
-      dot: "bg-sky-400",
+      bg: "bg-blue-50",
+      border: "border-blue-200",
+      text: "text-blue-900",
+      accent: "text-blue-700",
+      badge: "bg-blue-100 text-blue-700",
+      dot: "bg-blue-400",
     },
     {
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      text: "text-emerald-900",
-      accent: "text-emerald-700",
-      badge: "bg-emerald-100 text-emerald-700",
-      dot: "bg-emerald-400",
+      bg: "bg-indigo-50",
+      border: "border-indigo-200",
+      text: "text-indigo-900",
+      accent: "text-indigo-700",
+      badge: "bg-indigo-100 text-indigo-700",
+      dot: "bg-indigo-400",
     },
     {
       bg: "bg-amber-50",
@@ -92,24 +92,38 @@ export default function HistoryDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-sky-700">{item.scenarioDiscipline ?? "Scenario"}</p>
+          <div className="w-full">
+            <div className="flex justify-between">
+              <div><p className="text-xs font-semibold text-blue-700">{item.scenarioDiscipline ?? "Scenario"}</p>
             <h1 className="text-lg font-semibold text-slate-900">セッション: {sessionId}</h1>
-            <p className="text-sm text-slate-700">メッセージ数: {item.metadata?.messageCount ?? 0}</p>
+            <p className="text-sm text-slate-700">メッセージ数: {item.metadata?.messageCount ?? 0}</p></div>
+              <div className="self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800" >{scoreLabel}</div>
+            </div>
             {scenario ? (
-              <div className="mt-2 space-y-1 rounded-md border border-sky-50 bg-sky-50 px-3 py-2 text-xs text-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowScenarioInfo((v) => !v)}
-                  className="flex w-full items-center justify-between text-left font-semibold text-sky-800"
-                >
-                  <span>シナリオ情報</span>
-                  <span>{showScenarioInfo ? "閉じる" : "開く"}</span>
-                </button>
+              <div className="mt-4 rounded-md border border-blue-50 bg-blue-50 px-3 py-3 text-xs text-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-blue-800">シナリオ情報</span>
+                  <button
+                    type="button"
+                    aria-expanded={showScenarioInfo}
+                    aria-label={showScenarioInfo ? "シナリオ情報を閉じる" : "シナリオ情報を開く"}
+                    onClick={() => setShowScenarioInfo((v) => !v)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-blue-800 hover:bg-white/70"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      className={`h-4 w-4 transition-transform ${showScenarioInfo ? "rotate-180" : ""}`}
+                      fill="currentColor"
+                    >
+                      <path d="M5.4 7.6a1 1 0 0 1 1.4 0L10 10.8l3.2-3.2a1 1 0 1 1 1.4 1.4l-3.9 3.9a1 1 0 0 1-1.4 0L5.4 9a1 1 0 0 1 0-1.4z" />
+                    </svg>
+                  </button>
+                </div>
                 {showScenarioInfo ? (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-3 space-y-2">
                     <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
                     <p className="text-xs text-slate-700">{scenario.description}</p>
                     {scenario.product?.goals?.length ? (
@@ -141,15 +155,13 @@ export default function HistoryDetailPage() {
               </div>
             ) : null}
           </div>
-          <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">{scoreLabel}</div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm space-y-4">
+      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">評価</h2>
-            <p className="text-xs text-slate-500">AI評価のスコア内訳</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
@@ -158,7 +170,7 @@ export default function HistoryDetailPage() {
             {evaluation?.passing != null ? (
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  evaluation.passing ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                  evaluation.passing ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
                 }`}
               >
                 {evaluation.passing ? "合格想定" : "改善が必要"}
@@ -241,7 +253,7 @@ export default function HistoryDetailPage() {
         )}
       </div>
 
-      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-900">チャットログ</h2>
         <div className="mt-2 space-y-2 max-h-[60vh] overflow-y-auto">
           {item.actions?.length ? (
@@ -257,7 +269,7 @@ export default function HistoryDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">上長コメント</h2>
           <span className="text-[11px] text-slate-500">{(item.comments ?? []).length} 件</span>
@@ -284,12 +296,12 @@ export default function HistoryDetailPage() {
               placeholder="お名前（任意）"
               value={commentAuthor}
               onChange={(e) => setCommentAuthor(e.target.value)}
-              className="w-40 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-800 focus:border-sky-400 focus:outline-none"
+              className="w-40 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-800 focus:border-blue-400 focus:outline-none"
             />
             <button
               type="button"
               onClick={handleAddComment}
-              className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-700"
+              className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
             >
               追加
             </button>
@@ -298,7 +310,7 @@ export default function HistoryDetailPage() {
             placeholder="コメントを入力してください"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-sky-400 focus:outline-none"
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 focus:outline-none"
             rows={3}
           />
         </div>

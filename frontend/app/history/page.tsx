@@ -7,8 +7,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const disciplineBadge = (discipline?: ScenarioDiscipline) => {
-  if (discipline === "CHALLENGE") return "bg-rose-50 text-rose-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (discipline === "CHALLENGE") return "bg-indigo-50 text-indigo-700";
+  return "bg-blue-50 text-blue-700";
 };
 
 export default function HistoryPage() {
@@ -46,10 +46,7 @@ export default function HistoryPage() {
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{scenarioTitle}</p>
                     <div className="text-base font-semibold text-slate-900">Session {item.sessionId.slice(0, 8)}</div>
-                    <div className="text-xs text-slate-500">
-                      {item.metadata?.messageCount ?? 0} messages ·{" "}
-                      {item.evaluation?.passing ? "Passing" : "Pending"}
-                    </div>
+                    <div className="text-xs text-slate-500">{item.evaluation?.passing ? "Passing" : "Pending"}</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span
@@ -62,23 +59,6 @@ export default function HistoryPage() {
                     </span>
                   </div>
                 </div>
-                {item.actions?.length ? (
-                  <div className="px-5 pb-5 text-xs text-slate-600">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Highlights</p>
-                    <ul className="mt-2 space-y-1">
-                      {item.actions.slice(0, 2).map((a) => (
-                        <li key={a.id} className="truncate">
-                          {a.content}
-                        </li>
-                      ))}
-                      {item.actions.length > 2 ? (
-                        <li className="text-[11px] text-slate-400">…{item.actions.length - 2} more</li>
-                      ) : null}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="px-5 pb-5 text-xs text-slate-400">No actions recorded.</div>
-                )}
               </Link>
             );
           })}

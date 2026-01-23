@@ -37,13 +37,13 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
                 isSystem
                   ? "border-slate-200/80 bg-slate-50/80 text-slate-700"
                   : isUser
-                    ? "border-teal-100 bg-teal-50/60 text-slate-900"
+                    ? "border-blue-100 bg-blue-50/60 text-slate-900"
                     : "border-slate-200/80 bg-white text-slate-900"
               }`}
             >
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${
-                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-700"
+                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
                 }`}
               >
                 <span className="leading-none">{isSystem ? "SYS" : isUser ? "YOU" : "鈴"}</span>

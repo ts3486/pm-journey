@@ -2,15 +2,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f4f1;
+  --background: #f8fafc;
   --surface: #ffffff;
-  --surface-muted: #f1f5f9;
+  --surface-muted: #eef2f7;
   --foreground: #0f172a;
-  --muted: #475569;
-  --border: rgba(15, 23, 42, 0.12);
-  --accent: #0f766e;
-  --accent-strong: #0b5d59;
-  --accent-soft: #ccfbf1;
+  --muted: #334155;
+  --border: rgba(30, 41, 59, 0.18);
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-soft: #dbeafe;
   --font-sans: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-display: "Noto Serif JP", "Noto Sans JP", "Hiragino Mincho ProN", serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -25,10 +25,7 @@
 
 body {
   background-color: var(--background);
-  background-image:
-    radial-gradient(1200px 520px at 8% 10%, rgba(15, 118, 110, 0.14), transparent 60%),
-    radial-gradient(900px 520px at 92% 0%, rgba(14, 116, 144, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(246, 244, 241, 1) 58%, rgba(243, 247, 250, 1) 100%);
+  background-image: none;
   color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.6;
@@ -46,57 +43,73 @@ body {
   }
 
   ::selection {
-    background: rgba(14, 116, 144, 0.2);
+    background: rgba(37, 99, 235, 0.2);
+  }
+
+  .text-slate-400 {
+    color: #64748b;
+  }
+
+  .text-slate-500 {
+    color: #475569;
+  }
+
+  .text-slate-600 {
+    color: #334155;
+  }
+
+  .text-slate-700 {
+    color: #1f2937;
+  }
+
+  .text-slate-800 {
+    color: #0f172a;
   }
 }
 
 @layer components {
   .card {
-    border-radius: 1.25rem;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    background: rgba(255, 255, 255, 0.82);
-    box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    border-radius: 0.85rem;
+    border: 1px solid rgba(226, 232, 240, 1);
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
   .card-muted {
-    border-radius: 1.25rem;
-    border: 1px solid rgba(226, 232, 240, 0.7);
-    background: rgba(248, 250, 252, 0.75);
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    border-radius: 0.85rem;
+    border: 1px solid rgba(226, 232, 240, 1);
+    background: #f8fafc;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
   }
 
   .badge {
     border-radius: 999px;
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(226, 232, 240, 1);
+    background: #f8fafc;
     padding: 0.25rem 0.75rem;
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #475569;
+    color: #1f2937;
   }
 
   .badge-accent {
     border-radius: 999px;
-    border: 1px solid rgba(20, 184, 166, 0.3);
-    background: rgba(204, 251, 241, 0.8);
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: rgba(219, 234, 254, 0.95);
     padding: 0.25rem 0.75rem;
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #0f766e;
+    color: #1d4ed8;
   }
 
   .btn-primary {
     align-items: center;
-    border-radius: 999px;
-    background: #0f766e;
+    border-radius: 0.7rem;
+    background: #2563eb;
     display: inline-flex;
     gap: 0.35rem;
     justify-content: center;
@@ -104,14 +117,14 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     color: #ffffff;
-    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
 
   .btn-primary:hover {
-    background: #0b5d59;
-    box-shadow: 0 14px 28px rgba(15, 118, 110, 0.28);
+    background: #1d4ed8;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
     transform: translateY(-1px);
   }
 
@@ -125,9 +138,9 @@ body {
 
   .btn-secondary {
     align-items: center;
-    border-radius: 999px;
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    background: rgba(255, 255, 255, 0.9);
+    border-radius: 0.7rem;
+    border: 1px solid rgba(226, 232, 240, 1);
+    background: #ffffff;
     display: inline-flex;
     gap: 0.35rem;
     justify-content: center;
@@ -135,51 +148,51 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     color: #334155;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
   .btn-secondary:hover {
-    border-color: rgba(148, 163, 184, 0.7);
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+    border-color: rgba(148, 163, 184, 0.9);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
     transform: translateY(-1px);
   }
 
   .btn-ghost {
     align-items: center;
-    border-radius: 999px;
+    border-radius: 0.7rem;
     display: inline-flex;
     gap: 0.35rem;
     justify-content: center;
     padding: 0.45rem 1rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #475569;
+    color: #334155;
     cursor: pointer;
     transition: background 0.2s ease, color 0.2s ease;
   }
 
   .btn-ghost:hover {
-    background: rgba(226, 232, 240, 0.6);
+    background: rgba(226, 232, 240, 0.8);
     color: #0f172a;
   }
 
   .input-base {
     width: 100%;
-    border-radius: 0.9rem;
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    background: rgba(255, 255, 255, 0.92);
+    border-radius: 0.7rem;
+    border: 1px solid rgba(226, 232, 240, 1);
+    background: #ffffff;
     padding: 0.65rem 0.9rem;
     font-size: 0.875rem;
     color: #0f172a;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
   }
 
   .input-base:focus {
-    border-color: rgba(20, 184, 166, 0.7);
+    border-color: rgba(37, 99, 235, 0.7);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
   }
 }
 
