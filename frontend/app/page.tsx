@@ -32,18 +32,22 @@ export default function Home() {
   return (
     <div className="space-y-12">
       <section
-        className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] -mt-8 border-b border-blue-900/30 bg-blue-900 py-14 text-white reveal lg:-mt-12"
+        className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] -mt-8 border-b border-blue-700/70 bg-blue-700 py-14 shadow-[inset_0_-1px_0_rgba(30,64,175,0.34)] reveal lg:-mt-12"
         style={revealDelay(0)}
       >
-        <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.18),rgba(15,23,42,0))]" />
+        <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
           <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-100">PM Journey</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/80">PM Journey</p>
             <h1 className="font-display text-3xl text-white md:text-4xl">
               AIと一緒にPM体験を積む
             </h1>
-            <p className="max-w-2xl text-sm text-blue-100 md:text-base">
+            <p className="max-w-2xl text-sm text-white/80 md:text-base">
               シナリオを選んで仮想プロジェクトに参画。エージェントと対話しながら、実践的な意思決定・リスク整理・合意形成を磨けます。
             </p>
+            {lastScenario ? (
+              <div className="text-xs text-white/70">Last session: {lastScenario.title}</div>
+            ) : null}
           </div>
         </div>
       </section>
