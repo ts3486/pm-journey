@@ -28,7 +28,6 @@ export default function Home() {
 
   const defaultStartHref = `/scenario?scenarioId=${defaultScenario.id}&restart=1`;
   const resumeHref = lastScenarioId ? `/scenario?scenarioId=${lastScenarioId}` : defaultStartHref;
-  const lastScenario = useMemo(() => getScenarioById(lastScenarioId), [lastScenarioId]);
   const totalScenarios = useMemo(
     () => scenarioCatalog.reduce((count, section) => count + section.scenarios.length, 0),
     [],
@@ -112,7 +111,7 @@ export default function Home() {
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
                         Agent
                       </span>
-                      <p className="text-xs  text-slate-800">早速、このプロジェクトのPMとして以下をお願いしたいです！</p>
+                      <p className="text-xs  text-slate-800">ありがとうございます！では早速、このプロジェクトのPMとしてタスクを依頼させてください。</p>
                     </div>
                   </div>
                 </div>

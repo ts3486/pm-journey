@@ -9,7 +9,6 @@ use sqlx::{PgPool, migrate::Migrator};
 use std::env;
 use tower::make::Shared;
 use middleware::telemetry::{init_tracing, tracing_middleware};
-use crate::api::SharedState;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
@@ -20,6 +19,7 @@ async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
     init_tracing();
 
     let database_url = env::var("DATABASE_URL")

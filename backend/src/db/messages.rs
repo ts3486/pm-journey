@@ -13,6 +13,7 @@ impl MessageRepository {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     pub async fn create(&self, message: &Message) -> Result<Message> {
         let mut tx = self.pool.begin().await?;
         self.create_in_tx(&mut tx, message).await?;
@@ -68,6 +69,7 @@ impl MessageRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get(&self, id: &str) -> Result<Option<Message>> {
         let row = sqlx::query!(
             r#"
@@ -163,6 +165,7 @@ impl MessageRepository {
         }).collect())
     }
 
+    #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
         sqlx::query!("DELETE FROM messages WHERE session_id = $1", session_id)
             .execute(&self.pool)

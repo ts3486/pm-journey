@@ -99,6 +99,7 @@ impl CommentRepository {
         }).collect())
     }
 
+    #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
         sqlx::query!("DELETE FROM comments WHERE session_id = $1", session_id)
             .execute(&self.pool)

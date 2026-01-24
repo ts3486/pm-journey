@@ -75,6 +75,7 @@ impl SessionRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn update(&self, session: &Session) -> Result<Session> {
         let status = match session.status {
             SessionStatus::Active => "active",
@@ -134,6 +135,7 @@ impl SessionRepository {
             .ok_or_else(|| anyhow::anyhow!("Session not found after update"))
     }
 
+    #[allow(dead_code)]
     pub async fn update_last_activity(&self, id: &str) -> Result<()> {
         sqlx::query!(
             "UPDATE sessions SET last_activity_at = NOW() WHERE id = $1",

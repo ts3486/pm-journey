@@ -12,6 +12,7 @@ impl EvaluationRepository {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     pub async fn create(&self, evaluation: &Evaluation) -> Result<Evaluation> {
         let mut tx = self.pool.begin().await?;
         self.create_in_tx(&mut tx, evaluation).await?;
@@ -84,6 +85,7 @@ impl EvaluationRepository {
         }))
     }
 
+    #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
         sqlx::query!("DELETE FROM evaluations WHERE session_id = $1", session_id)
             .execute(&self.pool)
