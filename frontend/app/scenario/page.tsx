@@ -22,7 +22,7 @@ export default function ScenarioPage() {
   return (
     <Suspense
       fallback={
-        <div className="card p-4 text-sm text-slate-700">読み込み中...</div>
+        <div className="card p-4 text-sm text-slate-700">読み込み中…</div>
       }
     >
       <ScenarioContent />
@@ -245,19 +245,22 @@ function ScenarioContent() {
                   .map((mission) => {
                     const done = missionStatusMap.get(mission.id) ?? false;
                     return (
-                      <li key={mission.id} className="flex items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
-                        <input
-                          type="checkbox"
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                          checked={done}
-                          onChange={(e) => handleMissionToggle(mission.id, e.target.checked)}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">{mission.title}</p>
-                          {mission.description ? (
-                            <p className="text-xs text-slate-600">{mission.description}</p>
-                          ) : null}
-                        </div>
+                      <li key={mission.id}>
+                        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                            checked={done}
+                            name={`mission-${mission.id}`}
+                            onChange={(e) => handleMissionToggle(mission.id, e.target.checked)}
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{mission.title}</p>
+                            {mission.description ? (
+                              <p className="text-xs text-slate-600">{mission.description}</p>
+                            ) : null}
+                          </div>
+                        </label>
                       </li>
                     );
                   })

@@ -45,7 +45,7 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
     <div className="card space-y-5 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Session detail</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Session Detail</p>
           <h2 className="text-lg font-semibold text-slate-900">Session {item.sessionId.slice(0, 8)}</h2>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -69,11 +69,13 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
       <div className="card-muted space-y-2 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Evaluation</p>
         <div className="flex items-center gap-3">
-          <div className="text-2xl font-semibold text-slate-900">{item.evaluation?.overallScore ?? "-"}</div>
-          <span className="text-xs text-slate-500">/ 100</span>
+          <div className="text-2xl font-semibold text-slate-900 tabular-nums">
+            {item.evaluation?.overallScore ?? "-"}
+          </div>
+          <span className="text-xs text-slate-500 tabular-nums">/ 100</span>
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              item.evaluation?.passing ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
+              item.evaluation?.passing ? "bg-orange-50 text-orange-700" : "bg-amber-50 text-amber-700"
             }`}
           >
             {item.evaluation?.passing ? "Passing" : "Pending"}
@@ -129,21 +131,30 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
               <input
                 type="text"
                 value={authorName}
+                aria-label="お名前"
+                name="authorName"
+                autoComplete="name"
                 onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="お名前 (任意)"
+                placeholder="お名前（任意）… 例: 山田"
                 className="input-base w-1/3"
               />
               <input
                 type="text"
                 value={item.sessionId}
                 readOnly
+                aria-label="セッションID"
+                name="sessionId"
+                autoComplete="off"
                 className="input-base w-2/3 bg-slate-100 text-xs text-slate-500"
               />
             </div>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="コメントを入力してください"
+              aria-label="コメント"
+              name="comment"
+              autoComplete="off"
+              placeholder="コメントを入力… 例: 判断の背景を共有"
               className="input-base h-24"
             />
             <button
@@ -152,7 +163,7 @@ export function HistoryDetail({ item }: HistoryDetailProps) {
               onClick={handleSubmit}
               className="btn-primary disabled:opacity-50"
             >
-              {submitting ? "送信中..." : "コメントを追加"}
+              {submitting ? "送信中…" : "コメントを追加"}
             </button>
           </div>
         </div>

@@ -34,20 +34,12 @@ export default function HistoryDetailPage() {
     evaluation?.overallScore != null ? `${evaluation.overallScore} / 100` : "評価実行中または未実行";
   const categoryStyles = [
     {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-900",
-      accent: "text-blue-700",
-      badge: "bg-blue-100 text-blue-700",
-      dot: "bg-blue-400",
-    },
-    {
-      bg: "bg-indigo-50",
-      border: "border-indigo-200",
-      text: "text-indigo-900",
-      accent: "text-indigo-700",
-      badge: "bg-indigo-100 text-indigo-700",
-      dot: "bg-indigo-400",
+      bg: "bg-orange-50",
+      border: "border-orange-200",
+      text: "text-orange-900",
+      accent: "text-orange-700",
+      badge: "bg-orange-100 text-orange-700",
+      dot: "bg-orange-400",
     },
     {
       bg: "bg-amber-50",
@@ -58,12 +50,20 @@ export default function HistoryDetailPage() {
       dot: "bg-amber-400",
     },
     {
-      bg: "bg-rose-50",
-      border: "border-rose-200",
-      text: "text-rose-900",
-      accent: "text-rose-700",
-      badge: "bg-rose-100 text-rose-700",
-      dot: "bg-rose-400",
+      bg: "bg-yellow-50",
+      border: "border-yellow-200",
+      text: "text-yellow-900",
+      accent: "text-yellow-700",
+      badge: "bg-yellow-100 text-yellow-700",
+      dot: "bg-yellow-400",
+    },
+    {
+      bg: "bg-stone-50",
+      border: "border-stone-200",
+      text: "text-stone-900",
+      accent: "text-stone-700",
+      badge: "bg-stone-100 text-stone-700",
+      dot: "bg-stone-400",
     },
   ];
   const categories = evaluation?.categories ?? [];
@@ -92,25 +92,25 @@ export default function HistoryDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+      <div className="card p-4">
         <div className="flex items-center justify-between">
           <div className="w-full">
             <div className="flex justify-between">
-              <div><p className="text-xs font-semibold text-blue-700">{item.scenarioDiscipline ?? "Scenario"}</p>
+              <div><p className="text-xs font-semibold text-orange-700">{item.scenarioDiscipline ?? "Scenario"}</p>
             <h1 className="text-lg font-semibold text-slate-900">セッション: {sessionId}</h1>
             <p className="text-sm text-slate-700">メッセージ数: {item.metadata?.messageCount ?? 0}</p></div>
-              <div className="self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800" >{scoreLabel}</div>
+              <div className="self-start rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-800 tabular-nums" >{scoreLabel}</div>
             </div>
             {scenario ? (
-              <div className="mt-4 rounded-md border border-blue-50 bg-blue-50 px-3 py-3 text-xs text-slate-800">
+              <div className="mt-4 rounded-md border border-orange-100/70 bg-orange-50/60 px-3 py-3 text-xs text-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-blue-800">シナリオ情報</span>
+                  <span className="font-semibold text-orange-800">シナリオ情報</span>
                   <button
                     type="button"
                     aria-expanded={showScenarioInfo}
                     aria-label={showScenarioInfo ? "シナリオ情報を閉じる" : "シナリオ情報を開く"}
                     onClick={() => setShowScenarioInfo((v) => !v)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-blue-800 hover:bg-white/70"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-orange-800 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff9f1]"
                   >
                     <svg
                       aria-hidden="true"
@@ -158,25 +158,25 @@ export default function HistoryDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm space-y-4">
+      <div className="card space-y-4 p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">評価</h2>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 tabular-nums">
               {scoreLabel}
             </span>
             {evaluation?.passing != null ? (
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  evaluation.passing ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
+                  evaluation.passing ? "bg-orange-50 text-orange-700" : "bg-amber-50 text-amber-700"
                 }`}
               >
                 {evaluation.passing ? "合格想定" : "改善が必要"}
               </span>
             ) : (
-              <span className="text-xs text-slate-500">評価中...</span>
+              <span className="text-xs text-slate-500">評価中…</span>
             )}
           </div>
         </div>
@@ -197,8 +197,8 @@ export default function HistoryDetailPage() {
                       <p className="text-xs font-semibold text-slate-900">{c.name}</p>
                     </div>
                     <div className="flex items-end justify-between">
-                      <span className={`text-2xl font-semibold ${scoreTone}`}>{scoreValue}</span>
-                      <span className="text-[11px] text-slate-500">/ 100</span>
+                      <span className={`text-2xl font-semibold tabular-nums ${scoreTone}`}>{scoreValue}</span>
+                      <span className="text-[11px] text-slate-500 tabular-nums">/ 100</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${palette.badge}`}>
@@ -253,7 +253,7 @@ export default function HistoryDetailPage() {
         )}
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+      <div className="card p-4">
         <h2 className="text-sm font-semibold text-slate-900">チャットログ</h2>
         <div className="mt-2 space-y-2 max-h-[60vh] overflow-y-auto">
           {item.actions?.length ? (
@@ -269,7 +269,7 @@ export default function HistoryDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm space-y-3">
+      <div className="card space-y-3 p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">上長コメント</h2>
           <span className="text-[11px] text-slate-500">{(item.comments ?? []).length} 件</span>
@@ -293,24 +293,30 @@ export default function HistoryDetailPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="お名前（任意）"
+              placeholder="お名前（任意）… 例: 上長"
               value={commentAuthor}
+              aria-label="お名前"
+              name="commentAuthor"
+              autoComplete="name"
               onChange={(e) => setCommentAuthor(e.target.value)}
-              className="w-40 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-800 focus:border-blue-400 focus:outline-none"
+              className="input-base w-40 text-sm"
             />
             <button
               type="button"
               onClick={handleAddComment}
-              className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+              className="rounded-md bg-orange-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff9f1]"
             >
               追加
             </button>
           </div>
           <textarea
-            placeholder="コメントを入力してください"
+            placeholder="コメントを入力… 例: 次の一手"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 focus:outline-none"
+            aria-label="コメント"
+            name="comment"
+            autoComplete="off"
+            className="input-base w-full text-sm"
             rows={3}
           />
         </div>

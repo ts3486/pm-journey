@@ -134,23 +134,23 @@ export default function MigratePage() {
 
         {status === "scanning" && (
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">Scanning...</h2>
-            <p className="text-sm text-slate-600">Finding sessions in localStorage...</p>
+            <h2 className="text-lg font-semibold text-slate-900">Scanning…</h2>
+            <p className="text-sm text-slate-600">Finding sessions in localStorage…</p>
             <div className="h-2 w-full rounded-full bg-slate-200">
-              <div className="h-2 rounded-full bg-blue-600 animate-pulse" style={{ width: "30%" }} />
+              <div className="h-2 rounded-full bg-orange-600 animate-pulse" style={{ width: "30%" }} />
             </div>
           </div>
         )}
 
         {status === "uploading" && (
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">Uploading...</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Uploading…</h2>
             <p className="text-sm text-slate-600">
               Uploading {progress.imported}/{progress.total} sessions
             </p>
             <div className="h-2 w-full rounded-full bg-slate-200">
               <div
-                className="h-2 rounded-full bg-blue-600 transition-all"
+                className="h-2 rounded-full bg-orange-600 transition-all"
                 style={{ width: `${(progress.imported / progress.total) * 100}%` }}
               />
             </div>
@@ -170,7 +170,7 @@ export default function MigratePage() {
                 Your data is now stored in the database. You can optionally clear your localStorage to free up space.
               </p>
               <button onClick={clearLocalStorage} className="btn-secondary">
-                Clear localStorage
+                Clear Local Storage
               </button>
             </div>
           </div>

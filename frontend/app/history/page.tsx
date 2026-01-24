@@ -7,8 +7,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const disciplineBadge = (discipline?: ScenarioDiscipline) => {
-  if (discipline === "CHALLENGE") return "bg-indigo-50 text-indigo-700";
-  return "bg-blue-50 text-blue-700";
+  if (discipline === "CHALLENGE") return "bg-amber-50 text-amber-700";
+  return "bg-orange-50 text-orange-700";
 };
 
 export default function HistoryPage() {
@@ -40,7 +40,7 @@ export default function HistoryPage() {
               <Link
                 key={item.sessionId}
                 href={`/history/${item.sessionId}`}
-                className="card block w-full text-left transition hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+                className="card block w-full text-left transition hover:shadow-[0_18px_40px_rgba(120,71,34,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8efe4]"
               >
                 <div className="flex items-start justify-between gap-3 p-5">
                   <div className="space-y-2">
@@ -54,8 +54,8 @@ export default function HistoryPage() {
                     >
                       {item.scenarioDiscipline ?? "BASIC"}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {item.evaluation?.overallScore != null ? `${item.evaluation.overallScore} / 100` : "No score"}
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 tabular-nums">
+                      {item.evaluation?.overallScore != null ? `${item.evaluation.overallScore} / 100` : "No Score"}
                     </span>
                   </div>
                 </div>

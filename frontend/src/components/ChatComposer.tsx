@@ -26,6 +26,9 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
         className="input-base h-28 resize-none"
         value={value}
         disabled={disabled}
+        aria-label="メッセージ入力"
+        name="message"
+        autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
@@ -33,14 +36,14 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
             void handleSend();
           }
         }}
-        placeholder="メッセージを入力..."
+        placeholder="メッセージを入力… 例: 次のリスクは？"
       />
       <div className="flex flex-wrap gap-2">
         {quickPrompts?.map((prompt) => (
           <button
             key={prompt}
             type="button"
-            className="rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+            className="rounded-full border border-orange-200/70 bg-white/90 px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-orange-300 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff9f1]"
             onClick={() => setValue(prompt)}
           >
             {prompt}
@@ -53,7 +56,7 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
           onClick={() => void handleSend()}
           disabled={disabled || sending}
         >
-          {sending ? "送信中..." : "送信"}
+          {sending ? "送信中…" : "送信"}
         </button>
       </div>
     </div>

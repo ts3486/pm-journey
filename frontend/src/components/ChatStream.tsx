@@ -21,7 +21,7 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
   return (
     <div
       ref={containerRef}
-      className="space-y-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)]"
+      className="space-y-3 overflow-y-auto rounded-2xl border border-orange-200/70 bg-white/85 p-4 shadow-[0_16px_36px_rgba(120,71,34,0.12)]"
       style={{ maxHeight }}
     >
       {messages.length === 0 ? (
@@ -37,13 +37,13 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
                 isSystem
                   ? "border-slate-200/80 bg-slate-50/80 text-slate-700"
                   : isUser
-                    ? "border-blue-100 bg-blue-50/60 text-slate-900"
+                    ? "border-orange-200/70 bg-orange-50/70 text-slate-900"
                     : "border-slate-200/80 bg-white text-slate-900"
               }`}
             >
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${
-                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
+                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-orange-600 text-white" : "bg-slate-200 text-slate-700"
                 }`}
               >
                 <span className="leading-none">{isSystem ? "SYS" : isUser ? "YOU" : "鈴"}</span>
@@ -53,7 +53,7 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
                   <span className="font-semibold text-slate-700">{isSystem ? "System" : isUser ? "You" : "鈴木"}</span>
                   <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
                   {m.tags && m.tags.length > 0 && (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                    <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
                       {m.tags.join(", ")}
                     </span>
                   )}

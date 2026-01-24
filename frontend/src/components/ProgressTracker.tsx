@@ -31,7 +31,7 @@ export function ProgressTracker({
           <span
             key={item.label}
             className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-              item.done ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"
+              item.done ? "bg-orange-50 text-orange-700" : "bg-[#f2e6d4] text-slate-600"
             }`}
           >
             {item.label}
@@ -39,8 +39,8 @@ export function ProgressTracker({
         ))}
       </div>
       {requirements && priorities && risks && acceptance ? (
-        <div className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
-          Evaluation available
+        <div className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+          Evaluation Available
         </div>
       ) : (
         <div className="mt-3 text-xs text-slate-500">Complete all items to enable evaluation.</div>
@@ -48,11 +48,11 @@ export function ProgressTracker({
       {onComplete ? (
         <button
           type="button"
-          className="mt-3 w-full rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200"
+          className="btn-primary mt-3 w-full text-xs disabled:bg-slate-200 disabled:text-slate-500 disabled:hover:bg-slate-200"
           onClick={onComplete}
           disabled={disabled}
         >
-          Mark progress complete
+          Mark Progress Complete
         </button>
       ) : null}
     </div>
