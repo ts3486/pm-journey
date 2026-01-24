@@ -1,5 +1,0 @@
-[build]
-rustflags = ["-Dwarnings"]
-
-[env]
-RUST_LOG = "info"
