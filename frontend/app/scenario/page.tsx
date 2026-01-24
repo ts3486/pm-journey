@@ -91,7 +91,7 @@ function ScenarioContent() {
   };
 
   const handleResume = async (scenarioId?: string) => {
-    const snapshot = resumeSession(scenarioId ?? activeScenario.id);
+    const snapshot = await resumeSession(scenarioId ?? activeScenario.id);
     if (snapshot) {
       if (snapshot.session.status === "evaluated" || snapshot.session.status === "completed") {
         await handleStart(getScenarioById(snapshot.session.scenarioId) ?? activeScenario);
@@ -113,7 +113,7 @@ function ScenarioContent() {
     if (state?.session) {
       const confirmed = window.confirm("このシナリオのセッションを終了して新しく始めますか？");
       if (!confirmed) return;
-      resetSession(state.session.id, state.session.scenarioId);
+      await resetSession(state.session.id, state.session.scenarioId);
       setState(null);
       setLastSessionId(null);
       setLastSessionStatus(null);
@@ -126,9 +126,9 @@ function ScenarioContent() {
     }
   };
 
-  const handleMissionToggle = (missionId: string, completed: boolean) => {
+  const handleMissionToggle = async (missionId: string, completed: boolean) => {
     if (!state) return;
-    const next = updateMissionStatus(state, missionId, completed);
+    const next = await updateMissionStatus(state, missionId, completed);
     setState(next);
   };
 
@@ -171,28 +171,31 @@ function ScenarioContent() {
   };
 
   useEffect(() => {
-    const targetScenario = getScenarioById(scenarioIdParam) ?? activeScenario ?? defaultScenario;
-    if (!restart) {
-      const existing = resumeSession(targetScenario.id);
-      if (existing && !state) {
-        setLastSessionId(existing.session.id);
-        setLastSessionStatus(existing.session.status);
-        if (existing.session.status === "evaluated" || existing.session.status === "completed") {
+    async function initializeSession() {
+      const targetScenario = getScenarioById(scenarioIdParam) ?? activeScenario ?? defaultScenario;
+      if (!restart) {
+        const existing = await resumeSession(targetScenario.id);
+        if (existing && !state) {
+          setLastSessionId(existing.session.id);
+          setLastSessionStatus(existing.session.status);
+          if (existing.session.status === "evaluated" || existing.session.status === "completed") {
+            void handleStart(targetScenario);
+          } else {
+            setState(existing);
+          }
+        } else if (!existing && !state) {
           void handleStart(targetScenario);
-        } else {
-          setState(existing);
         }
-      } else if (!existing && !state) {
+      } else if (!state) {
         void handleStart(targetScenario);
       }
-    } else if (!state) {
-      void handleStart(targetScenario);
+      const storedId = await storage.loadLastSessionId(targetScenario.id);
+      if (!storedId) {
+        setLastSessionId(null);
+        setLastSessionStatus(null);
+      }
     }
-    const storedId = storage.loadLastSessionId(targetScenario.id);
-    if (!storedId) {
-      setLastSessionId(null);
-      setLastSessionStatus(null);
-    }
+    initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
 

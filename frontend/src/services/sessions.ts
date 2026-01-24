@@ -163,21 +163,21 @@ export async function startSession(
   };
   const messages = kickoffMessage(session.id, kickoffPrompt);
   const snapshot: SessionSnapshot = { session, messages, evaluation: undefined };
-  storage.saveSession(snapshot);
+  await storage.saveSession(snapshot);
   return { ...snapshot, history: [], loading: false, offline: isOffline() };
 }
 
-export function resumeSession(scenarioId?: string): SessionState | null {
-  const lastId = storage.loadLastSessionId(scenarioId);
+export async function resumeSession(scenarioId?: string): Promise<SessionState | null> {
+  const lastId = await storage.loadLastSessionId(scenarioId);
   if (!lastId) return null;
-  const snapshot = storage.loadSession(lastId);
+  const snapshot = await storage.loadSession(lastId);
   if (!snapshot) return null;
   return { ...snapshot, history: [], loading: false, offline: isOffline() };
 }
 
-export function resetSession(sessionId: string | undefined, scenarioId: string | undefined): void {
+export async function resetSession(sessionId: string | undefined, scenarioId: string | undefined): Promise<void> {
   if (!sessionId || !scenarioId) return;
-  storage.clearLastSessionPointer(scenarioId, sessionId);
+  await storage.clearLastSessionPointer(scenarioId, sessionId);
 }
 
 export async function sendMessage(
@@ -203,7 +203,7 @@ export async function sendMessage(
 
   if (isOffline()) {
     const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
-    storage.saveSession(snapshot);
+    await storage.saveSession(snapshot);
     return { ...state, session, messages, offline: true };
   }
 
@@ -259,7 +259,7 @@ export async function sendMessage(
   }
 
   const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
-  storage.saveSession(snapshot);
+  await storage.saveSession(snapshot);
   return { ...state, session, messages, offline: isOffline() };
 }
 
@@ -280,28 +280,28 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
     lastActivityAt: new Date().toISOString(),
   };
   const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation };
-  storage.saveSession(snapshot);
+  await storage.saveSession(snapshot);
   return { ...state, session, evaluation, offline: isOffline() };
 }
 
-export function updateProgress(
+export async function updateProgress(
   state: SessionState,
   progressFlags: Partial<ProgressFlags>,
-): SessionState {
+): Promise<SessionState> {
   const session: Session = {
     ...state.session,
     progressFlags: { ...state.session.progressFlags, ...progressFlags },
   };
   const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
-  storage.saveSession(snapshot);
+  await storage.saveSession(snapshot);
   return { ...state, session, offline: isOffline() };
 }
 
-export function updateMissionStatus(
+export async function updateMissionStatus(
   state: SessionState,
   missionId: string,
   completed: boolean,
-): SessionState {
+): Promise<SessionState> {
   const missionStatus = [...(state.session.missionStatus ?? [])];
   const existingIndex = missionStatus.findIndex((m) => m.missionId === missionId);
   if (completed) {
@@ -318,7 +318,7 @@ export function updateMissionStatus(
     lastActivityAt: new Date().toISOString(),
   };
   const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
-  storage.saveSession(snapshot);
+  await storage.saveSession(snapshot);
   return { ...state, session, offline: isOffline() };
 }
 
@@ -329,8 +329,8 @@ export async function loadHistory(): Promise<HistoryItem[]> {
   // Local: derive from stored sessions
   if (typeof window === "undefined") return [];
   const keys = Object.keys(localStorage).filter((k) => k.startsWith(env.storageKeyPrefix + ":session:"));
-  return keys
-    .map((k) => {
+  const items = await Promise.all(
+    keys.map(async (k) => {
       const raw = localStorage.getItem(k);
       if (!raw) return null;
       let snapshot: SessionSnapshot;
@@ -352,8 +352,9 @@ export async function loadHistory(): Promise<HistoryItem[]> {
         actions: snapshot.messages.filter((m) => m.tags && m.tags.length > 0),
         evaluation: snapshot.evaluation,
         storageLocation: "local",
-        comments: storage.loadComments(snapshot.session.id),
+        comments: await storage.loadComments(snapshot.session.id),
       } as HistoryItem;
     })
-    .filter(Boolean) as HistoryItem[];
+  );
+  return items.filter(Boolean) as HistoryItem[];
 }

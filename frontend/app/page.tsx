@@ -13,16 +13,19 @@ export default function Home() {
   const [lastScenarioId, setLastScenarioId] = useState<string | null>(null);
 
   useEffect(() => {
-    const lastScenario = storage.loadLastScenarioId();
-    setLastScenarioId(lastScenario);
-    const map: Record<string, boolean> = {};
-    scenarioCatalog.forEach((section) => {
-      section.scenarios.forEach((scenario) => {
-        map[scenario.id] = !!storage.loadLastSessionId(scenario.id);
-      });
-    });
-    setSavedByScenario(map);
-    setHasSavedSession(!!lastScenario);
+    async function loadSavedSessions() {
+      const lastScenario = await storage.loadLastScenarioId();
+      setLastScenarioId(lastScenario);
+      const map: Record<string, boolean> = {};
+      for (const section of scenarioCatalog) {
+        for (const scenario of section.scenarios) {
+          map[scenario.id] = !!(await storage.loadLastSessionId(scenario.id));
+        }
+      }
+      setSavedByScenario(map);
+      setHasSavedSession(!!lastScenario);
+    }
+    loadSavedSessions();
   }, []);
 
   const defaultStartHref = `/scenario?scenarioId=${defaultScenario.id}&restart=1`;

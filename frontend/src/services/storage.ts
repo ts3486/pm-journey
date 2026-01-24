@@ -27,7 +27,7 @@ const applyDefaults = (snapshot: SessionSnapshot): SessionSnapshot => {
 };
 
 export const storage = {
-  saveSession(snapshot: SessionSnapshot) {
+  async saveSession(snapshot: SessionSnapshot): Promise<void> {
     if (!isBrowser) return;
     const normalized = applyDefaults(snapshot);
     localStorage.setItem(key(`session:${normalized.session.id}`), JSON.stringify(normalized));
@@ -35,29 +35,29 @@ export const storage = {
     localStorage.setItem(lastSessionKey(scenarioId), normalized.session.id);
     localStorage.setItem(lastScenarioKey(), scenarioId);
   },
-  loadSession(sessionId: string): SessionSnapshot | null {
+  async loadSession(sessionId: string): Promise<SessionSnapshot | null> {
     if (!isBrowser) return null;
     const raw = localStorage.getItem(key(`session:${sessionId}`));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionSnapshot;
     return applyDefaults(parsed);
   },
-  loadLastSessionId(scenarioId?: string): string | null {
+  async loadLastSessionId(scenarioId?: string): Promise<string | null> {
     if (!isBrowser) return null;
     const targetScenario = scenarioId ?? localStorage.getItem(lastScenarioKey());
     if (!targetScenario) return null;
     return localStorage.getItem(lastSessionKey(targetScenario));
   },
-  loadLastScenarioId(): string | null {
+  async loadLastScenarioId(): Promise<string | null> {
     if (!isBrowser) return null;
     return localStorage.getItem(lastScenarioKey());
   },
-  clearLastSessionPointer(scenarioId: string, sessionId?: string) {
+  async clearLastSessionPointer(scenarioId: string, sessionId?: string): Promise<void> {
     if (!isBrowser) return;
     const stored = localStorage.getItem(lastSessionKey(scenarioId));
     if (!sessionId || stored === sessionId) localStorage.removeItem(lastSessionKey(scenarioId));
   },
-  loadComments(sessionId: string): ManagerComment[] {
+  async loadComments(sessionId: string): Promise<ManagerComment[]> {
     if (!isBrowser) return [];
     const raw = localStorage.getItem(key(`comments:${sessionId}`));
     if (!raw) return [];
@@ -67,9 +67,9 @@ export const storage = {
       return [];
     }
   },
-  saveComment(sessionId: string, comment: ManagerComment) {
+  async saveComment(sessionId: string, comment: ManagerComment): Promise<void> {
     if (!isBrowser) return;
-    const existing = this.loadComments(sessionId);
+    const existing = await this.loadComments(sessionId);
     existing.push(comment);
     localStorage.setItem(key(`comments:${sessionId}`), JSON.stringify(existing));
   },

@@ -4,19 +4,16 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
-use sqlx::{PgPool, Row};
-use serde_json::Value as JsonValue;
+use std::sync::Arc;
+use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::db::{SessionRepository, MessageRepository, EvaluationRepository, CommentRepository};
 use crate::error::{anyhow_error, AppError};
 use crate::models::{
-    default_scenarios, Evaluation, HistoryItem, ManagerComment, Message, MessageRole, MessageTag,
+    default_scenarios, Evaluation, HistoryItem, HistoryMetadata, ManagerComment, Message, MessageRole, MessageTag,
     Mission, MissionStatus, ProgressFlags, Scenario, ScenarioDiscipline, Session, SessionStatus,
 };
 
@@ -36,7 +33,8 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         post_message,
         evaluate_session,
         list_comments,
-        create_comment
+        create_comment,
+        import_sessions
     ),
     components(schemas(
         Scenario,
@@ -57,85 +55,13 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
 )]
 struct ApiDoc;
 
-#[derive(Clone, Serialize, Deserialize)]
-struct SessionRecord {
-    session: Session,
-    messages: Vec<Message>,
-    comments: Vec<ManagerComment>,
-    evaluation: Option<Evaluation>,
-}
-
 pub struct AppState {
-    pool: Option<PgPool>,
-    store: Mutex<HashMap<String, SessionRecord>>,
+    pool: PgPool,
 }
 
 pub type SharedState = Arc<AppState>;
 
 static ID_GEN: AtomicU64 = AtomicU64::new(1);
-
-fn store_path() -> PathBuf {
-    std::env::var("STORE_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp/pm_journey_store.json"))
-}
-
-fn load_store_from_disk() -> HashMap<String, SessionRecord> {
-    let path = store_path();
-    if let Ok(bytes) = fs::read(&path) {
-        if let Ok(map) = serde_json::from_slice::<HashMap<String, SessionRecord>>(&bytes) {
-            return map;
-        }
-    }
-    HashMap::new()
-}
-
-async fn load_store_from_db(pool: &PgPool) -> HashMap<String, SessionRecord> {
-    let mut map = HashMap::new();
-    if let Ok(rows) = sqlx::query("SELECT payload FROM session_store")
-        .fetch_all(pool)
-        .await
-    {
-        for row in rows {
-            let val: JsonValue = row.get("payload");
-            if let Ok(rec) = serde_json::from_value::<SessionRecord>(val) {
-                map.insert(rec.session.id.clone(), rec);
-            }
-        }
-    }
-    map
-}
-
-fn persist_store(data: &HashMap<String, SessionRecord>) {
-    let path = store_path();
-    if let Ok(json) = serde_json::to_vec_pretty(data) {
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let _ = fs::write(path, json);
-    }
-}
-
-async fn upsert_record_db(record: &SessionRecord, pool: Option<&PgPool>) {
-    if let (Some(pool), Ok(val)) = (pool, serde_json::to_value(record)) {
-        let _ = sqlx::query(
-            "INSERT INTO session_store (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET payload = $2",
-        )
-        .bind(&record.session.id)
-        .bind(val)
-        .execute(pool)
-        .await;
-    }
-}
-
-async fn delete_record_db(id: &str, pool: Option<&PgPool>) {
-    if let Some(pool) = pool {
-        let _ = sqlx::query("DELETE FROM session_store WHERE id = $1")
-            .bind(id)
-            .execute(pool)
-            .await;
-    }
-}
 
 fn next_id(prefix: &str) -> String {
     let n = ID_GEN.fetch_add(1, Ordering::Relaxed);
@@ -146,49 +72,8 @@ fn now_ts() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
-fn make_state(store: HashMap<String, SessionRecord>, pool: Option<PgPool>) -> SharedState {
-    Arc::new(AppState {
-        pool,
-        store: Mutex::new(store),
-    })
-}
-
-pub fn default_state() -> SharedState {
-    make_state(load_store_from_disk(), None)
-}
-
 pub fn state_with_pool(pool: PgPool) -> SharedState {
-    make_state(HashMap::new(), Some(pool))
-}
-
-pub async fn init_db(pool: &PgPool) -> Result<(), AppError> {
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS session_store (
-            id TEXT PRIMARY KEY,
-            payload JSONB NOT NULL
-        );
-        "#,
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| anyhow_error(&format!("db init failed: {}", e)))?;
-    Ok(())
-}
-
-pub async fn load_from_db(state: &SharedState) {
-    if let Some(pool) = &state.pool {
-        let map = load_store_from_db(pool).await;
-        let mut store_lock = state.store.lock().unwrap();
-        for (k, v) in map {
-            store_lock.insert(k, v);
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub fn router() -> Router {
-    router_with_state(default_state())
+    Arc::new(AppState { pool })
 }
 
 pub fn router_with_state(state: SharedState) -> Router {
@@ -204,6 +89,7 @@ pub fn router_with_state(state: SharedState) -> Router {
             "/sessions/:id/comments",
             get(list_comments).post(create_comment),
         )
+        .route("/import", post(import_sessions))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }
@@ -278,20 +164,12 @@ async fn create_session(
         evaluation_requested: false,
         mission_status: Some(vec![]),
     };
-    let record = SessionRecord {
-        session: session.clone(),
-        messages: vec![],
-        comments: vec![],
-        evaluation: None,
-    };
-    let pool = state.pool.clone();
-    {
-        let mut data = state.store.lock().unwrap();
-        data.insert(session.id.clone(), record.clone());
-        persist_store(&data);
-    }
-    upsert_record_db(&record, pool.as_ref()).await;
-    Ok(Json(session))
+
+    let repo = SessionRepository::new(state.pool.clone());
+    let created = repo.create(&session).await
+        .map_err(|e| anyhow_error(&format!("Failed to create session: {}", e)))?;
+
+    Ok(Json(created))
 }
 
 #[utoipa::path(
@@ -300,15 +178,28 @@ async fn create_session(
     responses((status = 200, body = [HistoryItem]))
 )]
 async fn list_sessions(State(state): State<SharedState>) -> Result<Json<Vec<HistoryItem>>, AppError> {
-    let data = state.store.lock().unwrap();
+    let session_repo = SessionRepository::new(state.pool.clone());
+    let message_repo = MessageRepository::new(state.pool.clone());
+    let eval_repo = EvaluationRepository::new(state.pool.clone());
+    let comment_repo = CommentRepository::new(state.pool.clone());
+
+    let sessions = session_repo.list().await
+        .map_err(|e| anyhow_error(&format!("Failed to list sessions: {}", e)))?;
+
     let mut items = Vec::new();
-    for record in data.values() {
-        let messages = &record.messages;
+    for session in sessions {
+        let messages = message_repo.list_by_session(&session.id).await
+            .map_err(|e| anyhow_error(&format!("Failed to list messages: {}", e)))?;
+        let evaluation = eval_repo.get_by_session(&session.id).await
+            .map_err(|e| anyhow_error(&format!("Failed to get evaluation: {}", e)))?;
+        let comments = comment_repo.list_by_session(&session.id).await
+            .map_err(|e| anyhow_error(&format!("Failed to list comments: {}", e)))?;
+
         items.push(HistoryItem {
-            session_id: record.session.id.clone(),
-            scenario_id: Some(record.session.scenario_id.clone()),
-            scenario_discipline: record.session.scenario_discipline.clone(),
-            metadata: crate::models::HistoryMetadata {
+            session_id: session.id.clone(),
+            scenario_id: Some(session.scenario_id.clone()),
+            scenario_discipline: session.scenario_discipline.clone(),
+            metadata: HistoryMetadata {
                 duration: None,
                 message_count: Some(messages.len() as u64),
             },
@@ -317,9 +208,9 @@ async fn list_sessions(State(state): State<SharedState>) -> Result<Json<Vec<Hist
                 .filter(|m| m.tags.is_some() && !m.tags.as_ref().unwrap().is_empty())
                 .cloned()
                 .collect(),
-            evaluation: record.evaluation.clone(),
+            evaluation,
             storage_location: Some("api".to_string()),
-            comments: Some(record.comments.clone()),
+            comments: Some(comments),
         });
     }
     Ok(Json(items))
@@ -334,16 +225,27 @@ async fn get_session(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> Result<Json<HistoryItem>, AppError> {
-    let data = state.store.lock().unwrap();
-    let record = data
-        .get(&id)
+    let session_repo = SessionRepository::new(state.pool.clone());
+    let message_repo = MessageRepository::new(state.pool.clone());
+    let eval_repo = EvaluationRepository::new(state.pool.clone());
+    let comment_repo = CommentRepository::new(state.pool.clone());
+
+    let session = session_repo.get(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
         .ok_or_else(|| anyhow_error("session not found"))?;
-    let messages = &record.messages;
+
+    let messages = message_repo.list_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to list messages: {}", e)))?;
+    let evaluation = eval_repo.get_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to get evaluation: {}", e)))?;
+    let comments = comment_repo.list_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to list comments: {}", e)))?;
+
     let item = HistoryItem {
-        session_id: record.session.id.clone(),
-        scenario_id: Some(record.session.scenario_id.clone()),
-        scenario_discipline: record.session.scenario_discipline.clone(),
-        metadata: crate::models::HistoryMetadata {
+        session_id: session.id.clone(),
+        scenario_id: Some(session.scenario_id.clone()),
+        scenario_discipline: session.scenario_discipline.clone(),
+        metadata: HistoryMetadata {
             duration: None,
             message_count: Some(messages.len() as u64),
         },
@@ -352,9 +254,9 @@ async fn get_session(
             .filter(|m| m.tags.is_some() && !m.tags.as_ref().unwrap().is_empty())
             .cloned()
             .collect(),
-        evaluation: record.evaluation.clone(),
+        evaluation,
         storage_location: Some("api".to_string()),
-        comments: Some(record.comments.clone()),
+        comments: Some(comments),
     };
     Ok(Json(item))
 }
@@ -368,13 +270,9 @@ async fn delete_session(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> Result<Json<&'static str>, AppError> {
-    let pool = state.pool.clone();
-    {
-        let mut data = state.store.lock().unwrap();
-        data.remove(&id);
-        persist_store(&data);
-    }
-    delete_record_db(&id, pool.as_ref()).await;
+    let repo = SessionRepository::new(state.pool.clone());
+    repo.delete(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to delete session: {}", e)))?;
     Ok(Json("deleted"))
 }
 
@@ -411,34 +309,50 @@ async fn post_message(
     Path(id): Path<String>,
     Json(body): Json<CreateMessageRequest>,
 ) -> Result<Json<MessageResponse>, AppError> {
-    let pool = state.pool.clone();
-    let (message, record_clone) = {
-        let mut data = state.store.lock().unwrap();
-        let record = data
-            .get_mut(&id)
-            .ok_or_else(|| anyhow_error("session not found"))?;
-        let message = Message {
-            id: next_id("msg"),
-            session_id: id.clone(),
-            role: body.role,
-            content: body.content,
-            created_at: now_ts(),
-            tags: body.tags,
-            queued_offline: None,
-        };
-        record.messages.push(message.clone());
-        if let Some(ms) = body.mission_status {
-            record.session.mission_status = Some(ms);
-        }
-        record.session.last_activity_at = now_ts();
-        let record_clone = record.clone();
-        persist_store(&data);
-        (message, record_clone)
+    let session_repo = SessionRepository::new(state.pool.clone());
+    let message_repo = MessageRepository::new(state.pool.clone());
+
+    // Begin transaction for atomicity
+    let mut tx = state.pool.begin().await
+        .map_err(|e| anyhow_error(&format!("Failed to begin transaction: {}", e)))?;
+
+    // Get session
+    let mut session = session_repo.get(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
+        .ok_or_else(|| anyhow_error("session not found"))?;
+
+    // Create message
+    let message = Message {
+        id: next_id("msg"),
+        session_id: id.clone(),
+        role: body.role,
+        content: body.content,
+        created_at: now_ts(),
+        tags: body.tags,
+        queued_offline: None,
     };
-    upsert_record_db(&record_clone, pool.as_ref()).await;
+    message_repo.create_in_tx(&mut tx, &message).await
+        .map_err(|e| anyhow_error(&format!("Failed to create message: {}", e)))?;
+
+    // Update session
+    if let Some(ms) = body.mission_status {
+        session.mission_status = Some(ms);
+    }
+    session.last_activity_at = now_ts();
+    session_repo.update_last_activity_in_tx(&mut tx, &id).await
+        .map_err(|e| anyhow_error(&format!("Failed to update session: {}", e)))?;
+
+    tx.commit().await
+        .map_err(|e| anyhow_error(&format!("Failed to commit transaction: {}", e)))?;
+
+    // Fetch updated session
+    let updated_session = session_repo.get(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to get updated session: {}", e)))?
+        .ok_or_else(|| anyhow_error("session not found"))?;
+
     Ok(Json(MessageResponse {
         reply: message,
-        session: record_clone.session,
+        session: updated_session,
     }))
 }
 
@@ -451,54 +365,65 @@ async fn evaluate_session(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> Result<Json<Evaluation>, AppError> {
-    let pool = state.pool.clone();
-    let (eval, record_clone) = {
-        let mut data = state.store.lock().unwrap();
-        let record = data
-            .get_mut(&id)
-            .ok_or_else(|| anyhow_error("session not found"))?;
-        let eval = Evaluation {
-            session_id: id.clone(),
-            overall_score: Some(80.0),
-            passing: Some(true),
-            categories: vec![
-                crate::models::EvaluationCategory {
-                    name: "方針提示とリード力".to_string(),
-                    weight: 25.0,
-                    score: Some(80.0),
-                    feedback: Some("方針が明確です。".to_string()),
-                },
-                crate::models::EvaluationCategory {
-                    name: "計画と実行可能性".to_string(),
-                    weight: 25.0,
-                    score: Some(80.0),
-                    feedback: Some("計画の粒度が適切です。".to_string()),
-                },
-                crate::models::EvaluationCategory {
-                    name: "コラボレーションとフィードバック".to_string(),
-                    weight: 25.0,
-                    score: Some(80.0),
-                    feedback: Some("対話が円滑です。".to_string()),
-                },
-                crate::models::EvaluationCategory {
-                    name: "リスク/前提管理と改善姿勢".to_string(),
-                    weight: 25.0,
-                    score: Some(80.0),
-                    feedback: Some("リスク感度が良好です。".to_string()),
-                },
-            ],
-            summary: Some("評価サンプル".to_string()),
-            improvement_advice: Some("リスク対応の優先度を明確にしてください。".to_string()),
-        };
-        record.evaluation = Some(eval.clone());
-        record.session.status = SessionStatus::Evaluated;
-        record.session.evaluation_requested = true;
-        record.session.last_activity_at = now_ts();
-        let record_clone = record.clone();
-        persist_store(&data);
-        (eval, record_clone)
+    let session_repo = SessionRepository::new(state.pool.clone());
+    let eval_repo = EvaluationRepository::new(state.pool.clone());
+
+    // Begin transaction
+    let mut tx = state.pool.begin().await
+        .map_err(|e| anyhow_error(&format!("Failed to begin transaction: {}", e)))?;
+
+    // Get session
+    let mut session = session_repo.get(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
+        .ok_or_else(|| anyhow_error("session not found"))?;
+
+    // Create evaluation
+    let eval = Evaluation {
+        session_id: id.clone(),
+        overall_score: Some(80.0),
+        passing: Some(true),
+        categories: vec![
+            crate::models::EvaluationCategory {
+                name: "方針提示とリード力".to_string(),
+                weight: 25.0,
+                score: Some(80.0),
+                feedback: Some("方針が明確です。".to_string()),
+            },
+            crate::models::EvaluationCategory {
+                name: "計画と実行可能性".to_string(),
+                weight: 25.0,
+                score: Some(80.0),
+                feedback: Some("計画の粒度が適切です。".to_string()),
+            },
+            crate::models::EvaluationCategory {
+                name: "コラボレーションとフィードバック".to_string(),
+                weight: 25.0,
+                score: Some(80.0),
+                feedback: Some("対話が円滑です。".to_string()),
+            },
+            crate::models::EvaluationCategory {
+                name: "リスク/前提管理と改善姿勢".to_string(),
+                weight: 25.0,
+                score: Some(80.0),
+                feedback: Some("リスク感度が良好です。".to_string()),
+            },
+        ],
+        summary: Some("評価サンプル".to_string()),
+        improvement_advice: Some("リスク対応の優先度を明確にしてください。".to_string()),
     };
-    upsert_record_db(&record_clone, pool.as_ref()).await;
+    eval_repo.create_in_tx(&mut tx, &eval).await
+        .map_err(|e| anyhow_error(&format!("Failed to create evaluation: {}", e)))?;
+
+    // Update session status
+    session.status = SessionStatus::Evaluated;
+    session.evaluation_requested = true;
+    session.last_activity_at = now_ts();
+    session_repo.update_last_activity_in_tx(&mut tx, &id).await
+        .map_err(|e| anyhow_error(&format!("Failed to update session: {}", e)))?;
+
+    tx.commit().await
+        .map_err(|e| anyhow_error(&format!("Failed to commit transaction: {}", e)))?;
+
     Ok(Json(eval))
 }
 
@@ -511,11 +436,10 @@ async fn list_comments(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> Result<Json<Vec<ManagerComment>>, AppError> {
-    let data = state.store.lock().unwrap();
-    let record = data
-        .get(&id)
-        .ok_or_else(|| anyhow_error("session not found"))?;
-    Ok(Json(record.comments.clone()))
+    let comment_repo = CommentRepository::new(state.pool.clone());
+    let comments = comment_repo.list_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to list comments: {}", e)))?;
+    Ok(Json(comments))
 }
 
 #[utoipa::path(
@@ -529,24 +453,82 @@ async fn create_comment(
     Path(id): Path<String>,
     Json(body): Json<CreateCommentRequest>,
 ) -> Result<Json<ManagerComment>, AppError> {
-    let pool = state.pool.clone();
-    let (comment, record_clone) = {
-        let mut data = state.store.lock().unwrap();
-        let record = data
-            .get_mut(&id)
-            .ok_or_else(|| anyhow_error("session not found"))?;
-        let comment = ManagerComment {
-            id: next_id("comment"),
-            session_id: id,
-            author_name: body.author_name,
-            content: body.content,
-            created_at: now_ts(),
-        };
-        record.comments.push(comment.clone());
-        let record_clone = record.clone();
-        persist_store(&data);
-        (comment, record_clone)
+    let comment_repo = CommentRepository::new(state.pool.clone());
+
+    let comment = ManagerComment {
+        id: next_id("comment"),
+        session_id: id,
+        author_name: body.author_name,
+        content: body.content,
+        created_at: now_ts(),
     };
-    upsert_record_db(&record_clone, pool.as_ref()).await;
-    Ok(Json(comment))
+
+    let created = comment_repo.create(&comment).await
+        .map_err(|e| anyhow_error(&format!("Failed to create comment: {}", e)))?;
+
+    Ok(Json(created))
+}
+
+#[derive(Deserialize, ToSchema)]
+struct SessionSnapshot {
+    session: Session,
+    messages: Vec<Message>,
+    evaluation: Option<Evaluation>,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct ImportRequest {
+    sessions: Vec<SessionSnapshot>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct ImportResult {
+    imported: usize,
+    failed: Vec<String>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/import",
+    request_body = ImportRequest,
+    responses((status = 200, body = ImportResult))
+)]
+async fn import_sessions(
+    State(state): State<SharedState>,
+    Json(body): Json<ImportRequest>,
+) -> Result<Json<ImportResult>, AppError> {
+    let mut imported = 0;
+    let mut failed = Vec::new();
+
+    for snapshot in body.sessions {
+        match import_snapshot(&state.pool, &snapshot).await {
+            Ok(_) => imported += 1,
+            Err(e) => failed.push(format!("{}: {}", snapshot.session.id, e)),
+        }
+    }
+
+    Ok(Json(ImportResult { imported, failed }))
+}
+
+async fn import_snapshot(pool: &PgPool, snapshot: &SessionSnapshot) -> anyhow::Result<()> {
+    let mut tx = pool.begin().await?;
+
+    // Insert session
+    let session_repo = SessionRepository::new(pool.clone());
+    session_repo.create_in_tx(&mut tx, &snapshot.session).await?;
+
+    // Insert messages
+    let message_repo = MessageRepository::new(pool.clone());
+    for msg in &snapshot.messages {
+        message_repo.create_in_tx(&mut tx, msg).await?;
+    }
+
+    // Insert evaluation if exists
+    if let Some(eval) = &snapshot.evaluation {
+        let eval_repo = EvaluationRepository::new(pool.clone());
+        eval_repo.create_in_tx(&mut tx, eval).await?;
+    }
+
+    tx.commit().await?;
+    Ok(())
 }
