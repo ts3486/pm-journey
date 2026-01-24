@@ -221,9 +221,9 @@ function ScenarioContent() {
             onSend={handleSend}
             disabled={!hasActive}
             quickPrompts={[
-              "現状の課題をまとめてください",
-              "リスクと前提を洗い出してください",
-              "次の打ち手を提案してください",
+              "現状と課題を整理してください",
+              "前提を教えてください",
+              "制約条件を教えてください",
             ]}
           />
         </div>
@@ -278,7 +278,6 @@ function ScenarioContent() {
                   type="button"
                   className="btn-primary"
                   onClick={handleCompleteScenario}
-                  disabled={!evaluationReady || state?.offline || loadingEval}
                 >
                   シナリオを完了する
                 </button>
