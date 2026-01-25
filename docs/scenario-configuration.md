@@ -13,6 +13,7 @@ Scenarios are the core learning units in pm-journey. Each scenario simulates a r
 | Type definitions | `frontend/src/types/session.ts` |
 | System prompt composition | `frontend/app/api/agent/route.ts` |
 | Mission completion detection | `frontend/app/api/mission-detect/route.ts` |
+| AI-powered session evaluation | `frontend/app/api/evaluate-session/route.ts` |
 
 ---
 
@@ -234,67 +235,172 @@ product: {
 
 ## 6. Evaluation Criteria
 
-All scenarios share the same evaluation rubric with 4 categories (25% weight each):
+Each scenario has **unique evaluation criteria** tailored to its learning objectives. Criteria are defined using the `RatingCriterion` type:
 
 ```typescript
-const evaluationCriteria = [
-  { name: "方針提示とリード力", weight: 25 },
-  { name: "計画と実行可能性", weight: 25 },
-  { name: "コラボレーションとフィードバック", weight: 25 },
-  { name: "リスク/前提管理と改善姿勢", weight: 25 },
-];
+type RatingCriterion = {
+  id: string;                    // Unique identifier (e.g., "intro-role-clarity")
+  name: string;                  // Display name in Japanese
+  weight: number;                // Percentage weight (0-100)
+  description: string;           // What this criterion measures
+  scoringGuidelines: {
+    excellent: string;           // 90-100: What constitutes excellent
+    good: string;                // 70-89: What constitutes good
+    needsImprovement: string;    // 50-69: What needs improvement
+    poor: string;                // 0-49: What constitutes poor
+  };
+};
 ```
+
+### Scenario-Specific Criteria
+
+| Scenario | Criteria |
+|----------|----------|
+| `basic-intro-alignment` | 役割・責任の明確化, 期待値の擦り合わせ, コミュニケーション姿勢, 次アクションの具体性 |
+| `basic-ticket-refine` | 目的・ゴールの明確化, 受入条件(AC)の定義, 依存関係の整理, リスクの特定 |
+| `basic-testcase-design` | 正常系の網羅性, 異常系・境界値の考慮, 前提条件の明確化, 優先度と効率性 |
+| `challenge-project-rescue` | 遅延要因の分析, スコープ再構成, リカバリ計画の具体性, ステークホルダー対応 |
+| `challenge-scope-negotiation` | 交渉準備と分析, 代替案の提示, 説得力と論理性, 合意形成と記録 |
+| `challenge-conflict-mediation` | 事実と解釈の分離, 中立性の維持, 合意形成力, フォローアップ計画 |
 
 The `passingScore` (typically 70) determines whether the user passes.
 
 ---
 
-## 6.1 Scenario Rating (Scoring) Logic
+## 6.1 AI-Powered Session Rating
 
-**File:** `frontend/src/services/sessions.ts` → `createEvaluation()`
+**Files:**
+- API Endpoint: `frontend/app/api/evaluate-session/route.ts`
+- Service: `frontend/src/services/sessions.ts` → `requestEvaluation()`
 
-現在の評価はクライアント側の簡易ロジックで生成されています（AI評価ではありません）。
-採点は以下の流れで決まります。
+評価はGemini 1.5 Flash AIを使用して、会話ログに基づいて生成されます。
 
-1. **評価基準の決定**
-   - `scenario.evaluationCriteria` があればそれを使用
-   - ない場合はデフォルトの4項目（各25%）
+### Evaluation Flow
 
-2. **カテゴリ別スコアの生成**
-   - 基準点 `baseScore = 75`
-   - 各カテゴリのスコアは `baseScore + delta` で計算
-     - `delta = (idxが偶数 ? +5 : -2) + ランダム(-3〜+2)`
-   - スコアは **60〜95** にクランプ
+1. **User Completes Scenario**
+   - User clicks "Complete Scenario" button
+   - Frontend calls `evaluate()` in sessions.ts
 
-3. **フィードバック生成**
-   - `supplementalInfo` があり、かつ最初のカテゴリの場合のみ専用コメント
-   - それ以外は共通テンプレの改善コメント
+2. **API Request**
+   - `requestEvaluation()` sends session data to `/api/evaluate-session`
+   - Request includes: sessionId, scenarioId, messages (last 30)
 
-4. **総合スコア**
-   - 各カテゴリのスコアを **weight(%)** で加重平均し、四捨五入
+3. **AI Evaluation**
+   - API loads scenario-specific criteria from config
+   - Builds system prompt with:
+     - Scenario context (title, description, product summary)
+     - Rating criteria with scoring guidelines
+   - Sends to Gemini 1.5 Flash with low temperature (0.3) for consistency
 
-5. **合否**
-   - 現状 `passing: true` が固定（`passingScore` とは未連動）
+4. **Score Calculation**
+   - AI returns score (0-100) for each criterion with:
+     - Specific feedback in Japanese
+     - Evidence (quotes from user's messages)
+   - API calculates weighted average for overall score
+   - Compares against `passingScore` to determine pass/fail
 
-> Note: `passingScore` はシナリオ側で設定されていますが、現行の評価ロジックでは参照されていません。
+5. **Result Storage**
+   - Evaluation saved to session snapshot in localStorage
+   - Session status updated to "evaluated"
+
+### AI System Prompt Structure
+
+```
+You are an expert PM/PMO evaluator...
+
+## Scenario Context
+Title: {scenario.title}
+Description: {scenario.description}
+Product Context: {scenario.product.summary}
+
+## Evaluation Criteria
+{foreach criterion}
+### {criterion.name} (Weight: {weight}%, ID: {id})
+{description}
+
+Scoring Guide:
+- Excellent (90-100): {scoringGuidelines.excellent}
+- Good (70-89): {scoringGuidelines.good}
+- Needs Improvement (50-69): {scoringGuidelines.needsImprovement}
+- Poor (0-49): {scoringGuidelines.poor}
+{/foreach}
+
+## Output Format
+Return JSON with categories, summary, and improvementAdvice...
+```
+
+### Evaluation Response Structure
+
+```typescript
+type Evaluation = {
+  sessionId: string;
+  overallScore: number;           // Weighted average (0-100)
+  passing: boolean;               // overallScore >= passingScore
+  categories: {
+    criterionId: string;
+    name: string;
+    weight: number;
+    score: number;                // 0-100
+    feedback: string;             // AI-generated feedback (Japanese)
+    evidence: string[];           // Quotes from chat supporting the score
+  }[];
+  summary: string;                // Overall assessment (Japanese)
+  improvementAdvice: string;      // Actionable advice (Japanese)
+};
+```
+
+### Error Handling
+
+- **Offline:** Evaluation disabled, error thrown
+- **API failure:** Error message displayed to user
+- **Parse failure:** Returns 500 error with message
+- **Missing criteria:** Auto-filled with score 0 and default feedback
 
 ---
 
 ## 7. Adding a New Scenario
 
-1. **Add scenario object** in `frontend/src/config/scenarios.ts`:
+1. **Define scenario-specific evaluation criteria** in `frontend/src/config/scenarios.ts`:
+   - Create a new `RatingCriterion[]` array with 4 criteria
+   - Each criterion needs: `id`, `name`, `weight`, `description`, `scoringGuidelines`
+   - Ensure weights sum to 100%
+   - Write clear scoring guidelines for excellent/good/needsImprovement/poor
+
+2. **Add scenario object** in `frontend/src/config/scenarios.ts`:
    - Choose a unique `id`
    - Set `discipline` to "BASIC" or "CHALLENGE"
    - Write the `kickoffPrompt` for scenario context
    - Define 3 `missions`
    - Fill in `product` metadata
+   - Reference your new criteria array in `evaluationCriteria`
+   - Set `passingScore` (typically 70)
 
-2. **Optionally add a new agent profile** in `frontend/src/config/agentProfiles.ts`:
+3. **Optionally add a new agent profile** in `frontend/src/config/agentProfiles.ts`:
    - If you need a new tone/character, add a new profile
    - Update `resolveAgentProfile()` to use it
 
-3. **Backend sync** (if using API):
+4. **Backend sync** (if using API):
    - Mirror the scenario in `backend/src/models/mod.rs` in the `default_scenarios()` function
+
+### Example: Adding Criteria for a New Scenario
+
+```typescript
+const myNewScenarioCriteria: RatingCriterion[] = [
+  {
+    id: "my-criterion-1",
+    name: "〇〇の明確化",
+    weight: 25,
+    description: "〇〇について明確に定義できているか",
+    scoringGuidelines: {
+      excellent: "具体的で測定可能な〇〇を定義",
+      good: "〇〇を定義。一部曖昧な点あり",
+      needsImprovement: "〇〇に言及したが不十分",
+      poor: "〇〇の定義がない",
+    },
+  },
+  // ... 3 more criteria
+];
+```
 
 ---
 
@@ -306,6 +412,9 @@ The `passingScore` (typically 70) determines whether the user passes.
 | Change agent tone/character | `frontend/src/config/agentProfiles.ts` → `systemPrompt` |
 | Change initial scenario context | `frontend/src/config/scenarios.ts` → `kickoffPrompt` |
 | Add/edit completion tasks | `frontend/src/config/scenarios.ts` → `missions` |
-| Change evaluation rubric | `frontend/src/config/scenarios.ts` → `evaluationCriteria` |
+| Add/edit evaluation criteria | `frontend/src/config/scenarios.ts` → create new `RatingCriterion[]` |
+| Change scoring guidelines | `frontend/src/config/scenarios.ts` → `scoringGuidelines` in each criterion |
 | Change passing threshold | `frontend/src/config/scenarios.ts` → `passingScore` |
 | Add supplemental guidance | `frontend/src/config/scenarios.ts` → `supplementalInfo` |
+| Modify AI evaluation prompt | `frontend/app/api/evaluate-session/route.ts` → `buildSystemPrompt()` |
+| Adjust AI temperature/behavior | `frontend/app/api/evaluate-session/route.ts` → `generationConfig` |

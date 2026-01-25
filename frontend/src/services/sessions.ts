@@ -61,35 +61,23 @@ const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
   ];
 };
 
-const createEvaluation = (sessionId: string, scenarioId: string): Evaluation => {
-  const scenario = getScenarioById(scenarioId);
-  const criteria = scenario?.evaluationCriteria ?? [
-    { name: "方針提示とリード力", weight: 25 },
-    { name: "計画と実行可能性", weight: 25 },
-    { name: "コラボレーションとフィードバック", weight: 25 },
-    { name: "リスク/前提管理と改善姿勢", weight: 25 },
-  ];
-  const baseScore = 75;
-  const categories = criteria.map((c, idx) => {
-    const delta = (idx % 2 === 0 ? 5 : -2) + Math.floor(Math.random() * 6 - 3);
-    const score = Math.max(60, Math.min(95, baseScore + delta));
-    const feedback =
-      scenario?.supplementalInfo && idx === 0
-        ? `補足情報（${scenario.supplementalInfo.slice(0, 40)}…）を踏まえた方針提示は良好です。論点を3点に絞り、根拠と次アクションをセットで提示すると更に伝わります。`
-        : `${c.name} に関して、具体例・測定指標・関係者の反応を添えてください。合意形成の過程とリスクフォローも1文で触れると説得力が上がります。`;
-    return { name: c.name, weight: c.weight, score, feedback };
+const requestEvaluation = async (params: {
+  sessionId: string;
+  scenarioId: string;
+  messages: Message[];
+}): Promise<Evaluation> => {
+  const res = await fetch("/api/evaluate-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
   });
 
-  return {
-    sessionId,
-    overallScore: Math.round(categories.reduce((sum, c) => sum + (c.score ?? baseScore) * (c.weight / 100), 0)),
-    passing: true,
-    categories,
-    summary:
-      "シナリオの目標に沿って論点が整理され、会話のリードも安定しています。意思決定の根拠とステークホルダーへの伝え方を、事実・解釈・提案の3階層で示すと再現性が高まります。",
-    improvementAdvice:
-      "① 成果指標・期日・担当をセットで明文化する ② リスクと前提を担当/期日付きで棚卸しし、対策を1行で記載する ③ 主要ステークホルダー向けの要約（課題→提案→インパクト）を3行で用意する ④ 次の打ち手を時系列で箇条書きにし、依存と準備物を明記してください。",
-  };
+  if (!res.ok) {
+    const errorData = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(errorData.error ?? "評価の生成に失敗しました");
+  }
+
+  return (await res.json()) as Evaluation;
 };
 
 export type SessionState = SessionSnapshot & {
@@ -267,12 +255,19 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
   if (isOffline()) {
     throw new Error("Offline: evaluation is disabled until connectivity returns.");
   }
+
   let evaluation: Evaluation;
   if (env.apiBase) {
     evaluation = await api.evaluate(state.session.id);
   } else {
-    evaluation = createEvaluation(state.session.id, state.session.scenarioId);
+    // Use AI-powered evaluation via the evaluate-session API
+    evaluation = await requestEvaluation({
+      sessionId: state.session.id,
+      scenarioId: state.session.scenarioId,
+      messages: state.messages,
+    });
   }
+
   const session: Session = {
     ...state.session,
     status: "evaluated",

@@ -1,8 +1,25 @@
+export type ScoringGuidelines = {
+  excellent: string;
+  good: string;
+  needsImprovement: string;
+  poor: string;
+};
+
+export type RatingCriterion = {
+  id: string;
+  name: string;
+  weight: number;
+  description: string;
+  scoringGuidelines: ScoringGuidelines;
+};
+
 export type EvaluationCategory = {
+  criterionId?: string;
   name: string;
   weight: number;
   score?: number;
   feedback?: string;
+  evidence?: string[];
 };
 
 export type Evaluation = {
@@ -110,7 +127,7 @@ export type Scenario = {
   };
   mode: string;
   kickoffPrompt: string;
-  evaluationCriteria: EvaluationCategory[];
+  evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];
   supplementalInfo?: string;
