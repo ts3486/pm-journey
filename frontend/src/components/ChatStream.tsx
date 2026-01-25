@@ -1,6 +1,7 @@
 "use client";
 
 import type { Message } from "@/types/session";
+import Image from "next/image";
 import { useEffect, useRef } from "react";
 
 type ChatStreamProps = {
@@ -43,10 +44,22 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
             >
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${
-                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-orange-600 text-white" : "bg-slate-200 text-slate-700"
+                  isSystem ? "bg-slate-300 text-slate-700" : isUser ? "bg-orange-600 text-white" : "bg-white"
                 }`}
               >
-                <span className="leading-none">{isSystem ? "SYS" : isUser ? "YOU" : "鈴"}</span>
+                {isSystem ? (
+                  <span className="leading-none">SYS</span>
+                ) : isUser ? (
+                  <span className="leading-none">YOU</span>
+                ) : (
+                  <Image
+                    src="/agent-profile-icon.png"
+                    alt="Agent"
+                    width={36}
+                    height={36}
+                    className="h-full w-full object-cover"
+                  />
+                )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">

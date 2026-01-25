@@ -2,6 +2,7 @@
 
 import { defaultScenario, getScenarioById, scenarioCatalog } from "@/config/scenarios";
 import { storage } from "@/services/storage";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
@@ -43,9 +44,19 @@ export default function Home() {
         <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center">
             <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.38em] text-orange-700 shadow-[0_10px_24px_rgba(176,95,35,0.22)]">
-                PM Journey
-              </span>
+              <div className="flex items-center gap-4">
+                <Image
+                  src="/logo.png"
+                  alt="PM Journey Logo"
+                  width={72}
+                  height={72}
+                  className="h-16 w-16 rounded-2xl shadow-[0_12px_28px_rgba(176,95,35,0.25)]"
+                  priority
+                />
+                <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.38em] text-orange-700 shadow-[0_10px_24px_rgba(176,95,35,0.22)]">
+                  PM Journey
+                </span>
+              </div>
               <h1 className="font-display text-3xl text-[#3b2314] md:text-4xl lg:text-5xl">
                 AIと一緒にPM体験を積む
               </h1>
@@ -83,13 +94,22 @@ export default function Home() {
                   />
                   <div className="flex justify-start">
                     <div
-                      className="max-w-[80%] rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm reveal"
+                      className="flex max-w-[85%] items-start gap-2 reveal"
                       style={revealDelay(220)}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
-                        Agent
-                      </span>
-                      <p className="text-xs text-slate-800">山田さんよろしくお願いします！自己紹介お願いできますか？</p>
+                      <Image
+                        src="/agent-profile-icon.png"
+                        alt="Agent"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 shrink-0 rounded-full"
+                      />
+                      <div className="rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
+                          Agent
+                        </span>
+                        <p className="text-xs text-slate-800">山田さんよろしくお願いします！自己紹介お願いできますか？</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -105,13 +125,22 @@ export default function Home() {
                   </div>
                   <div className="flex justify-start">
                     <div
-                      className="max-w-[85%] rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm reveal"
+                      className="flex max-w-[90%] items-start gap-2 reveal"
                       style={revealDelay(460)}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
-                        Agent
-                      </span>
-                      <p className="text-xs  text-slate-800">ありがとうございます！では早速、このプロジェクトのPMとしてタスクを依頼させてください。</p>
+                      <Image
+                        src="/agent-profile-icon.png"
+                        alt="Agent"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 shrink-0 rounded-full"
+                      />
+                      <div className="rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
+                          Agent
+                        </span>
+                        <p className="text-xs text-slate-800">ありがとうございます！では早速、このプロジェクトのPMとしてタスクを依頼させてください。</p>
+                      </div>
                     </div>
                   </div>
                 </div>
