@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Scenario {
     pub id: String,
     pub title: String,
@@ -9,14 +10,19 @@ pub struct Scenario {
     pub description: String,
     pub product: ProductInfo,
     pub mode: String,
+    #[serde(alias = "kickoff_prompt")]
     pub kickoff_prompt: String,
+    #[serde(alias = "evaluation_criteria")]
     pub evaluation_criteria: Vec<EvaluationCategory>,
+    #[serde(alias = "passing_score")]
     pub passing_score: Option<f32>,
     pub missions: Option<Vec<Mission>>,
+    #[serde(alias = "supplemental_info")]
     pub supplemental_info: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductInfo {
     pub name: String,
     pub summary: String,
@@ -27,9 +33,13 @@ pub struct ProductInfo {
     pub scope: Vec<String>,
     pub constraints: Vec<String>,
     pub timeline: String,
+    #[serde(alias = "success_criteria")]
     pub success_criteria: Vec<String>,
+    #[serde(alias = "unique_edge")]
     pub unique_edge: Option<String>,
+    #[serde(alias = "tech_stack")]
     pub tech_stack: Option<Vec<String>>,
+    #[serde(alias = "core_features")]
     pub core_features: Option<Vec<String>>,
 }
 
@@ -42,6 +52,7 @@ pub enum SessionStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ProgressFlags {
     pub requirements: bool,
     pub priorities: bool,
@@ -50,17 +61,27 @@ pub struct ProgressFlags {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: String,
+    #[serde(alias = "scenario_id")]
     pub scenario_id: String,
+    #[serde(alias = "scenario_discipline")]
     pub scenario_discipline: Option<ScenarioDiscipline>,
     pub status: SessionStatus,
+    #[serde(alias = "started_at")]
     pub started_at: String,
+    #[serde(alias = "ended_at")]
     pub ended_at: Option<String>,
+    #[serde(alias = "last_activity_at")]
     pub last_activity_at: String,
+    #[serde(alias = "user_name")]
     pub user_name: Option<String>,
+    #[serde(alias = "progress_flags")]
     pub progress_flags: ProgressFlags,
+    #[serde(alias = "evaluation_requested")]
     pub evaluation_requested: bool,
+    #[serde(alias = "mission_status")]
     pub mission_status: Option<Vec<MissionStatus>>,
 }
 
@@ -83,17 +104,22 @@ pub enum MessageTag {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
+    #[serde(alias = "session_id")]
     pub session_id: String,
     pub role: MessageRole,
     pub content: String,
+    #[serde(alias = "created_at")]
     pub created_at: String,
     pub tags: Option<Vec<MessageTag>>,
+    #[serde(alias = "queued_offline")]
     pub queued_offline: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EvaluationCategory {
     pub name: String,
     pub weight: f32,
@@ -102,16 +128,21 @@ pub struct EvaluationCategory {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Evaluation {
+    #[serde(alias = "session_id")]
     pub session_id: String,
+    #[serde(alias = "overall_score")]
     pub overall_score: Option<f32>,
     pub passing: Option<bool>,
     pub categories: Vec<EvaluationCategory>,
     pub summary: Option<String>,
+    #[serde(alias = "improvement_advice")]
     pub improvement_advice: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Mission {
     pub id: String,
     pub title: String,
@@ -120,35 +151,49 @@ pub struct Mission {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct MissionStatus {
+    #[serde(alias = "mission_id")]
     pub mission_id: String,
+    #[serde(alias = "completed_at")]
     pub completed_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct HistoryItem {
+    #[serde(alias = "session_id")]
     pub session_id: String,
+    #[serde(alias = "scenario_id")]
     pub scenario_id: Option<String>,
+    #[serde(alias = "scenario_discipline")]
     pub scenario_discipline: Option<ScenarioDiscipline>,
     pub metadata: HistoryMetadata,
     pub actions: Vec<Message>,
     pub evaluation: Option<Evaluation>,
+    #[serde(alias = "storage_location")]
     pub storage_location: Option<String>,
     pub comments: Option<Vec<ManagerComment>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct HistoryMetadata {
     pub duration: Option<f32>,
+    #[serde(alias = "message_count")]
     pub message_count: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ManagerComment {
     pub id: String,
+    #[serde(alias = "session_id")]
     pub session_id: String,
+    #[serde(alias = "author_name")]
     pub author_name: Option<String>,
     pub content: String,
+    #[serde(alias = "created_at")]
     pub created_at: String,
 }
 

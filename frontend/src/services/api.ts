@@ -6,8 +6,8 @@ import type {
   MessageRole,
   MessageTag,
   ManagerComment,
-  Session,
   MissionStatus,
+  Session,
 } from "@/types/session";
 
 const base = env.apiBase;
@@ -53,10 +53,25 @@ export const api = {
     content: string,
     tags?: MessageTag[],
     missionStatus?: MissionStatus[],
+    agentContext?: {
+      systemPrompt: string;
+      scenarioPrompt: string;
+      scenarioTitle?: string;
+      scenarioDescription?: string;
+      productContext?: string;
+      modelId?: string;
+      behavior?: {
+        userLed?: boolean;
+        allowProactive?: boolean;
+        maxQuestions?: number;
+        responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
+        phase?: string;
+      };
+    },
   ): Promise<{ reply: Message; session: Session }> {
     return request<{ reply: Message; session: Session }>(`/sessions/${sessionId}/messages`, {
       method: "POST",
-      body: { role, content, tags, missionStatus },
+      body: { role, content, tags, missionStatus, agentContext },
     });
   },
   async evaluate(sessionId: string): Promise<Evaluation> {

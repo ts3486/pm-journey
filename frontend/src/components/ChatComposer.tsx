@@ -30,12 +30,6 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
         name="message"
         autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            void handleSend();
-          }
-        }}
         placeholder="メッセージを入力… 例: 次のリスクは？"
       />
       <div className="flex flex-wrap gap-2">

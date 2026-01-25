@@ -62,8 +62,8 @@
 - [X] T041 [US1] Add scenario missions and supplemental info to config for PM/PMO catalog in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/config/scenarios.ts`
 - [X] T042 [US1] Render mission checklist + supplemental info on Scenario page, track missionStatus, autosave, and auto-attempt evaluation when all complete (online) in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/scenario/page.tsx` and `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
 - [X] T043 [P] [US1] Extend backend session/message API to accept missionStatus updates and trigger evaluation per OpenAPI in `/Users/taoshimomura/Desktop/dev/pm-journey/backend/src/api/mod.rs`
-- [X] T049 [US1] Move Mastra/Gemini agent to server route `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/app/api/agent/route.ts` to avoid client bundling issues
-- [X] T050 [US1] Update session service to call `/api/agent` for replies and remove client-side Mastra import in `/Users/taoshimomura/Desktop/dev/pm-journey/frontend/src/services/sessions.ts`
+- [X] T049 [US1] Remove Next.js route handlers and route all chat/evaluation through backend API
+- [X] T050 [US1] Extend backend `/sessions/:id/messages` to call Gemini with agent profile + scenario context supplied by the frontend
 
 **Checkpoint**: User Story 1 fully functional and testable independently
 

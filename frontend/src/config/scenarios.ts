@@ -3,6 +3,7 @@ import type {
   Scenario,
   ScenarioCatalogSection,
   ScenarioDiscipline,
+  ScenarioBehavior,
   ScenarioSummary,
 } from "@/types/session";
 
@@ -339,12 +340,35 @@ const sharedProduct: Scenario["product"] = {
   coreFeatures: ["在庫ダッシュボード", "自動発注提案", "低在庫アラート", "POS連携"],
 };
 
+const introBehavior: ScenarioBehavior = {
+  userLed: true,
+  allowProactive: false,
+  maxQuestions: 0,
+  responseStyle: "acknowledge_then_wait",
+  phase: "intro",
+};
+
+const guidedBehavior: ScenarioBehavior = {
+  userLed: false,
+  allowProactive: true,
+  maxQuestions: 1,
+  responseStyle: "guide_lightly",
+};
+
+const challengeBehavior: ScenarioBehavior = {
+  userLed: false,
+  allowProactive: true,
+  maxQuestions: 1,
+  responseStyle: "advisor",
+};
+
 const scenarioList: Scenario[] = [
   {
     id: "basic-intro-alignment",
     title: "自己紹介＆期待値合わせ (基礎)",
     discipline: "BASIC",
     description: "新規プロジェクトに合流し、役割と期待値を擦り合わせる。",
+    behavior: introBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "こんにちは！エンジニア兼デザイナーの鈴木です。よろしくお願いします。",
@@ -362,6 +386,7 @@ const scenarioList: Scenario[] = [
     title: "チケット要件整理 (基礎)",
     discipline: "BASIC",
     description: "曖昧なチケットを受入可能な形に分解し、スプリントに載せられる状態へ整理する。",
+    behavior: guidedBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "あなたはPMとして曖昧なチケットをスプリントに載せられる形へ精査します。目的、受入条件、依存/リスクを明文化してください。",
@@ -379,6 +404,7 @@ const scenarioList: Scenario[] = [
     title: "テストケース作成 (基礎)",
     discipline: "BASIC",
     description: "新機能の仕様からスモーク/回帰テストケースを洗い出し、漏れのない最小集合を作る。",
+    behavior: guidedBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "あなたはQA/PMとして新機能のテストケースを作成します。正常系と主要な異常系を洗い出し、前提データと環境を明記してください。",
@@ -396,6 +422,7 @@ const scenarioList: Scenario[] = [
     title: "遅延プロジェクト立て直し (チャレンジ)",
     discipline: "CHALLENGE",
     description: "遅延しているプロジェクトでスコープ再交渉とリカバリ計画を短時間でまとめる。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。",
@@ -413,6 +440,7 @@ const scenarioList: Scenario[] = [
     title: "スコープ／リソース交渉 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "顧客や上長とスコープ削減かリソース増加を交渉し、合意形成する。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。",
@@ -430,6 +458,7 @@ const scenarioList: Scenario[] = [
     title: "コンフリクト調整 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "開発とQA・ビジネスの対立をファシリテートし、合意に導く。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",

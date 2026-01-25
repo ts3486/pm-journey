@@ -14,7 +14,10 @@ impl SessionRepository {
     }
 
     pub async fn create(&self, session: &Session) -> Result<Session> {
-        self.create_in_tx(&mut self.pool.begin().await?, session).await?;
+        let mut tx = self.pool.begin().await?;
+        self.create_in_tx(&mut tx, session).await?;
+        tx.commit().await?;
+
         self.get(&session.id).await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created session"))
     }

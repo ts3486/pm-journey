@@ -4,6 +4,7 @@ import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
+  createLocalMessage,
   evaluate,
   resetSession,
   resumeSession,
@@ -33,6 +34,7 @@ export default function ScenarioPage() {
 function ScenarioContent() {
   const [state, setState] = useState<SessionState | null>(null);
   const [loadingEval, setLoadingEval] = useState(false);
+  const [awaitingReply, setAwaitingReply] = useState(false);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [lastSessionStatus, setLastSessionStatus] =
     useState<SessionState["session"]["status"] | null>(null);
@@ -134,8 +136,24 @@ function ScenarioContent() {
 
   const handleSend = async (content: string) => {
     if (!state) return;
-    const next = await sendMessage(state, "user", content);
-    setState(next);
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    const optimisticMessage = createLocalMessage(state.session.id, "user", trimmed);
+    const optimisticState: SessionState = {
+      ...state,
+      session: { ...state.session, lastActivityAt: optimisticMessage.createdAt },
+      messages: [...state.messages, optimisticMessage],
+    };
+    setState(optimisticState);
+    setAwaitingReply(true);
+    try {
+      const next = await sendMessage(optimisticState, "user", trimmed, undefined, {
+        existingMessage: optimisticMessage,
+      });
+      setState(next);
+    } finally {
+      setAwaitingReply(false);
+    }
   };
 
   const handleCompleteScenario = async () => {
@@ -216,7 +234,11 @@ function ScenarioContent() {
       </section>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
-          <ChatStream messages={state?.messages ?? []} maxHeight="60vh" />
+          <ChatStream
+            messages={state?.messages ?? []}
+            maxHeight="60vh"
+            isTyping={awaitingReply}
+          />
           <ChatComposer
             onSend={handleSend}
             disabled={!hasActive}
@@ -361,6 +383,20 @@ function ScenarioContent() {
                   ) : null}
                 </div>
               </details>
+            </div>
+          ) : null}
+
+          {hasActive ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="text-xs text-slate-400 transition hover:text-slate-600"
+                onClick={handleReset}
+                aria-label="セッションをリセット"
+                title="セッションをリセット"
+              >
+                セッションをリセット
+              </button>
             </div>
           ) : null}
         </div>

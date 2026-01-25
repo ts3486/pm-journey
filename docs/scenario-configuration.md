@@ -11,9 +11,9 @@ Scenarios are the core learning units in pm-journey. Each scenario simulates a r
 | Scenario definitions | `frontend/src/config/scenarios.ts` |
 | Agent profiles (tone/character) | `frontend/src/config/agentProfiles.ts` |
 | Type definitions | `frontend/src/types/session.ts` |
-| System prompt composition | `frontend/app/api/agent/route.ts` |
-| Mission completion detection | `frontend/app/api/mission-detect/route.ts` |
-| AI-powered session evaluation | `frontend/app/api/evaluate-session/route.ts` |
+| System prompt composition | `frontend/src/services/sessions.ts` → `backend/src/api/mod.rs` |
+| Mission status handling | `frontend/src/services/sessions.ts` (manual) |
+| Session evaluation | `backend/src/api/mod.rs` |
 
 ---
 
@@ -123,19 +123,17 @@ The first message context comes from the `kickoffPrompt` field in each scenario.
 
 ### How the System Prompt is Composed
 
-**File:** `frontend/app/api/agent/route.ts` (lines 34-36)
+**Files:** `frontend/src/services/sessions.ts` → `backend/src/api/mod.rs`
 
-The final system instruction sent to Gemini is a combination of three parts:
+The frontend builds an **agent context** for every user message and sends it to the backend API.
+That context is composed from:
 
-```typescript
-const mergedSystem = [
-  profile.systemPrompt,    // 1. Agent character/tone (from agentProfiles.ts)
-  scenarioPrompt,          // 2. Kickoff prompt (from scenario definition)
-  userPrompt               // 3. Additional user-provided context (optional)
-].filter(Boolean).join("\n\n");
-```
+1. **Agent profile** (`agentProfiles.ts`) → `systemPrompt` + `modelId`
+2. **Scenario kickoff prompt** (`scenarios.ts`) → `kickoffPrompt`
+3. **Scenario metadata** (`scenarios.ts`) → title/description + product info
 
-This merged prompt gives the AI both its personality AND the specific scenario context.
+The backend merges these into a single system instruction and calls Gemini.
+This guarantees the response matches the agent’s persona and the active scenario context.
 
 ---
 
@@ -168,18 +166,11 @@ type Mission = {
 
 ### Mission Completion Detection
 
-**File:** `frontend/app/api/mission-detect/route.ts`
+Mission completion is currently **manual**. The UI provides mission checkboxes,
+and their state is stored in session data via the backend API.
 
-Missions are detected as complete by an AI evaluator (Gemini 1.5 Flash):
-
-1. The system sends the mission list and recent conversation to the AI
-2. AI analyzes which missions have been clearly addressed
-3. Returns `{ completedMissionIds: ["mission-id-1", "mission-id-2"] }`
-
-**System prompt for mission detection:**
-```
-You are a strict evaluator. Identify which missions are clearly completed based on the conversation. Only mark a mission complete when the user has explicitly covered the goal; if uncertain, omit it. Return JSON only with this exact shape: {"completedMissionIds": ["..."]}.
-```
+If you want AI-based detection, add a backend endpoint and wire it from
+`frontend/src/services/sessions.ts`.
 
 ### Scenario Completion
 
@@ -267,94 +258,14 @@ The `passingScore` (typically 70) determines whether the user passes.
 
 ---
 
-## 6.1 AI-Powered Session Rating
+## 6.1 Session Rating (Backend)
 
 **Files:**
-- API Endpoint: `frontend/app/api/evaluate-session/route.ts`
-- Service: `frontend/src/services/sessions.ts` → `requestEvaluation()`
+- API Endpoint: `backend/src/api/mod.rs` → `evaluate_session`
+- Service: `frontend/src/services/sessions.ts` → `evaluate()`
 
-評価はGemini 1.5 Flash AIを使用して、会話ログに基づいて生成されます。
-
-### Evaluation Flow
-
-1. **User Completes Scenario**
-   - User clicks "Complete Scenario" button
-   - Frontend calls `evaluate()` in sessions.ts
-
-2. **API Request**
-   - `requestEvaluation()` sends session data to `/api/evaluate-session`
-   - Request includes: sessionId, scenarioId, messages (last 30)
-
-3. **AI Evaluation**
-   - API loads scenario-specific criteria from config
-   - Builds system prompt with:
-     - Scenario context (title, description, product summary)
-     - Rating criteria with scoring guidelines
-   - Sends to Gemini 1.5 Flash with low temperature (0.3) for consistency
-
-4. **Score Calculation**
-   - AI returns score (0-100) for each criterion with:
-     - Specific feedback in Japanese
-     - Evidence (quotes from user's messages)
-   - API calculates weighted average for overall score
-   - Compares against `passingScore` to determine pass/fail
-
-5. **Result Storage**
-   - Evaluation saved to session snapshot in localStorage
-   - Session status updated to "evaluated"
-
-### AI System Prompt Structure
-
-```
-You are an expert PM/PMO evaluator...
-
-## Scenario Context
-Title: {scenario.title}
-Description: {scenario.description}
-Product Context: {scenario.product.summary}
-
-## Evaluation Criteria
-{foreach criterion}
-### {criterion.name} (Weight: {weight}%, ID: {id})
-{description}
-
-Scoring Guide:
-- Excellent (90-100): {scoringGuidelines.excellent}
-- Good (70-89): {scoringGuidelines.good}
-- Needs Improvement (50-69): {scoringGuidelines.needsImprovement}
-- Poor (0-49): {scoringGuidelines.poor}
-{/foreach}
-
-## Output Format
-Return JSON with categories, summary, and improvementAdvice...
-```
-
-### Evaluation Response Structure
-
-```typescript
-type Evaluation = {
-  sessionId: string;
-  overallScore: number;           // Weighted average (0-100)
-  passing: boolean;               // overallScore >= passingScore
-  categories: {
-    criterionId: string;
-    name: string;
-    weight: number;
-    score: number;                // 0-100
-    feedback: string;             // AI-generated feedback (Japanese)
-    evidence: string[];           // Quotes from chat supporting the score
-  }[];
-  summary: string;                // Overall assessment (Japanese)
-  improvementAdvice: string;      // Actionable advice (Japanese)
-};
-```
-
-### Error Handling
-
-- **Offline:** Evaluation disabled, error thrown
-- **API failure:** Error message displayed to user
-- **Parse failure:** Returns 500 error with message
-- **Missing criteria:** Auto-filled with score 0 and default feedback
+評価はバックエンド側で生成されます。現行実装は簡易の固定値で、Gemini による評価は未実装です。
+本格的な AI 評価を行う場合は、バックエンドに評価用プロンプト生成と Gemini 呼び出しを追加してください。
 
 ---
 
@@ -416,5 +327,5 @@ const myNewScenarioCriteria: RatingCriterion[] = [
 | Change scoring guidelines | `frontend/src/config/scenarios.ts` → `scoringGuidelines` in each criterion |
 | Change passing threshold | `frontend/src/config/scenarios.ts` → `passingScore` |
 | Add supplemental guidance | `frontend/src/config/scenarios.ts` → `supplementalInfo` |
-| Modify AI evaluation prompt | `frontend/app/api/evaluate-session/route.ts` → `buildSystemPrompt()` |
-| Adjust AI temperature/behavior | `frontend/app/api/evaluate-session/route.ts` → `generationConfig` |
+| Modify evaluation logic | `backend/src/api/mod.rs` → `evaluate_session` |
+| Adjust model/temperature | (when AI evaluation is added) `backend/src/api/mod.rs` |

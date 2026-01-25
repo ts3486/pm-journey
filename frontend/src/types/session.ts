@@ -33,6 +33,14 @@ export type Evaluation = {
 
 export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
+export type ScenarioBehavior = {
+  userLed?: boolean;
+  allowProactive?: boolean;
+  maxQuestions?: number;
+  responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
+  phase?: string;
+};
+
 export type ScenarioSummary = {
   id: string;
   title: string;
@@ -110,6 +118,7 @@ export type Scenario = {
   title: string;
   description: string;
   discipline: ScenarioDiscipline;
+  behavior?: ScenarioBehavior;
   product: {
     name: string;
     summary: string;

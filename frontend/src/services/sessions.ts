@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { resolveAgentProfile } from "@/config/agentProfiles";
 import { api } from "@/services/api";
 import { getScenarioById } from "@/config/scenarios";
 import { storage, type SessionSnapshot } from "@/services/storage";
@@ -8,43 +9,27 @@ import type {
   Message,
   MessageRole,
   MessageTag,
-  Mission,
-  MissionStatus,
   ProgressFlags,
+  Scenario,
   Session,
   ScenarioDiscipline,
 } from "@/types/session";
 
 const randomId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-const defaultProgressFlags = (): ProgressFlags => ({
-  requirements: false,
-  priorities: false,
-  risks: false,
-  acceptance: false,
-});
-
-const defaultSession = (scenarioId: string, scenarioDiscipline?: ScenarioDiscipline): Session => ({
-  id: randomId("session"),
-  scenarioId,
-  scenarioDiscipline,
-  status: "active",
-  startedAt: new Date().toISOString(),
-  endedAt: undefined,
-  lastActivityAt: new Date().toISOString(),
-  userName: undefined,
-  progressFlags: defaultProgressFlags(),
-  evaluationRequested: false,
-  missionStatus: [],
-});
-
-const createAgentReply = (userMessage: string): Message => ({
+export const createLocalMessage = (
+  sessionId: string,
+  role: MessageRole,
+  content: string,
+  tags?: MessageTag[],
+): Message => ({
   id: randomId("msg"),
-  sessionId: "",
-  role: "agent",
-  content: `ありがとうございます。`,
+  sessionId,
+  role,
+  content,
   createdAt: new Date().toISOString(),
-  tags: ["summary"],
+  tags,
+  queuedOffline: isOffline() ? true : undefined,
 });
 
 const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
@@ -61,24 +46,6 @@ const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
   ];
 };
 
-const requestEvaluation = async (params: {
-  sessionId: string;
-  scenarioId: string;
-  messages: Message[];
-}): Promise<Evaluation> => {
-  const res = await fetch("/api/evaluate-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-
-  if (!res.ok) {
-    const errorData = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(errorData.error ?? "評価の生成に失敗しました");
-  }
-
-  return (await res.json()) as Evaluation;
-};
 
 export type SessionState = SessionSnapshot & {
   history: HistoryItem[];
@@ -92,59 +59,45 @@ const isOffline = (): boolean => {
   return !navigator.onLine;
 };
 
-const requestAgentReply = async (params: {
-  scenarioId: string;
-  prompt?: string;
-  messages: Message[];
-}): Promise<string | null> => {
-  try {
-    const res = await fetch("/api/agent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { reply?: string };
-    return data.reply ?? null;
-  } catch (error) {
-    console.error("Agent request failed", error);
-    return null;
+const requireApiBase = () => {
+  if (!env.apiBase) {
+    throw new Error("API base is not configured. Set NEXT_PUBLIC_API_BASE to use the backend API.");
   }
 };
 
-const requestMissionCompletion = async (params: {
-  scenarioId: string;
-  missions: Mission[];
-  messages: Message[];
-  existingMissionStatus?: MissionStatus[];
-}): Promise<string[] | null> => {
-  try {
-    const res = await fetch("/api/mission-detect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { completedMissionIds?: string[] };
-    if (!Array.isArray(data.completedMissionIds)) return null;
-    return data.completedMissionIds.filter((id): id is string => typeof id === "string");
-  } catch (error) {
-    console.error("Mission detection failed", error);
-    return null;
-  }
+const formatProductContext = (product: Scenario["product"]) => {
+  const list = (label: string, items?: string[]) =>
+    items && items.length > 0 ? `- ${label}: ${items.join("、")}` : "";
+
+  const lines = [
+    "## プロダクト情報",
+    `- 名前: ${product.name}`,
+    `- 概要: ${product.summary}`,
+    `- 対象: ${product.audience}`,
+    list("課題", product.problems),
+    list("目標", product.goals),
+    list("差別化要素", product.differentiators),
+    list("スコープ", product.scope),
+    list("制約", product.constraints),
+    `- タイムライン: ${product.timeline}`,
+    list("成功条件", product.successCriteria),
+    product.uniqueEdge ? `- 学習の焦点: ${product.uniqueEdge}` : "",
+    list("技術スタック", product.techStack),
+    list("主要機能", product.coreFeatures),
+  ];
+
+  return lines.filter((line) => line.length > 0).join("\n");
 };
+
 
 export async function startSession(
   scenarioId: string,
   scenarioDiscipline?: ScenarioDiscipline,
   kickoffPrompt?: string,
 ): Promise<SessionState> {
+  requireApiBase();
   let session: Session;
-  if (env.apiBase) {
-    session = await api.createSession(scenarioId);
-  } else {
-    session = defaultSession(scenarioId, scenarioDiscipline);
-  }
+  session = await api.createSession(scenarioId);
   session = {
     ...session,
     scenarioDiscipline: session.scenarioDiscipline ?? scenarioDiscipline,
@@ -156,6 +109,7 @@ export async function startSession(
 }
 
 export async function resumeSession(scenarioId?: string): Promise<SessionState | null> {
+  requireApiBase();
   const lastId = await storage.loadLastSessionId(scenarioId);
   if (!lastId) return null;
   const snapshot = await storage.loadSession(lastId);
@@ -173,19 +127,13 @@ export async function sendMessage(
   role: MessageRole,
   content: string,
   tags?: MessageTag[],
+  options?: { existingMessage?: Message },
 ): Promise<SessionState> {
+  requireApiBase();
   const session = { ...state.session, lastActivityAt: new Date().toISOString() };
-  const message: Message = {
-    id: randomId("msg"),
-    sessionId: session.id,
-    role,
-    content,
-    createdAt: new Date().toISOString(),
-    tags,
-    queuedOffline: isOffline() ? true : undefined,
-  };
-
-  const messages = [...state.messages, message];
+  const message = options?.existingMessage ?? createLocalMessage(session.id, role, content, tags);
+  const hasMessage = state.messages.some((m) => m.id === message.id);
+  const messages = hasMessage ? [...state.messages] : [...state.messages, message];
   let reply: Message | null = null;
   const scenario = getScenarioById(session.scenarioId);
 
@@ -195,55 +143,36 @@ export async function sendMessage(
     return { ...state, session, messages, offline: true };
   }
 
-  if (env.apiBase) {
-    const apiMessage = await api.postMessage(session.id, role, content, tags, session.missionStatus);
-    reply = apiMessage.reply;
-    session.missionStatus = apiMessage.session.missionStatus;
-  } else if (role === "user") {
-    const agentText =
-      (await requestAgentReply({
-        scenarioId: session.scenarioId,
-        prompt: scenario?.kickoffPrompt,
-        messages,
-      })) ?? "ありがとうございます。詳細を教えてください。";
-    reply = {
-      id: randomId("msg"),
-      sessionId: session.id,
-      role: "agent",
-      content: agentText,
-      createdAt: new Date().toISOString(),
-      tags: ["summary"],
-    };
-  }
+  const profile = resolveAgentProfile(session.scenarioId);
+  const agentContext =
+    role === "user" && scenario
+      ? {
+          systemPrompt: profile.systemPrompt,
+          modelId: profile.modelId,
+          scenarioPrompt: scenario.kickoffPrompt,
+          scenarioTitle: scenario.title,
+          scenarioDescription: scenario.description,
+          productContext: formatProductContext(scenario.product),
+          behavior: scenario.behavior,
+        }
+      : undefined;
+  const apiMessage = await api.postMessage(
+    session.id,
+    role,
+    content,
+    tags,
+    session.missionStatus,
+    agentContext,
+  );
+  reply = apiMessage.reply;
+  session.missionStatus = apiMessage.session.missionStatus;
 
   if (reply) {
     messages.push(reply);
   }
 
   if (reply && !isOffline()) {
-    const scenarioMissions = scenario?.missions ?? [];
-    const existingIds = new Set((session.missionStatus ?? []).map((m) => m.missionId));
-    const allDone =
-      scenarioMissions.length > 0 && scenarioMissions.every((mission) => existingIds.has(mission.id));
-    if (scenarioMissions.length > 0 && !allDone) {
-      const completedMissionIds =
-        (await requestMissionCompletion({
-          scenarioId: session.scenarioId,
-          missions: scenarioMissions,
-          messages,
-          existingMissionStatus: session.missionStatus,
-        })) ?? [];
-      if (completedMissionIds.length > 0) {
-        const nextMissionStatus = [...(session.missionStatus ?? [])];
-        completedMissionIds.forEach((missionId) => {
-          if (!existingIds.has(missionId)) {
-            nextMissionStatus.push({ missionId, completedAt: new Date().toISOString() });
-            existingIds.add(missionId);
-          }
-        });
-        session.missionStatus = nextMissionStatus;
-      }
-    }
+    // Mission status updates are handled manually when using the backend API.
   }
 
   const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
@@ -257,16 +186,8 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
   }
 
   let evaluation: Evaluation;
-  if (env.apiBase) {
-    evaluation = await api.evaluate(state.session.id);
-  } else {
-    // Use AI-powered evaluation via the evaluate-session API
-    evaluation = await requestEvaluation({
-      sessionId: state.session.id,
-      scenarioId: state.session.scenarioId,
-      messages: state.messages,
-    });
-  }
+  requireApiBase();
+  evaluation = await api.evaluate(state.session.id);
 
   const session: Session = {
     ...state.session,
@@ -318,38 +239,6 @@ export async function updateMissionStatus(
 }
 
 export async function loadHistory(): Promise<HistoryItem[]> {
-  if (env.apiBase) {
-    return api.listSessions();
-  }
-  // Local: derive from stored sessions
-  if (typeof window === "undefined") return [];
-  const keys = Object.keys(localStorage).filter((k) => k.startsWith(env.storageKeyPrefix + ":session:"));
-  const items = await Promise.all(
-    keys.map(async (k) => {
-      const raw = localStorage.getItem(k);
-      if (!raw) return null;
-      let snapshot: SessionSnapshot;
-      try {
-        snapshot = JSON.parse(raw) as SessionSnapshot;
-      } catch (error) {
-        console.warn("Skipping invalid session snapshot", { key: k, error });
-        return null;
-      }
-      if (!snapshot?.session?.id) return null;
-      return {
-        sessionId: snapshot.session.id,
-        scenarioId: snapshot.session.scenarioId,
-        scenarioDiscipline: snapshot.session.scenarioDiscipline,
-        metadata: {
-          duration: undefined,
-          messageCount: snapshot.messages.length,
-        },
-        actions: snapshot.messages.filter((m) => m.tags && m.tags.length > 0),
-        evaluation: snapshot.evaluation,
-        storageLocation: "local",
-        comments: await storage.loadComments(snapshot.session.id),
-      } as HistoryItem;
-    })
-  );
-  return items.filter(Boolean) as HistoryItem[];
+  requireApiBase();
+  return api.listSessions();
 }

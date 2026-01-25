@@ -202,6 +202,7 @@ export default function HistoryDetailPage() {
   const params = useParams();
   const sessionId = params?.sessionId as string | undefined;
   const [item, setItem] = useState<HistoryItem | null>(null);
+  const [loading, setLoading] = useState(true);
   const [commentAuthor, setCommentAuthor] = useState("");
   const [commentText, setCommentText] = useState("");
   const scenario = useMemo(
@@ -211,18 +212,45 @@ export default function HistoryDetailPage() {
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
 
   useEffect(() => {
-    if (!sessionId) return;
-    getHistoryItem(sessionId).then(setItem);
+    if (!sessionId) {
+      setLoading(false);
+      return;
+    }
+    getHistoryItem(sessionId)
+      .then(setItem)
+      .finally(() => setLoading(false));
   }, [sessionId]);
 
   if (!sessionId) {
     return <p className="text-sm text-slate-600">セッションIDが指定されていません。</p>;
   }
 
-  if (!item) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="card p-8 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+          <svg className="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-semibold text-slate-900">セッションが見つかりません</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          ID: <code className="rounded bg-slate-100 px-2 py-0.5 text-xs">{sessionId}</code>
+        </p>
+        <a
+          href="/history"
+          className="mt-4 inline-block rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
+        >
+          履歴一覧に戻る
+        </a>
       </div>
     );
   }
