@@ -1,8 +1,7 @@
-import { env } from "@/config/env";
 import { resolveAgentProfile } from "@/config/agentProfiles";
 import { api } from "@/services/api";
 import { getScenarioById } from "@/config/scenarios";
-import { storage, type SessionSnapshot } from "@/services/storage";
+import { storage } from "@/services/storage";
 import type {
   Evaluation,
   HistoryItem,
@@ -29,7 +28,6 @@ export const createLocalMessage = (
   content,
   createdAt: new Date().toISOString(),
   tags,
-  queuedOffline: isOffline() ? true : undefined,
 });
 
 const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
@@ -46,23 +44,15 @@ const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
   ];
 };
 
+export type SessionSnapshot = {
+  session: Session;
+  messages: Message[];
+  evaluation?: Evaluation;
+};
 
 export type SessionState = SessionSnapshot & {
   history: HistoryItem[];
   loading: boolean;
-  offline: boolean;
-};
-
-const isOffline = (): boolean => {
-  if (!env.offlineQueue) return false;
-  if (typeof navigator === "undefined") return false;
-  return !navigator.onLine;
-};
-
-const requireApiBase = () => {
-  if (!env.apiBase) {
-    throw new Error("API base is not configured. Set NEXT_PUBLIC_API_BASE to use the backend API.");
-  }
 };
 
 const formatProductContext = (product: Scenario["product"]) => {
@@ -95,7 +85,6 @@ export async function startSession(
   scenarioDiscipline?: ScenarioDiscipline,
   kickoffPrompt?: string,
 ): Promise<SessionState> {
-  requireApiBase();
   let session: Session;
   session = await api.createSession(scenarioId);
   session = {
@@ -103,18 +92,54 @@ export async function startSession(
     scenarioDiscipline: session.scenarioDiscipline ?? scenarioDiscipline,
   };
   const messages = kickoffMessage(session.id, kickoffPrompt);
-  const snapshot: SessionSnapshot = { session, messages, evaluation: undefined };
-  await storage.saveSession(snapshot);
-  return { ...snapshot, history: [], loading: false, offline: isOffline() };
+
+  // Set the session pointer in localStorage
+  storage.setLastSession(session.id, scenarioId);
+
+  return { session, messages, evaluation: undefined, history: [], loading: false };
 }
 
 export async function resumeSession(scenarioId?: string): Promise<SessionState | null> {
-  requireApiBase();
   const lastId = await storage.loadLastSessionId(scenarioId);
   if (!lastId) return null;
-  const snapshot = await storage.loadSession(lastId);
-  if (!snapshot) return null;
-  return { ...snapshot, history: [], loading: false, offline: isOffline() };
+
+  try {
+    // Fetch session data from API
+    const historyItem = await api.getSession(lastId);
+    // Fetch all messages from API
+    const messages = await api.listMessages(lastId);
+
+    const session: Session = {
+      id: historyItem.sessionId,
+      scenarioId: historyItem.scenarioId ?? "",
+      scenarioDiscipline: historyItem.scenarioDiscipline,
+      status: historyItem.evaluation ? "evaluated" : "active",
+      startedAt: new Date().toISOString(),
+      lastActivityAt: new Date().toISOString(),
+      progressFlags: {
+        requirements: false,
+        priorities: false,
+        risks: false,
+        acceptance: false,
+      },
+      evaluationRequested: !!historyItem.evaluation,
+      missionStatus: [],
+    };
+
+    return {
+      session,
+      messages,
+      evaluation: historyItem.evaluation,
+      history: [],
+      loading: false,
+    };
+  } catch {
+    // Session not found in API, clear the pointer
+    if (scenarioId) {
+      await storage.clearLastSessionPointer(scenarioId, lastId);
+    }
+    return null;
+  }
 }
 
 export async function resetSession(sessionId: string | undefined, scenarioId: string | undefined): Promise<void> {
@@ -129,19 +154,12 @@ export async function sendMessage(
   tags?: MessageTag[],
   options?: { existingMessage?: Message },
 ): Promise<SessionState> {
-  requireApiBase();
   const session = { ...state.session, lastActivityAt: new Date().toISOString() };
   const message = options?.existingMessage ?? createLocalMessage(session.id, role, content, tags);
   const hasMessage = state.messages.some((m) => m.id === message.id);
   const messages = hasMessage ? [...state.messages] : [...state.messages, message];
   let reply: Message | null = null;
   const scenario = getScenarioById(session.scenarioId);
-
-  if (isOffline()) {
-    const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
-    await storage.saveSession(snapshot);
-    return { ...state, session, messages, offline: true };
-  }
 
   const profile = resolveAgentProfile(session.scenarioId);
   const agentContext =
@@ -171,23 +189,25 @@ export async function sendMessage(
     messages.push(reply);
   }
 
-  if (reply && !isOffline()) {
-    // Mission status updates are handled manually when using the backend API.
-  }
+  // Update session pointer
+  storage.setLastSession(session.id, session.scenarioId);
 
-  const snapshot: SessionSnapshot = { session, messages, evaluation: state.evaluation };
-  await storage.saveSession(snapshot);
-  return { ...state, session, messages, offline: isOffline() };
+  return { ...state, session, messages };
 }
 
 export async function evaluate(state: SessionState): Promise<SessionState> {
-  if (isOffline()) {
-    throw new Error("Offline: evaluation is disabled until connectivity returns.");
-  }
-
-  let evaluation: Evaluation;
-  requireApiBase();
-  evaluation = await api.evaluate(state.session.id);
+  const scenario = getScenarioById(state.session.scenarioId);
+  const payload = scenario
+    ? {
+        criteria: scenario.evaluationCriteria,
+        passingScore: scenario.passingScore,
+        scenarioTitle: scenario.title,
+        scenarioDescription: scenario.description,
+        productContext: formatProductContext(scenario.product),
+        scenarioPrompt: scenario.kickoffPrompt,
+      }
+    : undefined;
+  const evaluation = await api.evaluate(state.session.id, payload);
 
   const session: Session = {
     ...state.session,
@@ -195,9 +215,33 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
     evaluationRequested: true,
     lastActivityAt: new Date().toISOString(),
   };
-  const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation };
-  await storage.saveSession(snapshot);
-  return { ...state, session, evaluation, offline: isOffline() };
+
+  // Clear session pointer since it's now evaluated
+  await storage.clearLastSessionPointer(session.scenarioId, session.id);
+
+  return { ...state, session, evaluation };
+}
+
+export async function evaluateSessionById(
+  sessionId: string,
+  scenarioId?: string,
+): Promise<Evaluation> {
+  const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
+  const payload = scenario
+    ? {
+        criteria: scenario.evaluationCriteria,
+        passingScore: scenario.passingScore,
+        scenarioTitle: scenario.title,
+        scenarioDescription: scenario.description,
+        productContext: formatProductContext(scenario.product),
+        scenarioPrompt: scenario.kickoffPrompt,
+      }
+    : undefined;
+  const evaluation = await api.evaluate(sessionId, payload);
+  if (scenarioId) {
+    await storage.clearLastSessionPointer(scenarioId, sessionId);
+  }
+  return evaluation;
 }
 
 export async function updateProgress(
@@ -208,9 +252,8 @@ export async function updateProgress(
     ...state.session,
     progressFlags: { ...state.session.progressFlags, ...progressFlags },
   };
-  const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
-  await storage.saveSession(snapshot);
-  return { ...state, session, offline: isOffline() };
+  // Progress flags are local state only; they're included in mission status when messages are sent
+  return { ...state, session };
 }
 
 export async function updateMissionStatus(
@@ -233,12 +276,10 @@ export async function updateMissionStatus(
     missionStatus,
     lastActivityAt: new Date().toISOString(),
   };
-  const snapshot: SessionSnapshot = { session, messages: state.messages, evaluation: state.evaluation };
-  await storage.saveSession(snapshot);
-  return { ...state, session, offline: isOffline() };
+  // Mission status is sent with next message; no need to save locally
+  return { ...state, session };
 }
 
 export async function loadHistory(): Promise<HistoryItem[]> {
-  requireApiBase();
   return api.listSessions();
 }

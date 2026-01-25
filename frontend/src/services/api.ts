@@ -8,6 +8,7 @@ import type {
   ManagerComment,
   MissionStatus,
   Session,
+  RatingCriterion,
 } from "@/types/session";
 
 const base = env.apiBase;
@@ -29,7 +30,35 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   if (!res.ok) {
-    throw new Error(`Request failed: ${res.status}`);
+    const rawText = await res.text();
+    let detail = rawText;
+    try {
+      const parsed = rawText ? JSON.parse(rawText) : null;
+      if (parsed && typeof parsed.error === "string") {
+        detail = parsed.error;
+      }
+    } catch {
+      // ignore JSON parse failures
+    }
+    const formatError = (status: number, message: string) => {
+      const retrySecondsMatch = message.match(/retryDelay\"?:\\s*\"(\\d+)s\"/) ??
+        message.match(/retry in ([0-9.]+)s/i);
+      const retrySeconds = retrySecondsMatch ? Number(retrySecondsMatch[1]) : null;
+      if (status === 429 || /RESOURCE_EXHAUSTED|Quota exceeded|Too Many Requests/i.test(message)) {
+        return `Gemini APIの利用上限に達しました。${retrySeconds ? `${retrySeconds}秒後に再試行してください。` : "時間をおいて再試行してください。"}`;
+      }
+      if (/GEMINI_API_KEY is not set/i.test(message)) {
+        return "Gemini APIキーが未設定です。backend/.env の GEMINI_API_KEY を設定してください。";
+      }
+      if (/evaluation returned invalid JSON/i.test(message)) {
+        return "評価結果の生成に失敗しました（AI出力が不正な形式でした）。時間をおいて再試行してください。";
+      }
+      if (message && message.length < 300) {
+        return message;
+      }
+      return `Request failed: ${status}`;
+    };
+    throw new Error(formatError(res.status, detail));
   }
   return (await res.json()) as T;
 }
@@ -43,6 +72,9 @@ export const api = {
   },
   async getSession(id: string): Promise<HistoryItem> {
     return request<HistoryItem>(`/sessions/${id}`);
+  },
+  async listMessages(sessionId: string): Promise<Message[]> {
+    return request<Message[]>(`/sessions/${sessionId}/messages`);
   },
   async deleteSession(id: string): Promise<void> {
     await request(`/sessions/${id}`, { method: "DELETE" });
@@ -74,8 +106,21 @@ export const api = {
       body: { role, content, tags, missionStatus, agentContext },
     });
   },
-  async evaluate(sessionId: string): Promise<Evaluation> {
-    return request<Evaluation>(`/sessions/${sessionId}/evaluate`, { method: "POST" });
+  async evaluate(
+    sessionId: string,
+    payload?: {
+      criteria: RatingCriterion[];
+      passingScore?: number;
+      scenarioTitle?: string;
+      scenarioDescription?: string;
+      productContext?: string;
+      scenarioPrompt?: string;
+    },
+  ): Promise<Evaluation> {
+    return request<Evaluation>(`/sessions/${sessionId}/evaluate`, {
+      method: "POST",
+      body: payload,
+    });
   },
   async listComments(sessionId: string): Promise<ManagerComment[]> {
     return request<ManagerComment[]>(`/sessions/${sessionId}/comments`);

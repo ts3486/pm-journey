@@ -5,7 +5,6 @@ import { ChatStream } from "@/components/ChatStream";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
   createLocalMessage,
-  evaluate,
   resetSession,
   resumeSession,
   sendMessage,
@@ -33,7 +32,6 @@ export default function ScenarioPage() {
 
 function ScenarioContent() {
   const [state, setState] = useState<SessionState | null>(null);
-  const [loadingEval, setLoadingEval] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [lastSessionStatus, setLastSessionStatus] =
@@ -55,8 +53,7 @@ function ScenarioContent() {
     state.session.progressFlags.requirements &&
     state.session.progressFlags.priorities &&
     state.session.progressFlags.risks &&
-    state.session.progressFlags.acceptance &&
-    !state.offline;
+    state.session.progressFlags.acceptance;
   const missions = activeScenario.missions ?? [];
   const missionStatusMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -158,34 +155,7 @@ function ScenarioContent() {
 
   const handleCompleteScenario = async () => {
     if (!state) return;
-    await runEvalAndRedirect(state);
-  };
-
-  const runEvalAndRedirect = async (snapshot: SessionState, navigate = true) => {
-    if (snapshot.offline) {
-      alert("オンラインに戻ってから評価を実行してください。");
-      return;
-    }
-    setLoadingEval(true);
-    try {
-      const next = await evaluate(snapshot);
-      setState(next);
-      logEvent({
-        type: "evaluation",
-        sessionId: next.session.id,
-        scenarioId: next.session.scenarioId,
-        scenarioDiscipline: next.session.scenarioDiscipline,
-        score: next.evaluation?.overallScore,
-      });
-      if (navigate) {
-        router.push(`/history/${next.session.id}`);
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-alert
-      alert(err instanceof Error ? err.message : "オンラインに戻ってから評価を実行してください。");
-    } finally {
-      setLoadingEval(false);
-    }
+    router.push(`/history/${state.session.id}?autoEvaluate=1`);
   };
 
   useEffect(() => {
@@ -304,9 +274,6 @@ function ScenarioContent() {
                   シナリオを完了する
                 </button>
               </div>
-              {loadingEval ? (
-                <p className="mt-2 text-xs text-slate-500">評価を実行しています…</p>
-              ) : null}
             </div>
           ) : null}
 

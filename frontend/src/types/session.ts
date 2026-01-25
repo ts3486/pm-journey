@@ -150,6 +150,17 @@ export type ManagerComment = {
   createdAt: string;
 };
 
+export type OutputSubmissionType = "text" | "url" | "image";
+
+export type OutputSubmission = {
+  id: string;
+  sessionId: string;
+  kind: OutputSubmissionType;
+  value: string;
+  note?: string;
+  createdAt: string;
+};
+
 export type ScenarioCatalogSection = {
   discipline: ScenarioDiscipline;
   title: string;

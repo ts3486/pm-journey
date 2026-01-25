@@ -33,6 +33,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         get_session,
         delete_session,
         post_message,
+        list_messages,
         evaluate_session,
         list_comments,
         create_comment,
@@ -47,6 +48,9 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         MessageRole,
         MessageTag,
         Evaluation,
+        EvaluationRequest,
+        EvaluationCriterion,
+        ScoringGuidelines,
         HistoryItem,
         ScenarioDiscipline,
         MissionStatus,
@@ -70,6 +74,10 @@ fn next_id(prefix: &str) -> String {
 
 fn now_ts() -> String {
     chrono::Utc::now().to_rfc3339()
+}
+
+fn normalize_model_id(model_id: &str) -> String {
+    model_id.strip_prefix("models/").unwrap_or(model_id).to_string()
 }
 
 fn build_system_instruction(ctx: &AgentContext) -> String {
@@ -159,7 +167,8 @@ async fn generate_agent_reply(
         .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
         .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
 
-    let model_id = context.model_id.as_deref().unwrap_or("gemini-1.5-flash");
+    let default_model = std::env::var("GEMINI_DEFAULT_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
+    let model_id = normalize_model_id(context.model_id.as_deref().unwrap_or(default_model.as_str()));
     let system_instruction = build_system_instruction(context);
 
     let context_messages = if messages.len() > 20 {
@@ -234,6 +243,300 @@ async fn generate_agent_reply(
     Ok(reply)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EvaluationOutputCategory {
+    name: String,
+    score: Option<f32>,
+    feedback: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EvaluationOutput {
+    categories: Vec<EvaluationOutputCategory>,
+    overall_score: Option<f32>,
+    summary: Option<String>,
+    improvement_advice: Option<String>,
+}
+
+fn build_evaluation_instruction(
+    request: &EvaluationRequest,
+    criteria: &[EvaluationCriterion],
+    strict: bool,
+) -> String {
+    let mut sections = vec![
+        "あなたは厳格な評価者です。評価対象はユーザーの発言のみです。アシスタントの発言は文脈として参照するだけにしてください。".to_string(),
+        "以下の評価基準に基づいて採点し、JSONのみで出力してください。".to_string(),
+    ];
+
+    if let Some(title) = &request.scenario_title {
+        sections.push(format!("シナリオ: {}", title));
+    }
+    if let Some(description) = &request.scenario_description {
+        sections.push(format!("シナリオ概要: {}", description));
+    }
+    if let Some(prompt) = &request.scenario_prompt {
+        sections.push(format!("シナリオ指示: {}", prompt));
+    }
+    if let Some(product_context) = &request.product_context {
+        sections.push(product_context.clone());
+    }
+
+    let mut criteria_lines = Vec::new();
+    criteria_lines.push("## 評価基準".to_string());
+    for c in criteria {
+        if let Some(id) = &c.id {
+            criteria_lines.push(format!("- {} (ID: {}, 重み: {}%)", c.name, id, c.weight));
+        } else {
+            criteria_lines.push(format!("- {} (重み: {}%)", c.name, c.weight));
+        }
+        if !c.description.is_empty() {
+            criteria_lines.push(format!("  - 説明: {}", c.description));
+        }
+        if !c.scoring_guidelines.excellent.is_empty()
+            || !c.scoring_guidelines.good.is_empty()
+            || !c.scoring_guidelines.needs_improvement.is_empty()
+            || !c.scoring_guidelines.poor.is_empty()
+        {
+            criteria_lines.push(format!("  - Excellent: {}", c.scoring_guidelines.excellent));
+            criteria_lines.push(format!("  - Good: {}", c.scoring_guidelines.good));
+            criteria_lines.push(format!(
+                "  - NeedsImprovement: {}",
+                c.scoring_guidelines.needs_improvement
+            ));
+            criteria_lines.push(format!("  - Poor: {}", c.scoring_guidelines.poor));
+        }
+    }
+    sections.push(criteria_lines.join("\n"));
+
+    let passing_score = request.passing_score.unwrap_or(70.0);
+    sections.push(format!("合格基準: {}点以上", passing_score));
+
+    let mut output_rules = vec![
+        "出力形式(JSONのみ): {\"categories\":[{\"name\":\"...\",\"weight\":25,\"score\":0-100,\"feedback\":\"...\"}],\"overallScore\":0-100,\"summary\":\"...\",\"improvementAdvice\":\"...\"}".to_string(),
+        "- categoriesは基準と同名・同順で出力".to_string(),
+    ];
+    if strict {
+        output_rules.push("- JSON以外の文字列や説明文は一切出力しない".to_string());
+        output_rules.push("- ``` などのコードブロックは禁止".to_string());
+        output_rules.push("以下のJSONテンプレートの数値とコメントだけを埋めて返すこと。キーの追加・削除は禁止。".to_string());
+        let template = build_evaluation_template(criteria);
+        output_rules.push(format!("JSONテンプレート:\n{}", template));
+    }
+    sections.push(output_rules.join("\n"));
+
+    sections.join("\n\n")
+}
+
+fn extract_json_value(text: &str) -> Option<serde_json::Value> {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(text) {
+        return Some(value);
+    }
+    let start = text.find('{')?;
+    let end = text.rfind('}')?;
+    serde_json::from_str::<serde_json::Value>(&text[start..=end]).ok()
+}
+
+fn build_evaluation_template(criteria: &[EvaluationCriterion]) -> serde_json::Value {
+    let categories = criteria
+        .iter()
+        .map(|c| {
+            json!({
+                "name": c.name,
+                "weight": c.weight,
+                "score": 0,
+                "feedback": ""
+            })
+        })
+        .collect::<Vec<_>>();
+
+    json!({
+        "categories": categories,
+        "overallScore": 0,
+        "summary": "",
+        "improvementAdvice": ""
+    })
+}
+
+fn build_evaluation_template_json(criteria: &[EvaluationCriterion]) -> String {
+    serde_json::to_string_pretty(&build_evaluation_template(criteria))
+        .unwrap_or_else(|_| "{\"categories\":[],\"overallScore\":0,\"summary\":\"\",\"improvementAdvice\":\"\"}".to_string())
+}
+
+async fn call_gemini_evaluation(
+    system_instruction: String,
+    input_text: String,
+    model_id: &str,
+    gemini_key: &str,
+) -> Result<String, AppError> {
+    let payload = json!({
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{ "text": input_text }]
+            }
+        ],
+        "systemInstruction": { "parts": [{ "text": system_instruction }] },
+        "generationConfig": {
+            "temperature": 0,
+            "maxOutputTokens": 1200,
+            "responseMimeType": "application/json"
+        }
+    });
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        model_id, gemini_key
+    );
+
+    let client = Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| anyhow_error(format!("Gemini evaluation failed: {}", e)))?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+        return Err(anyhow_error(format!("Gemini evaluation error {}: {}", status, text)));
+    }
+
+    let data: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| anyhow_error(format!("Failed to parse Gemini evaluation response: {}", e)))?;
+
+    let reply_text = data
+        .get("candidates")
+        .and_then(|v| v.get(0))
+        .and_then(|v| v.get("content"))
+        .and_then(|v| v.get("parts"))
+        .and_then(|v| v.as_array())
+        .map(|parts| {
+            parts
+                .iter()
+                .filter_map(|p| p.get("text").and_then(|t| t.as_str()))
+                .collect::<Vec<_>>()
+                .join("")
+                .trim()
+                .to_string()
+        })
+        .unwrap_or_default();
+
+    Ok(reply_text)
+}
+
+async fn generate_ai_evaluation(
+    request: &EvaluationRequest,
+    criteria: &[EvaluationCriterion],
+    messages: &[Message],
+    session_id: &str,
+) -> Result<Evaluation, AppError> {
+    let gemini_key = std::env::var("GEMINI_API_KEY")
+        .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
+        .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
+
+    let system_instruction = build_evaluation_instruction(request, criteria, false);
+
+    let transcript = messages
+        .iter()
+        .filter(|m| m.role != MessageRole::System)
+        .map(|m| {
+            let role = match m.role {
+                MessageRole::User => "ユーザー",
+                MessageRole::Agent => "アシスタント",
+                MessageRole::System => "システム",
+            };
+            format!("[{}] {}", role, m.content)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let eval_model = std::env::var("GEMINI_EVAL_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
+    let eval_model = normalize_model_id(&eval_model);
+
+    let reply_text = call_gemini_evaluation(
+        system_instruction,
+        transcript.clone(),
+        &eval_model,
+        &gemini_key,
+    ).await?;
+
+    let mut json_value = extract_json_value(&reply_text);
+    if json_value.is_none() {
+        let strict_instruction = build_evaluation_instruction(request, criteria, true);
+        let strict_reply = call_gemini_evaluation(
+            strict_instruction,
+            transcript.clone(),
+            &eval_model,
+            &gemini_key,
+        ).await?;
+        json_value = extract_json_value(&strict_reply);
+        if json_value.is_none() {
+            let template = build_evaluation_template_json(criteria);
+            let repair_instruction = format!(
+                "あなたはJSON修復担当です。以下のドラフトと評価基準/テンプレートを使い、必ず有効なJSONのみを返してください。追加説明は不要です。\n- JSON以外の文字列は禁止\n- テンプレートのキーを追加/削除しない\n- 数値は0-100の範囲\n\nJSONテンプレート:\n{}",
+                template
+            );
+            let repair_input = format!("評価ドラフト:\n{}\n\n会話ログ:\n{}", strict_reply, transcript);
+            let repaired_reply = call_gemini_evaluation(
+                repair_instruction,
+                repair_input,
+                &eval_model,
+                &gemini_key,
+            ).await?;
+            json_value = extract_json_value(&repaired_reply);
+        }
+    }
+
+    let json_value = json_value.ok_or_else(|| anyhow_error("Gemini evaluation returned invalid JSON"))?;
+    let output: EvaluationOutput = serde_json::from_value(json_value)
+        .map_err(|e| anyhow_error(format!("Failed to decode evaluation JSON: {}", e)))?;
+
+    let mut categories = Vec::new();
+    for criterion in criteria {
+        let matched = output.categories.iter().find(|c| c.name == criterion.name);
+        let score = matched.and_then(|c| c.score).unwrap_or(0.0).clamp(0.0, 100.0);
+        let feedback = matched
+            .and_then(|c| c.feedback.clone())
+            .filter(|f| !f.trim().is_empty())
+            .unwrap_or_else(|| "評価コメントが不足しています。".to_string());
+        categories.push(crate::models::EvaluationCategory {
+            name: criterion.name.clone(),
+            weight: criterion.weight,
+            score: Some(score),
+            feedback: Some(feedback),
+        });
+    }
+
+    let total_weight: f32 = categories.iter().map(|c| c.weight).sum();
+    let computed_overall = if total_weight > 0.0 {
+        categories
+            .iter()
+            .map(|c| c.score.unwrap_or(0.0) * c.weight)
+            .sum::<f32>()
+            / total_weight
+    } else {
+        0.0
+    };
+    let overall_score = output.overall_score.unwrap_or(computed_overall).round();
+    let passing_score = request.passing_score.unwrap_or(70.0);
+    let passing = overall_score >= passing_score;
+
+    Ok(Evaluation {
+        session_id: session_id.to_string(),
+        overall_score: Some(overall_score),
+        passing: Some(passing),
+        categories,
+        summary: output.summary.filter(|s| !s.trim().is_empty()),
+        improvement_advice: output.improvement_advice.filter(|s| !s.trim().is_empty()),
+    })
+}
+
 pub fn state_with_pool(pool: PgPool) -> SharedState {
     Arc::new(AppState { pool })
 }
@@ -245,7 +548,7 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route("/scenarios/:id", get(get_scenario))
         .route("/sessions", post(create_session).get(list_sessions))
         .route("/sessions/:id", get(get_session).delete(delete_session))
-        .route("/sessions/:id/messages", post(post_message))
+        .route("/sessions/:id/messages", get(list_messages).post(post_message))
         .route("/sessions/:id/evaluate", post(evaluate_session))
         .route(
             "/sessions/:id/comments",
@@ -367,7 +670,7 @@ async fn list_sessions(State(state): State<SharedState>) -> Result<Json<Vec<Hist
             },
             actions: messages
                 .iter()
-                .filter(|m| m.tags.is_some() && !m.tags.as_ref().unwrap().is_empty())
+                .filter(|m| m.role != MessageRole::System)
                 .cloned()
                 .collect(),
             evaluation,
@@ -413,7 +716,7 @@ async fn get_session(
         },
         actions: messages
             .iter()
-            .filter(|m| m.tags.is_some() && !m.tags.as_ref().unwrap().is_empty())
+            .filter(|m| m.role != MessageRole::System)
             .cloned()
             .collect(),
         evaluation,
@@ -421,6 +724,21 @@ async fn get_session(
         comments: Some(comments),
     };
     Ok(Json(item))
+}
+
+#[utoipa::path(
+    get,
+    path = "/sessions/{id}/messages",
+    responses((status = 200, body = [Message]))
+)]
+async fn list_messages(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<Message>>, AppError> {
+    let message_repo = MessageRepository::new(state.pool.clone());
+    let messages = message_repo.list_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to list messages: {}", e)))?;
+    Ok(Json(messages))
 }
 
 #[utoipa::path(
@@ -475,6 +793,36 @@ struct AgentBehavior {
     max_questions: Option<u32>,
     response_style: Option<String>,
     phase: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ScoringGuidelines {
+    excellent: String,
+    good: String,
+    needs_improvement: String,
+    poor: String,
+}
+
+#[derive(Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+struct EvaluationCriterion {
+    id: Option<String>,
+    name: String,
+    weight: f32,
+    description: String,
+    scoring_guidelines: ScoringGuidelines,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+struct EvaluationRequest {
+    criteria: Option<Vec<EvaluationCriterion>>,
+    passing_score: Option<f32>,
+    scenario_title: Option<String>,
+    scenario_description: Option<String>,
+    product_context: Option<String>,
+    scenario_prompt: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -584,14 +932,17 @@ async fn post_message(
 #[utoipa::path(
     post,
     path = "/sessions/{id}/evaluate",
+    request_body = EvaluationRequest,
     responses((status = 200, body = Evaluation))
 )]
 async fn evaluate_session(
     State(state): State<SharedState>,
     Path(id): Path<String>,
+    Json(body): Json<EvaluationRequest>,
 ) -> Result<Json<Evaluation>, AppError> {
     let session_repo = SessionRepository::new(state.pool.clone());
     let eval_repo = EvaluationRepository::new(state.pool.clone());
+    let message_repo = MessageRepository::new(state.pool.clone());
 
     // Begin transaction
     let mut tx = state.pool.begin().await
@@ -602,40 +953,52 @@ async fn evaluate_session(
         .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
         .ok_or_else(|| anyhow_error("session not found"))?;
 
-    // Create evaluation
-    let eval = Evaluation {
-        session_id: id.clone(),
-        overall_score: Some(80.0),
-        passing: Some(true),
-        categories: vec![
-            crate::models::EvaluationCategory {
-                name: "方針提示とリード力".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("方針が明確です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "計画と実行可能性".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("計画の粒度が適切です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "コラボレーションとフィードバック".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("対話が円滑です。".to_string()),
-            },
-            crate::models::EvaluationCategory {
-                name: "リスク/前提管理と改善姿勢".to_string(),
-                weight: 25.0,
-                score: Some(80.0),
-                feedback: Some("リスク感度が良好です。".to_string()),
-            },
-        ],
-        summary: Some("評価サンプル".to_string()),
-        improvement_advice: Some("リスク対応の優先度を明確にしてください。".to_string()),
+    let criteria = if let Some(criteria) = body.criteria.clone() {
+        if criteria.is_empty() {
+            None
+        } else {
+            Some(criteria)
+        }
+    } else {
+        None
     };
+
+    let criteria = if let Some(criteria) = criteria {
+        criteria
+    } else {
+        let fallback = default_scenarios()
+            .into_iter()
+            .find(|s| s.id == session.scenario_id)
+            .map(|s| {
+                s.evaluation_criteria
+                    .into_iter()
+                    .map(|c| EvaluationCriterion {
+                        id: None,
+                        name: c.name,
+                        weight: c.weight,
+                        description: String::new(),
+                        scoring_guidelines: ScoringGuidelines {
+                            excellent: String::new(),
+                            good: String::new(),
+                            needs_improvement: String::new(),
+                            poor: String::new(),
+                        },
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        fallback
+    };
+
+    if criteria.is_empty() {
+        return Err(anyhow_error("evaluation criteria are missing"));
+    }
+
+    let messages = message_repo.list_by_session(&id).await
+        .map_err(|e| anyhow_error(&format!("Failed to load messages: {}", e)))?;
+
+    // Create evaluation via Gemini
+    let eval = generate_ai_evaluation(&body, &criteria, &messages, &id).await?;
     eval_repo.create_in_tx(&mut tx, &eval).await
         .map_err(|e| anyhow_error(&format!("Failed to create evaluation: {}", e)))?;
 

@@ -118,6 +118,12 @@ paths:
       summary: Trigger evaluation
       parameters:
         - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRequest'
       responses:
         '200':
           description: Evaluation result
@@ -192,6 +198,50 @@ components:
             $ref: '#/components/schemas/MissionStatus'
         agentContext:
           $ref: '#/components/schemas/AgentContext'
+    ScoringGuidelines:
+      type: object
+      required: [excellent, good, needsImprovement, poor]
+      properties:
+        excellent:
+          type: string
+        good:
+          type: string
+        needsImprovement:
+          type: string
+        poor:
+          type: string
+    EvaluationCriterion:
+      type: object
+      required: [name, weight, description, scoringGuidelines]
+      properties:
+        id:
+          type: string
+          nullable: true
+        name:
+          type: string
+        weight:
+          type: number
+        description:
+          type: string
+        scoringGuidelines:
+          $ref: '#/components/schemas/ScoringGuidelines'
+    EvaluationRequest:
+      type: object
+      properties:
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationCriterion'
+        passingScore:
+          type: number
+        scenarioTitle:
+          type: string
+        scenarioDescription:
+          type: string
+        productContext:
+          type: string
+        scenarioPrompt:
+          type: string
     AgentContext:
       type: object
       required: [systemPrompt, scenarioPrompt]
