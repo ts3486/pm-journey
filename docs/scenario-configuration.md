@@ -249,6 +249,37 @@ The `passingScore` (typically 70) determines whether the user passes.
 
 ---
 
+## 6.1 Scenario Rating (Scoring) Logic
+
+**File:** `frontend/src/services/sessions.ts` → `createEvaluation()`
+
+現在の評価はクライアント側の簡易ロジックで生成されています（AI評価ではありません）。
+採点は以下の流れで決まります。
+
+1. **評価基準の決定**
+   - `scenario.evaluationCriteria` があればそれを使用
+   - ない場合はデフォルトの4項目（各25%）
+
+2. **カテゴリ別スコアの生成**
+   - 基準点 `baseScore = 75`
+   - 各カテゴリのスコアは `baseScore + delta` で計算
+     - `delta = (idxが偶数 ? +5 : -2) + ランダム(-3〜+2)`
+   - スコアは **60〜95** にクランプ
+
+3. **フィードバック生成**
+   - `supplementalInfo` があり、かつ最初のカテゴリの場合のみ専用コメント
+   - それ以外は共通テンプレの改善コメント
+
+4. **総合スコア**
+   - 各カテゴリのスコアを **weight(%)** で加重平均し、四捨五入
+
+5. **合否**
+   - 現状 `passing: true` が固定（`passingScore` とは未連動）
+
+> Note: `passingScore` はシナリオ側で設定されていますが、現行の評価ロジックでは参照されていません。
+
+---
+
 ## 7. Adding a New Scenario
 
 1. **Add scenario object** in `frontend/src/config/scenarios.ts`:
