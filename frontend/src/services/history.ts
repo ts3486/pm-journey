@@ -11,8 +11,8 @@ export function saveHistory(snapshot: SessionSnapshot): void {
   storage.saveSession(snapshot);
 }
 
-export function getHistoryItem(sessionId: string): HistoryItem | null {
-  const snap = storage.loadSession(sessionId);
+export async function getHistoryItem(sessionId: string): Promise<HistoryItem | null> {
+  const snap = await storage.loadSession(sessionId);
   if (!snap) return null;
   return {
     sessionId,
@@ -25,6 +25,6 @@ export function getHistoryItem(sessionId: string): HistoryItem | null {
     actions: snap.messages.filter((m) => m.tags && m.tags.length > 0),
     evaluation: snap.evaluation,
     storageLocation: "local",
-    comments: storage.loadComments(sessionId),
+    comments: await storage.loadComments(sessionId),
   };
 }

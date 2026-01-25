@@ -18,7 +18,7 @@ export default function HistoryDetailPage() {
 
   useEffect(() => {
     if (!sessionId) return;
-    setItem(getHistoryItem(sessionId));
+    getHistoryItem(sessionId).then(setItem);
   }, [sessionId]);
 
   if (!sessionId) {
