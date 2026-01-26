@@ -32,6 +32,12 @@ export function NavBar() {
           >
             履歴
           </Link>
+          <Link
+            href="/scenario/create"
+            className="rounded-md bg-orange-600 px-4 py-2 text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]"
+          >
+            シナリオ作成
+          </Link>
         </nav>
       </div>
     </header>

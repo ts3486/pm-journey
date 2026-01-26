@@ -7,14 +7,23 @@ use serde::Serialize;
 use std::fmt::Display;
 
 #[derive(Debug)]
-pub struct AppError(pub anyhow::Error);
+pub struct AppError {
+    status: StatusCode,
+    error: anyhow::Error,
+}
+
+impl AppError {
+    pub fn new(status: StatusCode, error: anyhow::Error) -> Self {
+        Self { status, error }
+    }
+}
 
 impl<E> From<E> for AppError
 where
     E: Into<anyhow::Error>,
 {
     fn from(value: E) -> Self {
-        Self(value.into())
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, value.into())
     }
 }
 
@@ -26,12 +35,22 @@ struct ErrorBody {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let body = Json(ErrorBody {
-            error: self.0.to_string(),
+            error: self.error.to_string(),
         });
-        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+        (self.status, body).into_response()
     }
 }
 
 pub fn anyhow_error<T: Display>(message: T) -> AppError {
-    AppError(anyhow::anyhow!(message.to_string()))
+    AppError::new(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        anyhow::anyhow!(message.to_string()),
+    )
+}
+
+pub fn client_error<T: Display>(message: T) -> AppError {
+    AppError::new(
+        StatusCode::UNPROCESSABLE_ENTITY,
+        anyhow::anyhow!(message.to_string()),
+    )
 }

@@ -223,6 +223,7 @@ export default function HistoryDetailPage() {
     [item?.scenarioId]
   );
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
+  const canEvaluate = (item?.actions?.length ?? 0) > 0;
 
   useEffect(() => {
     if (!sessionId) {
@@ -251,6 +252,11 @@ export default function HistoryDetailPage() {
     async (target: HistoryItem) => {
       if (!sessionId) return;
       if (evaluationInFlightRef.current) return;
+      if (!target.actions || target.actions.length === 0) {
+        setEvaluationError("評価対象のメッセージがありません。");
+        setEvaluating(false);
+        return;
+      }
       evaluationInFlightRef.current = true;
       setEvaluating(true);
       setEvaluationError(null);
@@ -398,11 +404,14 @@ export default function HistoryDetailPage() {
         <div className="card border border-slate-200/80 bg-slate-50/80 p-4 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">このセッションはまだ評価されていません。</p>
           <p className="mt-1 text-xs text-slate-500">評価を実行すると、スコアとフィードバックが表示されます。</p>
+          {!canEvaluate ? (
+            <p className="mt-2 text-xs text-slate-500">会話メッセージがないため評価できません。</p>
+          ) : null}
           <button
             type="button"
             className="mt-3 inline-flex items-center gap-1 rounded-lg bg-orange-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
             onClick={() => runEvaluation(item)}
-            disabled={evaluating}
+            disabled={evaluating || !canEvaluate}
           >
             評価を実行する
           </button>

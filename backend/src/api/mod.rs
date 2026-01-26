@@ -6,6 +6,7 @@ use axum::{
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::warn;
 use uuid::Uuid;
 use std::sync::Arc;
 use sqlx::PgPool;
@@ -13,7 +14,7 @@ use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::db::{SessionRepository, MessageRepository, EvaluationRepository, CommentRepository};
-use crate::error::{anyhow_error, AppError};
+use crate::error::{anyhow_error, client_error, AppError};
 use crate::models::{
     default_scenarios, Evaluation, HistoryItem, HistoryMetadata, ManagerComment, Message, MessageRole, MessageTag,
     Mission, MissionStatus, ProgressFlags, Scenario, ScenarioDiscipline, Session, SessionStatus,
@@ -314,8 +315,12 @@ fn build_evaluation_instruction(
     sections.push(format!("合格基準: {}点以上", passing_score));
 
     let mut output_rules = vec![
-        "出力形式(JSONのみ): {\"categories\":[{\"name\":\"...\",\"weight\":25,\"score\":0-100,\"feedback\":\"...\"}],\"overallScore\":0-100,\"summary\":\"...\",\"improvementAdvice\":\"...\"}".to_string(),
-        "- categoriesは基準と同名・同順で出力".to_string(),
+        "出力は**必ず**単一のJSONオブジェクトのみ。説明文・前置き・後置き・Markdown・コードブロックは禁止。".to_string(),
+        "JSONはダブルクォートのみを使用し、末尾のカンマは禁止。".to_string(),
+        "出力形式(JSONのみ): {\"categories\":[{\"name\":\"...\",\"score\":0-100,\"feedback\":\"...\"}],\"overallScore\":0-100,\"summary\":\"...\",\"improvementAdvice\":\"...\"}".to_string(),
+        "- categoriesは基準と同名・同順・同数で出力する".to_string(),
+        "- scoreは0〜100の数値。summary/improvementAdviceは空文字も可".to_string(),
+        "- feedbackは各カテゴリ1文・全角120文字以内、summary/improvementAdviceは各1〜2文・全角160文字以内".to_string(),
     ];
     if strict {
         output_rules.push("- JSON以外の文字列や説明文は一切出力しない".to_string());
@@ -330,12 +335,27 @@ fn build_evaluation_instruction(
 }
 
 fn extract_json_value(text: &str) -> Option<serde_json::Value> {
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(text) {
+    let trimmed = text.trim();
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
         return Some(value);
     }
-    let start = text.find('{')?;
-    let end = text.rfind('}')?;
-    serde_json::from_str::<serde_json::Value>(&text[start..=end]).ok()
+    for (start, _) in trimmed.match_indices('{') {
+        let slice = &trimmed[start..];
+        let mut de = serde_json::Deserializer::from_str(slice);
+        if let Ok(value) = serde_json::Value::deserialize(&mut de) {
+            return Some(value);
+        }
+    }
+    None
+}
+
+fn preview_for_log(text: &str, limit: usize) -> String {
+    let mut preview = text.replace('\n', "\\n").replace('\r', "\\r");
+    if preview.len() > limit {
+        preview.truncate(limit);
+        preview.push_str("…");
+    }
+    preview
 }
 
 fn build_evaluation_template(criteria: &[EvaluationCriterion]) -> serde_json::Value {
@@ -344,7 +364,6 @@ fn build_evaluation_template(criteria: &[EvaluationCriterion]) -> serde_json::Va
         .map(|c| {
             json!({
                 "name": c.name,
-                "weight": c.weight,
                 "score": 0,
                 "feedback": ""
             })
@@ -370,6 +389,10 @@ async fn call_gemini_evaluation(
     model_id: &str,
     gemini_key: &str,
 ) -> Result<String, AppError> {
+    let max_output_tokens = std::env::var("GEMINI_EVAL_MAX_OUTPUT_TOKENS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(2048);
     let payload = json!({
         "contents": [
             {
@@ -380,7 +403,7 @@ async fn call_gemini_evaluation(
         "systemInstruction": { "parts": [{ "text": system_instruction }] },
         "generationConfig": {
             "temperature": 0,
-            "maxOutputTokens": 1200,
+            "maxOutputTokens": max_output_tokens,
             "responseMimeType": "application/json"
         }
     });
@@ -410,6 +433,13 @@ async fn call_gemini_evaluation(
         .await
         .map_err(|e| anyhow_error(format!("Failed to parse Gemini evaluation response: {}", e)))?;
 
+    let finish_reason = data
+        .get("candidates")
+        .and_then(|v| v.get(0))
+        .and_then(|v| v.get("finishReason"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
     let reply_text = data
         .get("candidates")
         .and_then(|v| v.get(0))
@@ -426,6 +456,27 @@ async fn call_gemini_evaluation(
                 .to_string()
         })
         .unwrap_or_default();
+
+    if reply_text.is_empty() {
+        let candidate_count = data
+            .get("candidates")
+            .and_then(|v| v.as_array())
+            .map(|c| c.len())
+            .unwrap_or(0);
+        warn!(
+            model_id = %model_id,
+            finish_reason = %finish_reason,
+            candidate_count,
+            "Gemini evaluation returned empty content"
+        );
+    } else if finish_reason == "MAX_TOKENS" {
+        warn!(
+            model_id = %model_id,
+            finish_reason = %finish_reason,
+            reply_len = reply_text.len(),
+            "Gemini evaluation output may be truncated"
+        );
+    }
 
     Ok(reply_text)
 }
@@ -468,6 +519,13 @@ async fn generate_ai_evaluation(
 
     let mut json_value = extract_json_value(&reply_text);
     if json_value.is_none() {
+        warn!(
+            session_id = %session_id,
+            attempt = "initial",
+            reply_len = reply_text.len(),
+            reply_preview = %preview_for_log(&reply_text, 600),
+            "Gemini evaluation returned non-JSON output"
+        );
         let strict_instruction = build_evaluation_instruction(request, criteria, true);
         let strict_reply = call_gemini_evaluation(
             strict_instruction,
@@ -477,6 +535,13 @@ async fn generate_ai_evaluation(
         ).await?;
         json_value = extract_json_value(&strict_reply);
         if json_value.is_none() {
+            warn!(
+                session_id = %session_id,
+                attempt = "strict",
+                reply_len = strict_reply.len(),
+                reply_preview = %preview_for_log(&strict_reply, 600),
+                "Gemini evaluation strict output still invalid"
+            );
             let template = build_evaluation_template_json(criteria);
             let repair_instruction = format!(
                 "あなたはJSON修復担当です。以下のドラフトと評価基準/テンプレートを使い、必ず有効なJSONのみを返してください。追加説明は不要です。\n- JSON以外の文字列は禁止\n- テンプレートのキーを追加/削除しない\n- 数値は0-100の範囲\n\nJSONテンプレート:\n{}",
@@ -490,6 +555,15 @@ async fn generate_ai_evaluation(
                 &gemini_key,
             ).await?;
             json_value = extract_json_value(&repaired_reply);
+            if json_value.is_none() {
+                warn!(
+                    session_id = %session_id,
+                    attempt = "repair",
+                    reply_len = repaired_reply.len(),
+                    reply_preview = %preview_for_log(&repaired_reply, 600),
+                    "Gemini evaluation repair output still invalid"
+                );
+            }
         }
     }
 
@@ -996,6 +1070,10 @@ async fn evaluate_session(
 
     let messages = message_repo.list_by_session(&id).await
         .map_err(|e| anyhow_error(&format!("Failed to load messages: {}", e)))?;
+    let has_evaluable_messages = messages.iter().any(|m| m.role != MessageRole::System);
+    if !has_evaluable_messages {
+        return Err(client_error("評価対象のメッセージがありません。"));
+    }
 
     // Create evaluation via Gemini
     let eval = generate_ai_evaluation(&body, &criteria, &messages, &id).await?;
