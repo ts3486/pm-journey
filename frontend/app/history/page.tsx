@@ -1,10 +1,9 @@
 "use client";
 
 import { getScenarioById } from "@/config/scenarios";
-import { listHistory } from "@/services/history";
-import type { HistoryItem, ScenarioDiscipline } from "@/types/session";
+import { useHistoryList } from "@/queries/history";
+import type { ScenarioDiscipline } from "@/types/session";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 const disciplineBadge = (discipline?: ScenarioDiscipline) => {
   if (discipline === "CHALLENGE") return "bg-amber-50 text-amber-700";
@@ -12,16 +11,12 @@ const disciplineBadge = (discipline?: ScenarioDiscipline) => {
 };
 
 export default function HistoryPage() {
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    listHistory()
-      .then((data) => setItems(data))
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: items = [], isLoading, isError, error } = useHistoryList();
+  const errorMessage = isError
+    ? error instanceof Error
+      ? error.message
+      : "エラーが発生しました"
+    : null;
 
   return (
     <div className="space-y-6">
@@ -35,14 +30,14 @@ export default function HistoryPage() {
         </span>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
         </div>
-      ) : error ? (
+      ) : errorMessage ? (
         <div className="card-muted p-6 text-sm text-red-600">
           <p className="font-semibold">エラーが発生しました</p>
-          <p className="mt-1 text-slate-500">{error}</p>
+          <p className="mt-1 text-slate-500">{errorMessage}</p>
         </div>
       ) : items.length === 0 ? (
         <div className="card-muted p-6 text-sm text-slate-500">履歴がありません。</div>

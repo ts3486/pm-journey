@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { getHistoryItem } from "@/services/history";
-import { addComment } from "@/services/comments";
-import { addOutput, deleteOutput, listOutputs } from "@/services/outputs";
+import { useAddComment } from "@/queries/comments";
+import { useEvaluateSession } from "@/queries/evaluation";
+import { useHistoryItem } from "@/queries/history";
+import { useAddOutput, useDeleteOutput, useOutputs } from "@/queries/outputs";
 import { getScenarioById } from "@/config/scenarios";
-import { evaluateSessionById } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
-import type { HistoryItem, ManagerComment, OutputSubmission, OutputSubmissionType } from "@/types/session";
+import type { OutputSubmissionType } from "@/types/session";
 
 // Vibrant color palette for category cards
 const categoryPalettes = [
@@ -206,102 +207,93 @@ export default function HistoryDetailPage() {
   const sessionId = params?.sessionId as string | undefined;
   const searchParams = useSearchParams();
   const autoEvaluate = searchParams?.get("autoEvaluate") === "1";
-  const [item, setItem] = useState<HistoryItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [evaluating, setEvaluating] = useState(autoEvaluate);
-  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+  const { data: item, isLoading } = useHistoryItem(sessionId);
+  const { data: outputs = [] } = useOutputs(sessionId);
+  const addOutputMutation = useAddOutput(sessionId);
+  const deleteOutputMutation = useDeleteOutput(sessionId);
+  const addCommentMutation = useAddComment(sessionId);
+  const evaluateMutation = useEvaluateSession(sessionId);
+  const [manualEvaluationRequest, setManualEvaluationRequest] = useState<{
+    sessionId?: string;
+    requested: boolean;
+  }>({ sessionId, requested: false });
   const [commentAuthor, setCommentAuthor] = useState("");
   const [commentText, setCommentText] = useState("");
-  const [outputs, setOutputs] = useState<OutputSubmission[]>([]);
   const [outputKind, setOutputKind] = useState<OutputSubmissionType>("text");
   const [outputValue, setOutputValue] = useState("");
   const [outputNote, setOutputNote] = useState("");
-  const evaluationInFlightRef = useRef(false);
   const autoTriggeredRef = useRef(false);
-  const scenario = useMemo(
-    () => (item?.scenarioId ? getScenarioById(item.scenarioId) : undefined),
-    [item?.scenarioId]
-  );
+  const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
   const canEvaluate = (item?.actions?.length ?? 0) > 0;
+  const evaluating = evaluateMutation.isPending;
+  const manualEvaluationRequested =
+    manualEvaluationRequest.sessionId === sessionId
+      ? manualEvaluationRequest.requested
+      : false;
+  const autoEvaluationRequested = autoEvaluate && !!item && !item.evaluation;
+  const evaluationAttempted = manualEvaluationRequested || autoEvaluationRequested;
+  const missingActionsError = evaluationAttempted && !canEvaluate;
+  const evaluationError = evaluationAttempted
+    ? missingActionsError
+      ? "評価対象のメッセージがありません。"
+      : evaluateMutation.error?.message ?? null
+    : null;
 
   useEffect(() => {
-    if (!sessionId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setEvaluating(autoEvaluate);
-    setEvaluationError(null);
     autoTriggeredRef.current = false;
-    evaluationInFlightRef.current = false;
-    getHistoryItem(sessionId)
-      .then((data) => {
-        setItem(data);
-        if (data?.evaluation || !autoEvaluate) {
-          setEvaluating(false);
-        }
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-    listOutputs(sessionId).then(setOutputs);
   }, [sessionId, autoEvaluate]);
 
   const runEvaluation = useCallback(
-    async (target: HistoryItem) => {
-      if (!sessionId) return;
-      if (evaluationInFlightRef.current) return;
-      if (!target.actions || target.actions.length === 0) {
-        setEvaluationError("評価対象のメッセージがありません。");
-        setEvaluating(false);
+    () => {
+      if (!sessionId || !item || evaluating) return;
+      if (!item.actions || item.actions.length === 0) {
         return;
       }
-      evaluationInFlightRef.current = true;
-      setEvaluating(true);
-      setEvaluationError(null);
-      try {
-        const evaluation = await evaluateSessionById(sessionId, target.scenarioId);
-        setItem((prev) =>
-          prev
-            ? {
-                ...prev,
-                evaluation,
-              }
-            : prev,
-        );
-        logEvent({
-          type: "evaluation",
-          sessionId,
-          scenarioId: target.scenarioId,
-          scenarioDiscipline: target.scenarioDiscipline,
-          score: evaluation?.overallScore,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "評価に失敗しました。";
-        setEvaluationError(message);
-      } finally {
-        setEvaluating(false);
-        evaluationInFlightRef.current = false;
-      }
+      evaluateMutation.mutate(
+        { scenarioId: item.scenarioId },
+        {
+          onSuccess: (evaluation) => {
+            logEvent({
+              type: "evaluation",
+              sessionId,
+              scenarioId: item.scenarioId,
+              scenarioDiscipline: item.scenarioDiscipline,
+              score: evaluation?.overallScore,
+            });
+          },
+        },
+      );
     },
-    [sessionId],
+    [sessionId, item, evaluating, evaluateMutation],
   );
+
+  const handleRunEvaluation = useCallback(() => {
+    if (!sessionId) return;
+    setManualEvaluationRequest({ sessionId, requested: true });
+    runEvaluation();
+  }, [sessionId, runEvaluation]);
 
   const handleAddOutput = async () => {
     if (!sessionId) return;
     const trimmed = outputValue.trim();
     if (!trimmed) return;
-    const created = await addOutput(sessionId, outputKind, trimmed, outputNote);
-    setOutputs((prev) => [created, ...prev]);
-    setOutputValue("");
-    setOutputNote("");
+    try {
+      await addOutputMutation.mutateAsync({
+        kind: outputKind,
+        value: trimmed,
+        note: outputNote.trim() || undefined,
+      });
+      setOutputValue("");
+      setOutputNote("");
+    } catch (error) {
+      console.error("Failed to add output:", error);
+    }
   };
 
   const handleDeleteOutput = async (outputId: string) => {
     if (!sessionId) return;
-    await deleteOutput(sessionId, outputId);
-    setOutputs((prev) => prev.filter((o) => o.id !== outputId));
+    deleteOutputMutation.mutate(outputId);
   };
 
   useEffect(() => {
@@ -309,14 +301,14 @@ export default function HistoryDetailPage() {
     if (!item || item.evaluation) return;
     if (autoTriggeredRef.current) return;
     autoTriggeredRef.current = true;
-    void runEvaluation(item);
+    runEvaluation();
   }, [autoEvaluate, item, runEvaluation]);
 
   if (!sessionId) {
     return <p className="text-sm text-slate-600">セッションIDが指定されていません。</p>;
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
@@ -347,12 +339,12 @@ export default function HistoryDetailPage() {
         <p className="mt-2 text-sm text-slate-500">
           ID: <code className="rounded bg-slate-100 px-2 py-0.5 text-xs">{sessionId}</code>
         </p>
-        <a
+        <Link
           href="/history"
           className="mt-4 inline-block rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
         >
           履歴一覧に戻る
-        </a>
+        </Link>
       </div>
     );
   }
@@ -364,19 +356,10 @@ export default function HistoryDetailPage() {
   const handleAddComment = async () => {
     if (!sessionId || !commentText.trim()) return;
     try {
-      const comment = await addComment(
-        sessionId,
-        commentText.trim(),
-        commentAuthor.trim() || "上長"
-      );
-      setItem((prev) =>
-        prev
-          ? {
-              ...prev,
-              comments: [...(prev.comments ?? []), comment],
-            }
-          : prev
-      );
+      await addCommentMutation.mutateAsync({
+        content: commentText.trim(),
+        authorName: commentAuthor.trim() || "上長",
+      });
       setCommentText("");
     } catch (error) {
       console.error("Failed to add comment:", error);
@@ -389,11 +372,12 @@ export default function HistoryDetailPage() {
         <div className="card border border-rose-200/60 bg-rose-50/60 p-4 text-sm text-rose-700">
           <p className="font-semibold text-rose-800">評価に失敗しました。</p>
           <p className="mt-1 text-xs text-rose-600">{evaluationError}</p>
-          {item ? (
+          {item && canEvaluate ? (
             <button
               type="button"
               className="mt-3 inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-1 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:text-rose-700"
-              onClick={() => runEvaluation(item)}
+              onClick={handleRunEvaluation}
+              disabled={evaluating}
             >
               再試行する
             </button>
@@ -410,7 +394,7 @@ export default function HistoryDetailPage() {
           <button
             type="button"
             className="mt-3 inline-flex items-center gap-1 rounded-lg bg-orange-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
-            onClick={() => runEvaluation(item)}
+            onClick={handleRunEvaluation}
             disabled={evaluating || !canEvaluate}
           >
             評価を実行する
@@ -811,7 +795,7 @@ export default function HistoryDetailPage() {
                   type="button"
                   className="btn-primary"
                   onClick={handleAddOutput}
-                  disabled={!outputValue.trim()}
+                  disabled={!outputValue.trim() || addOutputMutation.isPending}
                 >
                   追加する
                 </button>
@@ -842,6 +826,7 @@ export default function HistoryDetailPage() {
                       </div>
                       {output.kind === "image" ? (
                         <div className="space-y-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- allow user-provided URLs */}
                           <img
                             src={output.value}
                             alt="提出画像"

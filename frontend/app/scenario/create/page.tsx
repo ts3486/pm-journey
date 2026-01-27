@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { ScenarioCreateForm } from "@/components/scenario";
 
 function LoadingFallback() {
@@ -18,7 +19,7 @@ export default function ScenarioCreatePage() {
       <div className="mx-auto max-w-3xl">
         {/* Back Link */}
         <div className="mb-6">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-orange-600"
           >
@@ -36,7 +37,7 @@ export default function ScenarioCreatePage() {
               />
             </svg>
             ホームに戻る
-          </a>
+          </Link>
         </div>
 
         {/* Form */}

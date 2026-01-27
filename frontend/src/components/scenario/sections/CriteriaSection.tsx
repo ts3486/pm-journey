@@ -2,7 +2,7 @@
 
 import { FormSection, ScoringGuidelinesEditor } from "../shared";
 import type { RatingCriterionInput } from "@/schemas/scenario";
-import { defaultRatingCriterion, defaultScoringGuidelines } from "@/schemas/scenario";
+import { defaultRatingCriterion } from "@/schemas/scenario";
 
 type CriteriaSectionProps = {
   data: RatingCriterionInput[];

@@ -13,7 +13,6 @@ import {
   type SessionState,
 } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
-import { storage } from "@/services/storage";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -33,9 +32,6 @@ export default function ScenarioPage() {
 function ScenarioContent() {
   const [state, setState] = useState<SessionState | null>(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
-  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
-  const [lastSessionStatus, setLastSessionStatus] =
-    useState<SessionState["session"]["status"] | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const restart = searchParams.get("restart") === "1";
@@ -48,12 +44,6 @@ function ScenarioContent() {
   }, [scenarioIdParam, state?.session?.scenarioId]);
 
   const hasActive = !!state?.session;
-  const evaluationReady =
-    !!state?.session &&
-    state.session.progressFlags.requirements &&
-    state.session.progressFlags.priorities &&
-    state.session.progressFlags.risks &&
-    state.session.progressFlags.acceptance;
   const missions = activeScenario.missions ?? [];
   const missionStatusMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -61,10 +51,6 @@ function ScenarioContent() {
     return map;
   }, [state?.session?.missionStatus]);
   const allMissionsComplete = missions.length > 0 && missions.every((m) => missionStatusMap.get(m.id));
-  const canResume =
-    !!lastSessionId &&
-    lastSessionId !== state?.session?.id &&
-    (lastSessionStatus === "active" || lastSessionStatus === "completed");
   const scenarioInfo = activeScenario.product;
   const hasScenarioInfo =
     !!activeScenario.supplementalInfo ||
@@ -79,8 +65,6 @@ function ScenarioContent() {
   const handleStart = async (scenario = activeScenario) => {
     const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
     setState({ ...snapshot, session: { ...snapshot.session, scenarioDiscipline: scenario.discipline } });
-    setLastSessionId(snapshot.session.id);
-    setLastSessionStatus(snapshot.session.status);
     logEvent({
       type: "session_start",
       sessionId: snapshot.session.id,
@@ -89,33 +73,12 @@ function ScenarioContent() {
     });
   };
 
-  const handleResume = async (scenarioId?: string) => {
-    const snapshot = await resumeSession(scenarioId ?? activeScenario.id);
-    if (snapshot) {
-      if (snapshot.session.status === "evaluated" || snapshot.session.status === "completed") {
-        await handleStart(getScenarioById(snapshot.session.scenarioId) ?? activeScenario);
-        return;
-      }
-      setState(snapshot);
-      setLastSessionId(snapshot.session.id);
-      setLastSessionStatus(snapshot.session.status);
-      logEvent({
-        type: "session_resume",
-        sessionId: snapshot.session.id,
-        scenarioId: snapshot.session.scenarioId,
-        scenarioDiscipline: snapshot.session.scenarioDiscipline,
-      });
-    }
-  };
-
   const handleReset = async () => {
     if (state?.session) {
       const confirmed = window.confirm("このシナリオのセッションを終了して新しく始めますか？");
       if (!confirmed) return;
       await resetSession(state.session.id, state.session.scenarioId);
       setState(null);
-      setLastSessionId(null);
-      setLastSessionStatus(null);
       logEvent({
         type: "session_reset",
         sessionId: state.session.id,
@@ -176,11 +139,6 @@ function ScenarioContent() {
         }
       } else if (!state) {
         void handleStart(targetScenario);
-      }
-      const storedId = await storage.loadLastSessionId(targetScenario.id);
-      if (!storedId) {
-        setLastSessionId(null);
-        setLastSessionStatus(null);
       }
     }
     initializeSession();
