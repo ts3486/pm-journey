@@ -27,10 +27,30 @@
 - **Rationale**: Aligns with chosen stacks; covers UI flows (chat, resume, eval, history filters) and API correctness.
 - **Alternatives considered**: Cypress instead of Playwright (heavier parallel setup); pure unit tests (insufficient for flows).
 
-### Scenario catalog and grouping (Home)
-- **Decision**: Define a static scenario catalog in the frontend config with grouping by discipline (`PM` and `PMO`), each scenario carrying id/title/summary, target outcomes, and kickoff prompt; render Home as two distinct rows (PM scenarios, PMO scenarios).
-- **Rationale**: Keeps initial load fast (<3s) without extra fetches, satisfies request for two-row layout, and ensures deterministic autosave/offline behavior since catalog is local.
-- **Alternatives considered**: Fetch scenarios from API (adds latency and API dependency), single flat list (harder to scan PM vs PMO focus).
+### Scenario catalog and grouping (Home) — 2026-01-27 update
+- **Decision**: Define a nested Home catalog with large categories 「PMアシスタント」「PM」, each containing subcategories and scenario summaries (id/title/description/discipline). Store the catalog in frontend config and map to scenario IDs; keep `Scenario.discipline` (BASIC/CHALLENGE) for agent profile selection and evaluation behavior.
+- **Rationale**: Meets the new Home taxonomy while keeping the scenario engine unchanged, enabling fast offline-first rendering and stable resume/history keyed by scenarioId.
+- **Alternatives considered**: Replace discipline with categories (breaks agent profile logic and API parity), fetch catalog from API (adds dependency/latency), flat list with tags (harder to scan).
+
+### PM subcategory definitions & multi-scenario rule
+- **Decision**: Use three PM subcategories: 「プロジェクト立て直し」「交渉・合意形成」「ステークホルダー調整」. Seed each with existing challenge scenarios plus at least one additional scenario sourced from `/Users/taoshimomura/Desktop/dev/pm-journey/scenarios.csv` to ensure each subcategory has 2+ scenarios. For 「PMアシスタント」 subcategories, extend each with at least one additional basic scenario (meeting facilitation, minutes, unknowns) to satisfy the same rule.
+- **Rationale**: Aligns with existing scenario themes while meeting the “multiple scenarios per subcategory” requirement using already-curated scenario ideas.
+- **Alternatives considered**: Cross-list one scenario into multiple subcategories (confusing duplication), placeholder “coming soon” cards (adds UX/state overhead).
+
+### Proposed Home catalog mapping (draft)
+- **Decision**: Use the following initial mapping; mark new scenarios as NEW and back them with new Scenario entries (ids TBD but stable).
+- **Rationale**: Ensures 2+ scenarios per subcategory while reusing existing content and CSV ideas.
+- **Alternatives considered**: Only existing scenarios (fails multi-scenario rule), a tag-based filter UI (larger UI change).
+
+**PMアシスタント**
+- 基礎スキル・知識: 自己紹介＆期待値合わせ (既存), アジェンダを設定してミーティングを進行 (NEW), 議事メモの作成と共有 (NEW)
+- テスト設計: テストケース作成 (既存), テスト観点の洗い出しと優先度付け (NEW)
+- チケット要件整理: チケット要件整理 (既存), 不明点の洗い出し (NEW)
+
+**PM**
+- プロジェクト立て直し: 遅延プロジェクト立て直し (既存), リリース期限の突然の前倒し (NEW)
+- 交渉・合意形成: スコープ／リソース交渉 (既存), エンジニアから「無理です」と言われる (NEW)
+- ステークホルダー調整: コンフリクト調整 (既存), ステークホルダーとの認識ズレ解消 (NEW)
 
 ### Session start from scenario selection
 - **Decision**: Start a fresh session when a scenario card is clicked by passing `scenarioId` to the Scenario route (search params) and invoking `startSession(scenarioId)`; resume CTA continues to load last saved session regardless of catalog selection.

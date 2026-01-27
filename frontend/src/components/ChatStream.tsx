@@ -6,9 +6,10 @@ import { useEffect, useRef } from "react";
 type ChatStreamProps = {
   messages: Message[];
   maxHeight?: string;
+  isTyping?: boolean;
 };
 
-export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
+export function ChatStream({ messages, maxHeight = "60vh", isTyping = false }: ChatStreamProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -16,7 +17,7 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
     if (el) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   return (
     <div
@@ -64,6 +65,33 @@ export function ChatStream({ messages, maxHeight = "60vh" }: ChatStreamProps) {
           );
         })
       )}
+      {isTyping ? (
+        <article className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm text-slate-900">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[11px] font-semibold text-slate-700">
+            <span className="leading-none">鈴</span>
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+              <span className="font-semibold text-slate-700">鈴木</span>
+              <span>typing…</span>
+            </div>
+            <div className="mt-2 flex items-center gap-1">
+              <span
+                className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <span
+                className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
+            </div>
+          </div>
+        </article>
+      ) : null}
     </div>
   );
 }

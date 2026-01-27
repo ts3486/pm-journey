@@ -11,8 +11,8 @@
 | シナリオ定義 | `frontend/src/config/scenarios.ts` |
 | エージェントプロファイル（トーン/キャラクター） | `frontend/src/config/agentProfiles.ts` |
 | 型定義 | `frontend/src/types/session.ts` |
-| システムプロンプトの合成 | `frontend/app/api/agent/route.ts` |
-| ミッション完了検出 | `frontend/app/api/mission-detect/route.ts` |
+| システムプロンプトの合成 | `frontend/src/services/sessions.ts` → `backend/src/api/mod.rs` |
+| ミッションの状態管理 | `frontend/src/services/sessions.ts`（手動） |
 
 ---
 
@@ -122,19 +122,17 @@
 
 ### システムプロンプトの合成方法
 
-**ファイル:** `frontend/app/api/agent/route.ts`（34-36行目）
+**ファイル:** `frontend/src/services/sessions.ts` → `backend/src/api/mod.rs`
 
-Gemini に送られる最終システム指示は、以下3つの要素を結合したものです。
+フロントエンドは各ユーザーメッセージ送信時に **agent context** を作成し、バックエンド API に送ります。
+この context には以下が含まれます。
 
-```typescript
-const mergedSystem = [
-  profile.systemPrompt,    // 1. エージェントのキャラクター/トーン (agentProfiles.ts)
-  scenarioPrompt,          // 2. Kickoff prompt (シナリオ定義)
-  userPrompt               // 3. 追加のユーザー文脈 (任意)
-].filter(Boolean).join("\n\n");
-```
+1. **エージェントプロファイル**（`agentProfiles.ts`）→ `systemPrompt` + `modelId`
+2. **シナリオのキックオフプロンプト**（`scenarios.ts`）→ `kickoffPrompt`
+3. **シナリオメタ情報**（`scenarios.ts`）→ タイトル/説明 + プロダクト情報
 
-この結合プロンプトにより、AI は「人格」と「シナリオ文脈」の両方を得ます。
+バックエンド側でこれらを結合し、Gemini に送信します。
+これにより、応答は「人格」と「シナリオ文脈」の両方に従います。
 
 ---
 
@@ -167,18 +165,11 @@ type Mission = {
 
 ### Mission 完了検出
 
-**ファイル:** `frontend/app/api/mission-detect/route.ts`
+現在は **手動更新** です。UI のミッションチェックボックスで状態を管理し、
+バックエンド API に保存されます。
 
-ミッションの完了は AI 評価（Gemini 1.5 Flash）で判定されます。
-
-1. システムがミッション一覧と最近の会話を AI に送信
-2. AI がどのミッションが明確に達成されたかを分析
-3. `{ completedMissionIds: ["mission-id-1", "mission-id-2"] }` を返却
-
-**ミッション検出のシステムプロンプト:**
-```
-You are a strict evaluator. Identify which missions are clearly completed based on the conversation. Only mark a mission complete when the user has explicitly covered the goal; if uncertain, omit it. Return JSON only with this exact shape: {"completedMissionIds": ["..."]}.
-```
+AI 検出を追加する場合は、バックエンドに専用エンドポイントを実装し、
+`frontend/src/services/sessions.ts` から呼び出してください。
 
 ### シナリオ完了
 
@@ -249,34 +240,15 @@ const evaluationCriteria = [
 
 ---
 
-## 6.1 シナリオ評価（スコアリング）ロジック
+## 6.1 シナリオ評価（バックエンド）
 
-**ファイル:** `frontend/src/services/sessions.ts` → `createEvaluation()`
+**ファイル:**
+- API: `backend/src/api/mod.rs` → `evaluate_session`
+- フロント: `frontend/src/services/sessions.ts` → `evaluate()`
 
-現在の評価はクライアント側の簡易ロジックで生成されています（AI評価ではありません）。
-採点は以下の流れで決まります。
-
-1. **評価基準の決定**
-   - `scenario.evaluationCriteria` があればそれを使用
-   - ない場合はデフォルトの4項目（各25%）
-
-2. **カテゴリ別スコアの生成**
-   - 基準点 `baseScore = 75`
-   - 各カテゴリのスコアは `baseScore + delta` で計算
-     - `delta = (idxが偶数 ? +5 : -2) + ランダム(-3〜+2)`
-   - スコアは **60〜95** にクランプ
-
-3. **フィードバック生成**
-   - `supplementalInfo` があり、かつ最初のカテゴリの場合のみ専用コメント
-   - それ以外は共通テンプレの改善コメント
-
-4. **総合スコア**
-   - 各カテゴリのスコアを **weight(%)** で加重平均し、四捨五入
-
-5. **合否**
-   - 現状 `passing: true` が固定（`passingScore` とは未連動）
-
-> Note: `passingScore` はシナリオ側で設定されていますが、現行の評価ロジックでは参照されていません。
+評価はバックエンド側で生成されます。現行実装は固定値のサンプル評価で、
+Gemini を使った評価は未実装です。AI 評価を追加する場合は、バックエンドに
+評価用プロンプト生成と Gemini 呼び出しを実装してください。
 
 ---
 

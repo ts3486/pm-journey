@@ -33,6 +33,14 @@ export type Evaluation = {
 
 export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
+export type ScenarioBehavior = {
+  userLed?: boolean;
+  allowProactive?: boolean;
+  maxQuestions?: number;
+  responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
+  phase?: string;
+};
+
 export type ScenarioSummary = {
   id: string;
   title: string;
@@ -110,6 +118,7 @@ export type Scenario = {
   title: string;
   description: string;
   discipline: ScenarioDiscipline;
+  behavior?: ScenarioBehavior;
   product: {
     name: string;
     summary: string;
@@ -141,8 +150,31 @@ export type ManagerComment = {
   createdAt: string;
 };
 
+export type OutputSubmissionType = "text" | "url" | "image";
+
+export type OutputSubmission = {
+  id: string;
+  sessionId: string;
+  kind: OutputSubmissionType;
+  value: string;
+  note?: string;
+  createdAt: string;
+};
+
 export type ScenarioCatalogSection = {
   discipline: ScenarioDiscipline;
   title: string;
   scenarios: ScenarioSummary[];
+};
+
+export type ScenarioCatalogSubcategory = {
+  id: string;
+  title: string;
+  scenarios: ScenarioSummary[];
+};
+
+export type ScenarioCatalogCategory = {
+  id: string;
+  title: string;
+  subcategories: ScenarioCatalogSubcategory[];
 };

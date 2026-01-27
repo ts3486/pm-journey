@@ -18,3 +18,5 @@ dotenvy = "0.15"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "macros", "json", "migrate"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 tower = { version = "0.4", features = ["util", "make"] }
+tower-http = { version = "0.5", features = ["cors"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }

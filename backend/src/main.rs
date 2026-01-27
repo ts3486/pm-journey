@@ -8,6 +8,7 @@ use axum::{middleware::from_fn, Router};
 use sqlx::{PgPool, migrate::Migrator};
 use std::env;
 use tower::make::Shared;
+use tower_http::cors::{Any, CorsLayer};
 use middleware::telemetry::{init_tracing, tracing_middleware};
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
@@ -35,7 +36,17 @@ async fn main() {
     tracing::info!("Migrations completed successfully");
 
     let state = api::state_with_pool(pool);
-    let app: Router = api::router_with_state(state).layer(from_fn(tracing_middleware));
+    let cors = CorsLayer::new()
+        .allow_origin([
+            "http://localhost:3000".parse().unwrap(),
+            "http://127.0.0.1:3000".parse().unwrap(),
+        ])
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app: Router = api::router_with_state(state)
+        .layer(from_fn(tracing_middleware))
+        .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001")
         .await

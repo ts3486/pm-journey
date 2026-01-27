@@ -8,5 +8,6 @@ export default defineConfig({
     alias: {
       "@": new URL("./src/", import.meta.url).pathname,
     },
+    exclude: ["**/e2e/**", "**/node_modules/**"],
   },
 });

@@ -1,30 +1,14 @@
-import type { SessionSnapshot } from "@/services/storage";
+import { api } from "@/services/api";
 import type { HistoryItem } from "@/types/session";
-import { storage } from "@/services/storage";
-import { loadHistory } from "@/services/sessions";
 
 export async function listHistory(): Promise<HistoryItem[]> {
-  return loadHistory();
-}
-
-export function saveHistory(snapshot: SessionSnapshot): void {
-  storage.saveSession(snapshot);
+  return api.listSessions();
 }
 
 export async function getHistoryItem(sessionId: string): Promise<HistoryItem | null> {
-  const snap = await storage.loadSession(sessionId);
-  if (!snap) return null;
-  return {
-    sessionId,
-    scenarioId: snap.session.scenarioId,
-    scenarioDiscipline: snap.session.scenarioDiscipline,
-    metadata: {
-      duration: undefined,
-      messageCount: snap.messages.length,
-    },
-    actions: snap.messages.filter((m) => m.tags && m.tags.length > 0),
-    evaluation: snap.evaluation,
-    storageLocation: "local",
-    comments: await storage.loadComments(sessionId),
-  };
+  try {
+    return await api.getSession(sessionId);
+  } catch {
+    return null;
+  }
 }

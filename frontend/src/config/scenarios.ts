@@ -1,8 +1,10 @@
 import type {
   RatingCriterion,
   Scenario,
+  ScenarioCatalogCategory,
   ScenarioCatalogSection,
   ScenarioDiscipline,
+  ScenarioBehavior,
   ScenarioSummary,
 } from "@/types/session";
 
@@ -166,6 +168,318 @@ const testcaseDesignCriteria: RatingCriterion[] = [
   },
 ];
 
+// 3b. basic-agenda-facilitation: アジェンダ設定と進行
+const agendaFacilitationCriteria: RatingCriterion[] = [
+  {
+    id: "agenda-goal",
+    name: "目的の明確化",
+    weight: 25,
+    description: "ミーティングの目的とゴールを一文で定義できているか",
+    scoringGuidelines: {
+      excellent: "目的・ゴール・期待アウトプットを簡潔に定義し、参加者と合意",
+      good: "目的を定義。アウトプットの合意が一部不足",
+      needsImprovement: "目的に触れたが曖昧",
+      poor: "目的が定義されていない",
+    },
+  },
+  {
+    id: "agenda-structure",
+    name: "アジェンダと時間設計",
+    weight: 25,
+    description: "議題と時間配分を設計できているか",
+    scoringGuidelines: {
+      excellent: "議題ごとに時間配分を設定し、議論の流れが明確",
+      good: "議題と時間配分を提示。一部の粒度が粗い",
+      needsImprovement: "議題はあるが時間設計が不足",
+      poor: "アジェンダが設定されていない",
+    },
+  },
+  {
+    id: "agenda-facilitation",
+    name: "進行と巻き込み",
+    weight: 25,
+    description: "脱線を防ぎつつ参加者の発言を引き出せているか",
+    scoringGuidelines: {
+      excellent: "論点を整理し、参加者の意見を引き出しながら進行",
+      good: "進行はできているが、巻き込みが一部不足",
+      needsImprovement: "進行に言及したが具体性が弱い",
+      poor: "進行の意識がない",
+    },
+  },
+  {
+    id: "agenda-next-action",
+    name: "次アクションの合意",
+    weight: 25,
+    description: "決定事項と次アクションを合意できているか",
+    scoringGuidelines: {
+      excellent: "決定事項と担当・期日付きアクションを合意",
+      good: "決定事項と次アクションを整理。一部の詳細が不足",
+      needsImprovement: "次アクションに触れたが具体性が不足",
+      poor: "次アクションが合意されていない",
+    },
+  },
+];
+
+// 3c. basic-meeting-minutes: 議事メモ作成
+const meetingMinutesCriteria: RatingCriterion[] = [
+  {
+    id: "minutes-decisions",
+    name: "決定事項と未決事項の整理",
+    weight: 30,
+    description: "会議の結論と未決事項を明確に整理できているか",
+    scoringGuidelines: {
+      excellent: "決定事項と未決事項を明確に区分し、背景も簡潔に記載",
+      good: "決定事項と未決事項を整理。一部の分類が曖昧",
+      needsImprovement: "整理を試みたが情報が不足",
+      poor: "決定事項/未決事項が不明確",
+    },
+  },
+  {
+    id: "minutes-actions",
+    name: "アクションと担当・期日",
+    weight: 30,
+    description: "次アクションに担当と期日を付けて記載できているか",
+    scoringGuidelines: {
+      excellent: "全アクションに担当・期日・成果物を明記",
+      good: "担当と期日を付けるが一部抜けがある",
+      needsImprovement: "アクションはあるが担当/期日が曖昧",
+      poor: "アクションが整理されていない",
+    },
+  },
+  {
+    id: "minutes-clarity",
+    name: "要点の簡潔さ",
+    weight: 20,
+    description: "要点を簡潔にまとめ、読みやすい構成になっているか",
+    scoringGuidelines: {
+      excellent: "要点を短く整理し、誰が読んでも理解できる構成",
+      good: "概ね簡潔だが一部冗長",
+      needsImprovement: "要点が散漫で読みづらい",
+      poor: "整理されておらず理解が難しい",
+    },
+  },
+  {
+    id: "minutes-share",
+    name: "共有と確認",
+    weight: 20,
+    description: "共有方法と確認ポイントを明確にできているか",
+    scoringGuidelines: {
+      excellent: "共有方法と確認期限を明記し、フィードバック導線も提示",
+      good: "共有方法を明記。一部の確認事項が不足",
+      needsImprovement: "共有に触れたが具体性が不足",
+      poor: "共有・確認の記載がない",
+    },
+  },
+];
+
+// 3d. basic-docs-refine: 資料の軽微修正
+const docsRefineCriteria: RatingCriterion[] = [
+  {
+    id: "docs-goal",
+    name: "目的と対象の整理",
+    weight: 25,
+    description: "資料の目的と対象読者を明確にできているか",
+    scoringGuidelines: {
+      excellent: "目的と対象読者を明確化し、期待アウトカムまで整理",
+      good: "目的と対象を整理。一部が曖昧",
+      needsImprovement: "目的に触れたが整理が不足",
+      poor: "目的と対象が不明確",
+    },
+  },
+  {
+    id: "docs-clarity",
+    name: "分かりやすさの改善",
+    weight: 25,
+    description: "表現や構成を改善し、理解しやすくできているか",
+    scoringGuidelines: {
+      excellent: "構成を再整理し、表現も簡潔に修正",
+      good: "表現を修正。構成の改善が一部不足",
+      needsImprovement: "改善はあるが効果が限定的",
+      poor: "改善が行われていない",
+    },
+  },
+  {
+    id: "docs-key-message",
+    name: "要点の強調",
+    weight: 25,
+    description: "伝えるべき要点が明確になっているか",
+    scoringGuidelines: {
+      excellent: "要点が明確で、読み手に伝わる構成",
+      good: "要点はあるが一部散漫",
+      needsImprovement: "要点が埋もれている",
+      poor: "要点が不明確",
+    },
+  },
+  {
+    id: "docs-review",
+    name: "レビュー観点",
+    weight: 25,
+    description: "見直し観点と次の改善点が整理されているか",
+    scoringGuidelines: {
+      excellent: "改善観点と次の修正方針を明確化",
+      good: "改善観点を整理。一部の具体性が不足",
+      needsImprovement: "改善観点が曖昧",
+      poor: "改善観点が整理されていない",
+    },
+  },
+];
+
+// 3e. basic-test-viewpoints: テスト観点洗い出し
+const testViewpointCriteria: RatingCriterion[] = [
+  {
+    id: "test-viewpoint-coverage",
+    name: "観点の網羅性",
+    weight: 25,
+    description: "主要なテスト観点を漏れなく洗い出せているか",
+    scoringGuidelines: {
+      excellent: "機能・権限・データ・UIなど複数観点を体系的に列挙",
+      good: "主要観点を列挙。一部抜けがある",
+      needsImprovement: "観点が少なく偏りがある",
+      poor: "観点の洗い出しが不十分",
+    },
+  },
+  {
+    id: "test-viewpoint-priority",
+    name: "優先度付け",
+    weight: 25,
+    description: "リスクや影響度に基づいて優先順位付けできているか",
+    scoringGuidelines: {
+      excellent: "リスク・頻度・影響度で優先度を明確化",
+      good: "優先度は付けたが根拠が一部曖昧",
+      needsImprovement: "優先度に触れたが基準が不明",
+      poor: "優先度付けがない",
+    },
+  },
+  {
+    id: "test-viewpoint-preconditions",
+    name: "前提条件の整理",
+    weight: 25,
+    description: "テスト前提データや環境条件を整理できているか",
+    scoringGuidelines: {
+      excellent: "前提データ・環境・制約条件を具体的に記載",
+      good: "前提条件を整理。一部不足がある",
+      needsImprovement: "前提条件が曖昧",
+      poor: "前提条件の記載がない",
+    },
+  },
+  {
+    id: "test-viewpoint-traceability",
+    name: "要件との整合",
+    weight: 25,
+    description: "要件/仕様との対応関係を意識できているか",
+    scoringGuidelines: {
+      excellent: "要件と観点を対応付けて整理",
+      good: "要件に紐づけているが一部不足",
+      needsImprovement: "要件との関係が不明確",
+      poor: "要件との整合を意識していない",
+    },
+  },
+];
+
+// 3f. basic-unknowns-discovery: 不明点の洗い出し
+const unknownsClarificationCriteria: RatingCriterion[] = [
+  {
+    id: "unknowns-list",
+    name: "不明点の洗い出し",
+    weight: 25,
+    description: "曖昧な前提や未決事項を十分に列挙できているか",
+    scoringGuidelines: {
+      excellent: "不明点を体系的に列挙し、背景まで補足",
+      good: "不明点を列挙。一部の抜けがある",
+      needsImprovement: "不明点の列挙が断片的",
+      poor: "不明点の洗い出しがない",
+    },
+  },
+  {
+    id: "unknowns-stakeholders",
+    name: "確認先の特定",
+    weight: 25,
+    description: "確認すべき相手や情報源を特定できているか",
+    scoringGuidelines: {
+      excellent: "確認先・役割・取得すべき情報を明確化",
+      good: "確認先を特定。一部の情報が不足",
+      needsImprovement: "確認先に触れたが曖昧",
+      poor: "確認先が特定されていない",
+    },
+  },
+  {
+    id: "unknowns-priority",
+    name: "優先度と影響度",
+    weight: 25,
+    description: "影響度や緊急度に基づき優先度を付けられているか",
+    scoringGuidelines: {
+      excellent: "影響度と緊急度で優先順位を明確化",
+      good: "優先度はあるが根拠が一部不足",
+      needsImprovement: "優先度付けが曖昧",
+      poor: "優先度付けがない",
+    },
+  },
+  {
+    id: "unknowns-plan",
+    name: "解消計画",
+    weight: 25,
+    description: "確認手段と次のアクションを計画できているか",
+    scoringGuidelines: {
+      excellent: "確認手段・期日・担当まで具体化",
+      good: "解消手段を整理。一部詳細が不足",
+      needsImprovement: "解消に触れたが具体性が不足",
+      poor: "解消計画がない",
+    },
+  },
+];
+
+// 3f. basic-schedule-share: スケジュール感の共有
+const scheduleShareCriteria: RatingCriterion[] = [
+  {
+    id: "schedule-overview",
+    name: "全体像の共有",
+    weight: 25,
+    description: "プロジェクトの流れや全体像を簡潔に説明できているか",
+    scoringGuidelines: {
+      excellent: "流れ・主要フェーズ・前提を簡潔に整理し共有",
+      good: "全体像は共有できているが一部曖昧",
+      needsImprovement: "全体像に触れたが説明が不足",
+      poor: "全体像の共有がない",
+    },
+  },
+  {
+    id: "schedule-milestones",
+    name: "マイルストーン設定",
+    weight: 25,
+    description: "重要なマイルストーンを明確にできているか",
+    scoringGuidelines: {
+      excellent: "主要マイルストーンを3つ以上明示し理由も説明",
+      good: "マイルストーンを提示。一部の根拠が不足",
+      needsImprovement: "マイルストーンに触れたが具体性が不足",
+      poor: "マイルストーンが設定されていない",
+    },
+  },
+  {
+    id: "schedule-risks",
+    name: "不確実性と前提",
+    weight: 25,
+    description: "不確実性や前提条件を共有できているか",
+    scoringGuidelines: {
+      excellent: "前提条件・不確実性・影響を整理して共有",
+      good: "前提や不確実性に触れたが一部不足",
+      needsImprovement: "前提の記述が断片的",
+      poor: "前提や不確実性の共有がない",
+    },
+  },
+  {
+    id: "schedule-next",
+    name: "次の判断ポイント",
+    weight: 25,
+    description: "次に決めるべき事項や確認事項が明確か",
+    scoringGuidelines: {
+      excellent: "判断ポイントと次アクションを担当・期日付きで提示",
+      good: "判断ポイントを整理したが一部の詳細が不足",
+      needsImprovement: "判断ポイントに触れたが具体性が不足",
+      poor: "判断ポイントの整理がない",
+    },
+  },
+];
+
 // 4. challenge-project-rescue: 遅延プロジェクト立て直し
 const projectRescueCriteria: RatingCriterion[] = [
   {
@@ -322,6 +636,318 @@ const conflictMediationCriteria: RatingCriterion[] = [
   },
 ];
 
+// 7. challenge-deadline-advance: リリース期限前倒し
+const deadlineAdvanceCriteria: RatingCriterion[] = [
+  {
+    id: "deadline-impact",
+    name: "影響範囲の把握",
+    weight: 25,
+    description: "前倒しによる影響範囲を整理できているか",
+    scoringGuidelines: {
+      excellent: "スコープ・品質・リソース・リスクの影響を網羅的に整理",
+      good: "主要な影響範囲を整理。一部の観点が不足",
+      needsImprovement: "影響に触れたが分析が浅い",
+      poor: "影響分析がない",
+    },
+  },
+  {
+    id: "deadline-options",
+    name: "打ち手と選択肢",
+    weight: 25,
+    description: "複数の打ち手とトレードオフを提示できているか",
+    scoringGuidelines: {
+      excellent: "3案以上の選択肢を提示し、トレードオフを明示",
+      good: "選択肢を提示。一部の比較が不足",
+      needsImprovement: "打ち手はあるが比較が不十分",
+      poor: "選択肢の提示がない",
+    },
+  },
+  {
+    id: "deadline-replan",
+    name: "再計画の具体性",
+    weight: 25,
+    description: "再計画を期日・担当・マイルストーン付きで示せているか",
+    scoringGuidelines: {
+      excellent: "マイルストーンと担当を明記し実行可能な計画",
+      good: "再計画はあるが一部詳細が不足",
+      needsImprovement: "方向性のみで具体性が低い",
+      poor: "再計画がない",
+    },
+  },
+  {
+    id: "deadline-agreement",
+    name: "合意形成と説明",
+    weight: 25,
+    description: "関係者への説明と合意形成の方針が明確か",
+    scoringGuidelines: {
+      excellent: "関係者ごとの説明方針と合意手順を明確化",
+      good: "合意形成に触れたが一部具体性が不足",
+      needsImprovement: "合意形成の記述が曖昧",
+      poor: "合意形成が考慮されていない",
+    },
+  },
+];
+
+// 8. challenge-impossible-request: 実現困難な要求への対応
+const impossibleRequestCriteria: RatingCriterion[] = [
+  {
+    id: "impossible-constraints",
+    name: "制約・根拠の理解",
+    weight: 25,
+    description: "実現困難の理由や制約を整理できているか",
+    scoringGuidelines: {
+      excellent: "技術・リソース・品質の制約を整理し根拠を明確化",
+      good: "主要な制約を整理。一部の根拠が不足",
+      needsImprovement: "制約に触れたが整理が不十分",
+      poor: "制約の理解がない",
+    },
+  },
+  {
+    id: "impossible-alternatives",
+    name: "代替案とトレードオフ",
+    weight: 25,
+    description: "代替案とトレードオフを提示できているか",
+    scoringGuidelines: {
+      excellent: "複数の代替案を提示し、影響とリスクを比較",
+      good: "代替案はあるが比較が一部不足",
+      needsImprovement: "代替案に触れたが具体性が低い",
+      poor: "代替案がない",
+    },
+  },
+  {
+    id: "impossible-decision",
+    name: "意思決定と合意形成",
+    weight: 25,
+    description: "判断基準と合意形成の進め方が明確か",
+    scoringGuidelines: {
+      excellent: "判断基準を示し、合意の進め方を合意",
+      good: "合意形成に触れたが基準が一部曖昧",
+      needsImprovement: "合意形成の記述が弱い",
+      poor: "合意形成がない",
+    },
+  },
+  {
+    id: "impossible-next",
+    name: "次アクションとリスク管理",
+    weight: 25,
+    description: "次アクションと残リスクを整理できているか",
+    scoringGuidelines: {
+      excellent: "次アクション・担当・期日・残リスクを明確化",
+      good: "次アクションはあるが詳細が不足",
+      needsImprovement: "次アクションが曖昧",
+      poor: "次アクションが整理されていない",
+    },
+  },
+];
+
+// 9. challenge-stakeholder-alignment: 認識ズレ解消
+const stakeholderAlignmentCriteria: RatingCriterion[] = [
+  {
+    id: "alignment-gaps",
+    name: "ズレの特定と整理",
+    weight: 25,
+    description: "認識のズレや論点を整理できているか",
+    scoringGuidelines: {
+      excellent: "ズレのポイントを具体的に特定し、原因まで整理",
+      good: "ズレを特定。一部の論点が曖昧",
+      needsImprovement: "ズレに触れたが整理が不十分",
+      poor: "ズレの特定がない",
+    },
+  },
+  {
+    id: "alignment-goals",
+    name: "共通認識の再定義",
+    weight: 25,
+    description: "共通ゴールや成功条件を再整理できているか",
+    scoringGuidelines: {
+      excellent: "共通ゴールと成功条件を明文化し合意",
+      good: "共通認識を整理。一部の合意が不足",
+      needsImprovement: "共通認識の記述が曖昧",
+      poor: "共通認識の再定義がない",
+    },
+  },
+  {
+    id: "alignment-process",
+    name: "合意形成プロセス",
+    weight: 25,
+    description: "合意形成の進め方や確認プロセスが明確か",
+    scoringGuidelines: {
+      excellent: "合意形成の手順と確認タイミングを具体化",
+      good: "合意形成に触れたが一部具体性が不足",
+      needsImprovement: "合意形成の記述が弱い",
+      poor: "合意形成が考慮されていない",
+    },
+  },
+  {
+    id: "alignment-prevention",
+    name: "再発防止",
+    weight: 25,
+    description: "再発防止策やフォローアップを提示できているか",
+    scoringGuidelines: {
+      excellent: "再発防止策と定期確認プロセスを明確化",
+      good: "再発防止に触れたが具体性が不足",
+      needsImprovement: "再発防止の記述が曖昧",
+      poor: "再発防止がない",
+    },
+  },
+];
+
+// 10. challenge-progress-visibility: 進捗が見えない状況への対応
+const progressVisibilityCriteria: RatingCriterion[] = [
+  {
+    id: "progress-signal",
+    name: "進捗可視化の設計",
+    weight: 25,
+    description: "最小限の進捗可視化手段を設計できているか",
+    scoringGuidelines: {
+      excellent: "指標・更新頻度・責任者を明確にし最小セットを提示",
+      good: "可視化手段を提示。一部の詳細が不足",
+      needsImprovement: "可視化に触れたが具体性が不足",
+      poor: "可視化手段が提示されていない",
+    },
+  },
+  {
+    id: "progress-risk",
+    name: "リスクと原因の整理",
+    weight: 25,
+    description: "遅延や不確実性の原因を整理できているか",
+    scoringGuidelines: {
+      excellent: "複数の原因を分類し、影響と優先度を整理",
+      good: "原因を整理。一部の分析が不足",
+      needsImprovement: "原因に触れたが整理が浅い",
+      poor: "原因整理がない",
+    },
+  },
+  {
+    id: "progress-communication",
+    name: "報告と合意形成",
+    weight: 25,
+    description: "報告のリズムと合意形成の進め方が明確か",
+    scoringGuidelines: {
+      excellent: "報告頻度・フォーマット・合意の場を具体化",
+      good: "報告計画を示したが一部が曖昧",
+      needsImprovement: "報告に触れたが具体性が不足",
+      poor: "報告計画がない",
+    },
+  },
+  {
+    id: "progress-next",
+    name: "次アクション",
+    weight: 25,
+    description: "短期的な打ち手と次アクションが明確か",
+    scoringGuidelines: {
+      excellent: "即時対応と次アクションを担当・期日付きで提示",
+      good: "次アクションを提示したが詳細が不足",
+      needsImprovement: "次アクションが曖昧",
+      poor: "次アクションが整理されていない",
+    },
+  },
+];
+
+// 11. challenge-ambiguous-request: 要件が曖昧な依頼への対応
+const ambiguousRequestCriteria: RatingCriterion[] = [
+  {
+    id: "ambiguous-success",
+    name: "成功条件の明確化",
+    weight: 25,
+    description: "成功条件や期待アウトカムを明確にできているか",
+    scoringGuidelines: {
+      excellent: "成功条件を具体的に定義し合意を得ている",
+      good: "成功条件を定義したが一部曖昧",
+      needsImprovement: "成功条件に触れたが具体性が不足",
+      poor: "成功条件が定義されていない",
+    },
+  },
+  {
+    id: "ambiguous-scope",
+    name: "仮スコープと非対象",
+    weight: 25,
+    description: "仮のスコープと非対象を示せているか",
+    scoringGuidelines: {
+      excellent: "スコープと非対象を明示し、影響を説明",
+      good: "スコープを示したが非対象が一部不足",
+      needsImprovement: "スコープが曖昧",
+      poor: "スコープ整理がない",
+    },
+  },
+  {
+    id: "ambiguous-questions",
+    name: "確認事項と前提",
+    weight: 25,
+    description: "確認事項や前提条件を整理できているか",
+    scoringGuidelines: {
+      excellent: "確認事項を体系的に列挙し、前提を明示",
+      good: "確認事項を整理したが一部不足",
+      needsImprovement: "確認事項が断片的",
+      poor: "確認事項の整理がない",
+    },
+  },
+  {
+    id: "ambiguous-next",
+    name: "次の進め方",
+    weight: 25,
+    description: "次のアクションと合意形成の進め方が明確か",
+    scoringGuidelines: {
+      excellent: "次アクションを担当・期日付きで合意",
+      good: "次アクションを提示したが詳細が不足",
+      needsImprovement: "次アクションが曖昧",
+      poor: "次アクションが整理されていない",
+    },
+  },
+];
+
+// 12. challenge-user-perspective: ユーザー視点の回復
+const userPerspectiveCriteria: RatingCriterion[] = [
+  {
+    id: "user-journey",
+    name: "ユーザー行動の整理",
+    weight: 25,
+    description: "ユーザー行動フローを整理できているか",
+    scoringGuidelines: {
+      excellent: "ユーザーの行動フローと課題を具体的に整理",
+      good: "行動フローを整理したが一部が曖昧",
+      needsImprovement: "行動フローの整理が浅い",
+      poor: "ユーザー行動の整理がない",
+    },
+  },
+  {
+    id: "user-value",
+    name: "価値と影響の明確化",
+    weight: 25,
+    description: "ユーザー価値と影響を説明できているか",
+    scoringGuidelines: {
+      excellent: "ユーザー価値とビジネス影響を明確に説明",
+      good: "価値に触れたが一部が曖昧",
+      needsImprovement: "価値の説明が弱い",
+      poor: "価値の説明がない",
+    },
+  },
+  {
+    id: "user-minimal",
+    name: "最小改善案",
+    weight: 25,
+    description: "最小限の改善案を提示できているか",
+    scoringGuidelines: {
+      excellent: "最小改善案と検証方法を具体的に提示",
+      good: "改善案はあるが検証が一部不足",
+      needsImprovement: "改善案が抽象的",
+      poor: "改善案がない",
+    },
+  },
+  {
+    id: "user-alignment",
+    name: "合意形成",
+    weight: 25,
+    description: "関係者と合意形成できているか",
+    scoringGuidelines: {
+      excellent: "合意プロセスと次アクションを明確化",
+      good: "合意形成に触れたが具体性が不足",
+      needsImprovement: "合意形成の記述が弱い",
+      poor: "合意形成がない",
+    },
+  },
+];
+
 const sharedProduct: Scenario["product"] = {
   name: "在庫最適化ダッシュボード",
   summary:
@@ -339,12 +965,35 @@ const sharedProduct: Scenario["product"] = {
   coreFeatures: ["在庫ダッシュボード", "自動発注提案", "低在庫アラート", "POS連携"],
 };
 
+const introBehavior: ScenarioBehavior = {
+  userLed: true,
+  allowProactive: false,
+  maxQuestions: 0,
+  responseStyle: "acknowledge_then_wait",
+  phase: "intro",
+};
+
+const guidedBehavior: ScenarioBehavior = {
+  userLed: false,
+  allowProactive: true,
+  maxQuestions: 1,
+  responseStyle: "guide_lightly",
+};
+
+const challengeBehavior: ScenarioBehavior = {
+  userLed: false,
+  allowProactive: true,
+  maxQuestions: 1,
+  responseStyle: "advisor",
+};
+
 const scenarioList: Scenario[] = [
   {
     id: "basic-intro-alignment",
     title: "自己紹介＆期待値合わせ (基礎)",
     discipline: "BASIC",
     description: "新規プロジェクトに合流し、役割と期待値を擦り合わせる。",
+    behavior: introBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "こんにちは！エンジニア兼デザイナーの鈴木です。よろしくお願いします。",
@@ -358,10 +1007,87 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。",
   },
   {
+    id: "basic-agenda-facilitation",
+    title: "アジェンダを設定してミーティングを進行 (基礎)",
+    discipline: "BASIC",
+    description: "目的に沿った会議を進行し、合意と次アクションを作る。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとしてミーティングを進行します。目的を一文で定義し、アジェンダと時間配分を設定し、次のアクションを合意してください。",
+    evaluationCriteria: agendaFacilitationCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-agenda-m1", title: "ミーティング目的を定義する", order: 1 },
+      { id: "basic-agenda-m2", title: "アジェンダと時間配分を提示する", order: 2 },
+      { id: "basic-agenda-m3", title: "決定事項と次アクションを合意する", order: 3 },
+    ],
+    supplementalInfo: "目的の一文定義と時間配分の明確化を意識してください。",
+  },
+  {
+    id: "basic-meeting-minutes",
+    title: "議事メモの作成と共有 (基礎)",
+    discipline: "BASIC",
+    description: "会議内容を要点・決定・アクションに整理し共有する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとして会議内容を議事メモに整理します。決定事項・未決事項・次アクションと担当を明記し、共有用のまとめを作成してください。",
+    evaluationCriteria: meetingMinutesCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-minutes-m1", title: "決定事項と未決事項を整理する", order: 1 },
+      { id: "basic-minutes-m2", title: "次アクションと担当・期日を明記する", order: 2 },
+      { id: "basic-minutes-m3", title: "共有メッセージとして要約する", order: 3 },
+    ],
+    supplementalInfo: "読み手がすぐ理解できる要約とアクション整理を重視してください。",
+  },
+  {
+    id: "basic-schedule-share",
+    title: "スケジュール感の共有 (基礎)",
+    discipline: "BASIC",
+    description: "プロジェクトの見通しとマイルストーンを共有する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとしてプロジェクトのスケジュール感を共有します。全体像、マイルストーン、前提条件、次の判断ポイントを整理してください。",
+    evaluationCriteria: scheduleShareCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-schedule-m1", title: "全体像と進め方を共有する", order: 1 },
+      { id: "basic-schedule-m2", title: "主要マイルストーンを整理する", order: 2 },
+      { id: "basic-schedule-m3", title: "前提と次の判断ポイントを明記する", order: 3 },
+    ],
+    supplementalInfo: "不確実性や前提条件を必ず共有してください。",
+  },
+  {
+    id: "basic-docs-refine",
+    title: "既存資料の軽微な修正 (基礎)",
+    discipline: "BASIC",
+    description: "資料を読み手に伝わる形に整える。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとして既存資料を軽微に修正します。目的と対象読者を整理し、表現と構成を改善してください。",
+    evaluationCriteria: docsRefineCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-docs-m1", title: "資料の目的と対象を整理する", order: 1 },
+      { id: "basic-docs-m2", title: "分かりにくい表現や構成を修正する", order: 2 },
+      { id: "basic-docs-m3", title: "要点を伝わる形でまとめる", order: 3 },
+    ],
+    supplementalInfo: "読み手が迷わない構成と簡潔な表現を意識してください。",
+  },
+  {
     id: "basic-ticket-refine",
     title: "チケット要件整理 (基礎)",
     discipline: "BASIC",
     description: "曖昧なチケットを受入可能な形に分解し、スプリントに載せられる状態へ整理する。",
+    behavior: guidedBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "あなたはPMとして曖昧なチケットをスプリントに載せられる形へ精査します。目的、受入条件、依存/リスクを明文化してください。",
@@ -375,10 +1101,68 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "ACは観測可能な期待値で書き、依存は担当と期日をセットで整理してください。",
   },
   {
+    id: "basic-ticket-splitting",
+    title: "チケット分割と優先度付け (基礎)",
+    discipline: "BASIC",
+    description: "大きな依頼を分割し、優先順位と依存を整理する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとして大きな依頼を分割します。価値の高い順に優先度を付け、依存関係とリスクを整理してください。",
+    evaluationCriteria: ticketRefineCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-split-m1", title: "チケットを実行可能な単位に分割する", order: 1 },
+      { id: "basic-split-m2", title: "優先度と価値を整理する", order: 2 },
+      { id: "basic-split-m3", title: "依存関係とリスクを明文化する", order: 3 },
+    ],
+    supplementalInfo: "最初のリリースで必要な最小スコープを意識してください。",
+  },
+  {
+    id: "basic-acceptance-review",
+    title: "受入条件のレビュー (基礎)",
+    discipline: "BASIC",
+    description: "既存の受入条件を見直し、検証可能性を高める。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとして受入条件をレビューします。曖昧な表現を修正し、検証可能な形に整えてください。",
+    evaluationCriteria: ticketRefineCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-acceptance-m1", title: "受入条件をレビューする", order: 1 },
+      { id: "basic-acceptance-m2", title: "曖昧な表現を修正する", order: 2 },
+      { id: "basic-acceptance-m3", title: "依存関係とリスクを確認する", order: 3 },
+    ],
+    supplementalInfo: "Given-When-Then形式や観測可能な条件を意識してください。",
+  },
+  {
+    id: "basic-unknowns-discovery",
+    title: "不明点の洗い出し (基礎)",
+    discipline: "BASIC",
+    description: "曖昧な前提や未決事項を可視化し、確認計画を立てる。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはPMとして要件の不明点を洗い出します。確認先・優先度・解消方法を整理してください。",
+    evaluationCriteria: unknownsClarificationCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-unknowns-m1", title: "不明点・未決事項を列挙する", order: 1 },
+      { id: "basic-unknowns-m2", title: "確認先と必要情報を整理する", order: 2 },
+      { id: "basic-unknowns-m3", title: "優先度と解消計画を決める", order: 3 },
+    ],
+    supplementalInfo: "影響度が高い不明点から優先して解消してください。",
+  },
+  {
     id: "basic-testcase-design",
     title: "テストケース作成 (基礎)",
     discipline: "BASIC",
     description: "新機能の仕様からスモーク/回帰テストケースを洗い出し、漏れのない最小集合を作る。",
+    behavior: guidedBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "あなたはQA/PMとして新機能のテストケースを作成します。正常系と主要な異常系を洗い出し、前提データと環境を明記してください。",
@@ -392,10 +1176,68 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "カバレッジを意識しつつ、時間制約に収まる最小セットを優先してください。",
   },
   {
+    id: "basic-test-viewpoints",
+    title: "テスト観点の洗い出しと優先度付け (基礎)",
+    discipline: "BASIC",
+    description: "仕様からテスト観点を洗い出し、リスクベースで優先度を付ける。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとしてテスト観点を洗い出し、影響度と頻度で優先順位を決めます。前提条件も整理してください。",
+    evaluationCriteria: testViewpointCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-viewpoints-m1", title: "主要なテスト観点を洗い出す", order: 1 },
+      { id: "basic-viewpoints-m2", title: "リスク/影響度で優先順位を付ける", order: 2 },
+      { id: "basic-viewpoints-m3", title: "前提条件と不足情報を整理する", order: 3 },
+    ],
+    supplementalInfo: "観点の抜け漏れがないか、仕様との対応を意識してください。",
+  },
+  {
+    id: "basic-test-risk-review",
+    title: "テスト計画のリスクレビュー (基礎)",
+    discipline: "BASIC",
+    description: "既存のテスト計画を見直し、リスクベースで優先度を調整する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとして既存のテスト計画をレビューします。高リスク領域の優先度を見直し、前提条件を再整理してください。",
+    evaluationCriteria: testViewpointCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-riskreview-m1", title: "高リスク領域を特定する", order: 1 },
+      { id: "basic-riskreview-m2", title: "優先度と観点を再調整する", order: 2 },
+      { id: "basic-riskreview-m3", title: "前提条件と不足情報を整理する", order: 3 },
+    ],
+    supplementalInfo: "限られた時間で効果が高いテストに集中してください。",
+  },
+  {
+    id: "basic-regression-smoke",
+    title: "回帰テストの最小セット整理 (基礎)",
+    discipline: "BASIC",
+    description: "回帰テストの必須ケースを最小セットで整理する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとして回帰テストの最小セットを整理します。必須フローと優先度、前提条件を明確にしてください。",
+    evaluationCriteria: testcaseDesignCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "basic-regression-m1", title: "主要な回帰フローを洗い出す", order: 1 },
+      { id: "basic-regression-m2", title: "必須ケースの優先度を決める", order: 2 },
+      { id: "basic-regression-m3", title: "前提データと環境を整理する", order: 3 },
+    ],
+    supplementalInfo: "最小セットで品質を担保できる範囲を意識してください。",
+  },
+  {
     id: "challenge-project-rescue",
     title: "遅延プロジェクト立て直し (チャレンジ)",
     discipline: "CHALLENGE",
     description: "遅延しているプロジェクトでスコープ再交渉とリカバリ計画を短時間でまとめる。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。",
@@ -409,10 +1251,106 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "品質バーを下げずに間に合わせる打ち手（並行作業・カット案・リソース振替）を検討してください。",
   },
   {
+    id: "challenge-deadline-advance",
+    title: "リリース期限の突然の前倒し (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "外部要因で期限が前倒しになり、影響分析と打ち手を提案する。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとしてリリース期限が突然前倒しになった状況に対応します。影響範囲を整理し、複数の打ち手と合意形成を進めてください。",
+    evaluationCriteria: deadlineAdvanceCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-deadline-m1", title: "影響範囲を洗い出す", order: 1 },
+      { id: "challenge-deadline-m2", title: "選択肢とトレードオフを提示する", order: 2 },
+      { id: "challenge-deadline-m3", title: "合意した方針と次アクションを決める", order: 3 },
+    ],
+    supplementalInfo: "品質・スコープ・リソースのトレードオフを明確にしてください。",
+  },
+  {
+    id: "challenge-progress-visibility",
+    title: "進捗が見えない状況への対応 (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "進捗が見えない状況で可視化と打ち手を設計する。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとして進捗が見えない状況に対応します。最小限の可視化手段と報告リズムを設計し、次アクションを決めてください。",
+    evaluationCriteria: progressVisibilityCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-visibility-m1", title: "進捗可視化の指標と方法を決める", order: 1 },
+      { id: "challenge-visibility-m2", title: "リスク要因を整理する", order: 2 },
+      { id: "challenge-visibility-m3", title: "報告と次アクションを合意する", order: 3 },
+    ],
+    supplementalInfo: "最小限の指標で現状を把握できるようにしてください。",
+  },
+  {
+    id: "challenge-quality-fire",
+    title: "品質問題の緊急対応と優先度調整 (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "品質問題が発生し、緊急対応と優先度を再調整する。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとして品質問題に緊急対応します。原因と影響を整理し、優先度と対応方針を合意してください。",
+    evaluationCriteria: projectRescueCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-quality-m1", title: "品質問題の原因と影響を整理する", order: 1 },
+      { id: "challenge-quality-m2", title: "緊急対応と優先度を決める", order: 2 },
+      { id: "challenge-quality-m3", title: "関係者への説明と合意を行う", order: 3 },
+    ],
+    supplementalInfo: "ユーザー影響とリリース計画のトレードオフを明確にしてください。",
+  },
+  {
+    id: "challenge-ambiguous-request",
+    title: "要件が曖昧な依頼への対応 (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "曖昧な要求を具体化し、合意できるスコープを作る。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとして曖昧な依頼に対応します。成功条件と仮スコープを整理し、確認事項と次アクションを合意してください。",
+    evaluationCriteria: ambiguousRequestCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-ambiguous-m1", title: "成功条件を明確化する", order: 1 },
+      { id: "challenge-ambiguous-m2", title: "仮スコープと非対象を整理する", order: 2 },
+      { id: "challenge-ambiguous-m3", title: "確認事項と次アクションを決める", order: 3 },
+    ],
+    supplementalInfo: "曖昧さを放置せず、仮置きでも合意を取って進めてください。",
+  },
+  {
+    id: "challenge-scope-addition",
+    title: "追加スコープ要求の交渉 (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "追加要求に対してスコープ調整と合意形成を行う。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとして追加スコープ要求の交渉を行います。代替案と影響を提示し、合意内容をまとめてください。",
+    evaluationCriteria: scopeNegotiationCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-scopeadd-m1", title: "追加要求の背景と目的を整理する", order: 1 },
+      { id: "challenge-scopeadd-m2", title: "代替案と影響を提示する", order: 2 },
+      { id: "challenge-scopeadd-m3", title: "合意内容と次アクションを決める", order: 3 },
+    ],
+    supplementalInfo: "期限・品質・リソースのトレードオフを明確にしてください。",
+  },
+  {
     id: "challenge-scope-negotiation",
     title: "スコープ／リソース交渉 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "顧客や上長とスコープ削減かリソース増加を交渉し、合意形成する。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。",
@@ -426,10 +1364,30 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "合意後に残るリスクとフォローアップを必ず記録してください。",
   },
   {
+    id: "challenge-impossible-request",
+    title: "エンジニアから「無理です」と言われる (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "技術的制約を理解し、代替案と合意を作る。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPMとしてエンジニアから実現困難と指摘された状況に対応します。制約を整理し、代替案と合意形成を進めてください。",
+    evaluationCriteria: impossibleRequestCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-impossible-m1", title: "制約・根拠を明確化する", order: 1 },
+      { id: "challenge-impossible-m2", title: "代替案と影響を比較する", order: 2 },
+      { id: "challenge-impossible-m3", title: "合意した対応と次アクションを決める", order: 3 },
+    ],
+    supplementalInfo: "無理の理由を尊重しつつ、実現可能な落とし所を探してください。",
+  },
+  {
     id: "challenge-conflict-mediation",
     title: "コンフリクト調整 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "開発とQA・ビジネスの対立をファシリテートし、合意に導く。",
+    behavior: challengeBehavior,
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
@@ -442,7 +1400,77 @@ const scenarioList: Scenario[] = [
     ],
     supplementalInfo: "感情的な対立を避けるため、事実と解釈を分けて提示してください。",
   },
+  {
+    id: "challenge-priority-conflict",
+    title: "優先度対立のファシリテーション (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "関係者間の優先度対立を整理し、合意に導く。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとして優先度対立をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
+    evaluationCriteria: conflictMediationCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-priority-m1", title: "対立の論点を整理する", order: 1 },
+      { id: "challenge-priority-m2", title: "合意の選択肢と条件を提示する", order: 2 },
+      { id: "challenge-priority-m3", title: "フォロータスクと担当を決める", order: 3 },
+    ],
+    supplementalInfo: "事実と解釈を分け、公平なファシリテーションを心がけてください。",
+  },
+  {
+    id: "challenge-stakeholder-misalignment",
+    title: "ステークホルダーとの認識ズレ解消 (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "期待値のズレを解消し、共通認識と再発防止を作る。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとしてステークホルダー間の認識ズレを解消します。ズレの原因を整理し、共通認識と再発防止プロセスを合意してください。",
+    evaluationCriteria: stakeholderAlignmentCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-alignment-m1", title: "ズレているポイントを特定する", order: 1 },
+      { id: "challenge-alignment-m2", title: "共通認識を再整理する", order: 2 },
+      { id: "challenge-alignment-m3", title: "再発防止の確認プロセスを決める", order: 3 },
+    ],
+    supplementalInfo: "合意後の確認プロセス（定例やチェックポイント）まで設計してください。",
+  },
+  {
+    id: "challenge-user-perspective",
+    title: "ユーザー視点が抜けていることへの気づき (チャレンジ)",
+    discipline: "CHALLENGE",
+    description: "ユーザー視点の欠落に気づき、価値に立ち返る。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt:
+      "あなたはPM/PMOとしてユーザー視点が抜けていることに気づきます。ユーザー行動を整理し、最小限の改善案と合意を作ってください。",
+    evaluationCriteria: userPerspectiveCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "challenge-user-m1", title: "ユーザー行動フローを整理する", order: 1 },
+      { id: "challenge-user-m2", title: "価値と影響を説明する", order: 2 },
+      { id: "challenge-user-m3", title: "最小改善案と合意をまとめる", order: 3 },
+    ],
+    supplementalInfo: "機能ではなく価値に立ち返り、最小の打ち手を提案してください。",
+  },
 ];
+
+const requireScenarioSummary = (id: string): ScenarioSummary => {
+  const scenario = scenarioList.find((item) => item.id === id);
+  if (!scenario) {
+    throw new Error(`Scenario summary not found: ${id}`);
+  }
+  return {
+    id: scenario.id,
+    title: scenario.title,
+    description: scenario.description,
+    discipline: scenario.discipline,
+  };
+};
 
 export const scenarioCatalog: ScenarioCatalogSection[] = [
   {
@@ -468,6 +1496,82 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
         description,
         discipline,
       })),
+  },
+];
+
+export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
+  {
+    id: "pm-assistant",
+    title: "PMアシスタント",
+    subcategories: [
+      {
+        id: "assistant-foundation",
+        title: "基礎スキル・知識",
+        scenarios: [
+          requireScenarioSummary("basic-intro-alignment"),
+          requireScenarioSummary("basic-agenda-facilitation"),
+          requireScenarioSummary("basic-meeting-minutes"),
+          requireScenarioSummary("basic-schedule-share"),
+          requireScenarioSummary("basic-docs-refine"),
+        ],
+      },
+      {
+        id: "assistant-test-design",
+        title: "テスト設計",
+        scenarios: [
+          requireScenarioSummary("basic-testcase-design"),
+          requireScenarioSummary("basic-test-viewpoints"),
+          requireScenarioSummary("basic-test-risk-review"),
+          requireScenarioSummary("basic-regression-smoke"),
+        ],
+      },
+      {
+        id: "assistant-ticket",
+        title: "チケット要件整理",
+        scenarios: [
+          requireScenarioSummary("basic-ticket-refine"),
+          requireScenarioSummary("basic-unknowns-discovery"),
+          requireScenarioSummary("basic-ticket-splitting"),
+          requireScenarioSummary("basic-acceptance-review"),
+        ],
+      },
+    ],
+  },
+  {
+    id: "pm",
+    title: "PM",
+    subcategories: [
+      {
+        id: "pm-recovery",
+        title: "プロジェクト立て直し",
+        scenarios: [
+          requireScenarioSummary("challenge-project-rescue"),
+          requireScenarioSummary("challenge-deadline-advance"),
+          requireScenarioSummary("challenge-progress-visibility"),
+          requireScenarioSummary("challenge-quality-fire"),
+        ],
+      },
+      {
+        id: "pm-negotiation",
+        title: "交渉・合意形成",
+        scenarios: [
+          requireScenarioSummary("challenge-ambiguous-request"),
+          requireScenarioSummary("challenge-scope-negotiation"),
+          requireScenarioSummary("challenge-impossible-request"),
+          requireScenarioSummary("challenge-scope-addition"),
+        ],
+      },
+      {
+        id: "pm-stakeholder",
+        title: "ステークホルダー調整",
+        scenarios: [
+          requireScenarioSummary("challenge-conflict-mediation"),
+          requireScenarioSummary("challenge-stakeholder-misalignment"),
+          requireScenarioSummary("challenge-user-perspective"),
+          requireScenarioSummary("challenge-priority-conflict"),
+        ],
+      },
+    ],
   },
 ];
 

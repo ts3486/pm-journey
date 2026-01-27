@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Former .eslintignore entries:
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    ".env*",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
   ]),
 ]);
 
