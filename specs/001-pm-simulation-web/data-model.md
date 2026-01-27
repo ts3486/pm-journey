@@ -3,14 +3,14 @@
 ## Entities
 
 ### Scenario
-- **Fields**: `id` (string), `title` (string), `discipline` (enum: PM | PMO), `description` (string), `product` (object: name, summary, audience, problems, goals, differentiators, scope, constraints, timeline, successCriteria, uniqueEdge, techStack, coreFeatures), `mode` (enum: freeform), `kickoffPrompt` (string), `evaluationCriteria` (array of categories with `name`, `weight`, `passingScore` shared), `missions` (array of Mission), `supplementalInfo` (markdown/string for side info).
-- **Rules**: Category weights sum to 100; passingScore default 70; grouped by `discipline` for Home rows (PM scenarios row, PMO scenarios row); missions are ordered and shown on Scenario page.
+- **Fields**: `id` (string), `title` (string), `discipline` (enum: BASIC | CHALLENGE), `description` (string), `product` (object: name, summary, audience, problems, goals, differentiators, scope, constraints, timeline, successCriteria, uniqueEdge, techStack, coreFeatures), `mode` (enum: freeform | guided), `kickoffPrompt` (string), `evaluationCriteria` (array of categories with `name`, `weight`, `passingScore` shared), `missions` (array of Mission), `supplementalInfo` (markdown/string for side info).
+- **Rules**: Category weights sum to 100; passingScore default 70; discipline drives agent profile selection and evaluation behavior; missions are ordered and shown on Scenario page.
 - **Relationships**: One-to-many with Sessions; embeds Missions for UI.
 
-### ScenarioCatalog (UI grouping)
-- **Fields**: `sections` (array of { `discipline` (PM | PMO), `title` (string), `scenarios` (Scenario summary: id, title, description) }).
-- **Rules**: At least one scenario per section; order is PM then PMO for Home layout; used for offline rendering without extra fetch.
-- **Relationships**: Drives available options for Session creation.
+### HomeScenarioCatalog (UI grouping)
+- **Fields**: `categories` (array of { `id`, `title`, `subcategories` }), `subcategories` (array of { `id`, `title`, `scenarios` (Scenario summary: id, title, description, discipline) }).
+- **Rules**: Large categories are `PMアシスタント` and `PM`; each subcategory must contain 2+ scenarios; category/subcategory order defines Home layout; catalog is local for offline-first rendering and maps to Scenario IDs for session creation/resume.
+- **Relationships**: Drives available options for Session creation; Scenario IDs remain the source of truth for history and resume.
 
 ### Mission
 - **Fields**: `id` (string), `title` (string), `description` (string, optional), `order` (number).
@@ -18,7 +18,7 @@
 - **Relationships**: Embedded in Scenario; referenced by Session missionStatus.
 
 ### Session
-- **Fields**: `id` (string), `scenarioId` (string), `scenarioDiscipline` (PM | PMO), `status` (enum: active/completed/evaluated), `startedAt` (datetime), `endedAt` (datetime, optional), `lastActivityAt` (datetime), `userName` (string, optional), `progressFlags` (booleans: requirements, priorities, risks, acceptance), `missionStatus` (array of { missionId, completedAt? }), `evaluationRequested` (bool), `storageLocation` (enum: local/api).
+- **Fields**: `id` (string), `scenarioId` (string), `scenarioDiscipline` (BASIC | CHALLENGE), `status` (enum: active/completed/evaluated), `startedAt` (datetime), `endedAt` (datetime, optional), `lastActivityAt` (datetime), `userName` (string, optional), `progressFlags` (booleans: requirements, priorities, risks, acceptance), `missionStatus` (array of { missionId, completedAt? }), `evaluationRequested` (bool), `storageLocation` (enum: local/api).
 - **Rules**: `scenarioId` must match an existing Scenario; `lastActivityAt` updates on message save; `status` becomes evaluated only when evaluation payload present; auto-eval may trigger when all missions complete and online.
 - **Relationships**: One-to-many with Messages and one-to-one with Evaluation; missionStatus references Missions.
 
@@ -33,7 +33,7 @@
 - **Relationships**: Belongs to Session; referenced by HistoryItem.
 
 ### HistoryItem
-- **Fields**: `sessionId` (string), `scenarioId` (string), `scenarioDiscipline` (PM | PMO), `metadata` (duration, messageCount), `actions` (array of tagged Message refs), `evaluation` (Evaluation snapshot), `storageLocation` (enum: local/api).
+- **Fields**: `sessionId` (string), `scenarioId` (string), `scenarioDiscipline` (BASIC | CHALLENGE), `metadata` (duration, messageCount), `actions` (array of tagged Message refs), `evaluation` (Evaluation snapshot), `storageLocation` (enum: local/api).
 - **Rules**: Snapshot data must align with the session state at time of save/export.
 - **Relationships**: Mirrors Session/Evaluation for listing and detail views.
 

@@ -166,3 +166,15 @@ export type ScenarioCatalogSection = {
   title: string;
   scenarios: ScenarioSummary[];
 };
+
+export type ScenarioCatalogSubcategory = {
+  id: string;
+  title: string;
+  scenarios: ScenarioSummary[];
+};
+
+export type ScenarioCatalogCategory = {
+  id: string;
+  title: string;
+  subcategories: ScenarioCatalogSubcategory[];
+};

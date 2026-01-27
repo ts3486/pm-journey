@@ -13,7 +13,7 @@
    - `NEXT_PUBLIC_API_BASE` (required; set to Axum host for API mode)
    - `NEXT_PUBLIC_OFFLINE_QUEUE=true` to enable queued sends when offline
    - `NEXT_PUBLIC_STORAGE_PREFIX=olivia_pm` to isolate local storage keys
-5) Scenario catalog: defined in frontend config (grouped PM/PMO) for Home selection; keep ids stable for session resume/history.
+5) Scenario catalog: defined in frontend config as Home categories (PMアシスタント/PM) → subcategories → scenarios; keep ids stable for session resume/history.
 6) Tests: `pnpm test` (Vitest), `pnpm exec playwright test` for e2e chat/history flows.
 7) Fonts: prefer system font stack or locally bundled JP font to avoid remote fetch failures during build/offline.
 

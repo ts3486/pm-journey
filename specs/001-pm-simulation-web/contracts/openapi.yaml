@@ -10,7 +10,7 @@ paths:
       summary: List available scenarios
       responses:
         '200':
-          description: Scenario catalog grouped by discipline (PM, PMO)
+          description: Scenario list (discipline BASIC/CHALLENGE)
           content:
             application/json:
               schema:
@@ -311,7 +311,7 @@ components:
           type: string
         scenarioDiscipline:
           type: string
-          enum: [PM, PMO]
+          enum: [BASIC, CHALLENGE]
         status:
           type: string
           enum: [active, completed, evaluated]
@@ -434,7 +434,7 @@ components:
           type: string
         discipline:
           type: string
-          enum: [PM, PMO]
+          enum: [BASIC, CHALLENGE]
         description:
           type: string
         product:

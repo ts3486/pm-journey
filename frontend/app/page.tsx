@@ -1,11 +1,87 @@
 "use client";
 
-import { defaultScenario, getScenarioById, scenarioCatalog } from "@/config/scenarios";
+import { defaultScenario, homeScenarioCatalog } from "@/config/scenarios";
 import { storage } from "@/services/storage";
+import type { ScenarioSummary } from "@/types/session";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
+const homeScenarioIds = homeScenarioCatalog.flatMap((category) =>
+  category.subcategories.flatMap((subcategory) => subcategory.scenarios.map((scenario) => scenario.id)),
+);
+const totalScenarioCount = homeScenarioIds.length;
+
+type ScenarioCarouselProps = {
+  title: string;
+  scenarios: ScenarioSummary[];
+  savedByScenario: Record<string, boolean>;
+  baseDelay: number;
+};
+
+function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: ScenarioCarouselProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const scrollByAmount = (direction: -1 | 1) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const amount = Math.max(240, Math.min(scroller.clientWidth * 0.9, 520));
+    scroller.scrollBy({ left: direction * amount, behavior: "smooth" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="badge">{title}</span>
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => scrollByAmount(-1)}
+          aria-label={`${title} を左へスクロール`}
+          className="absolute left-0 top-1/2 z-10 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-200/70 bg-white/90 text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-700 sm:flex sm:items-center sm:justify-center"
+        >
+          ◀
+        </button>
+        <div
+          ref={scrollerRef}
+          className="no-scrollbar flex gap-4 overflow-x-auto pb-2 px-6 snap-x snap-mandatory scroll-px-6 sm:px-10"
+        >
+          {scenarios.map((scenario, index) => (
+            <div
+              key={scenario.id}
+              className="card flex w-[260px] shrink-0 flex-col justify-between p-5 reveal snap-start sm:w-[280px] lg:w-[300px]"
+              style={revealDelay(baseDelay + index * 60)}
+            >
+              <div className="space-y-3">
+                <h4 className="text-lg font-semibold text-slate-900">{scenario.title}</h4>
+                <p className="text-sm text-slate-600">{scenario.description}</p>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <Link className="btn-primary" href={`/scenario?scenarioId=${scenario.id}&restart=1`}>
+                  このシナリオを始める
+                </Link>
+                {savedByScenario[scenario.id] ? (
+                  <Link className="btn-secondary" href={`/scenario?scenarioId=${scenario.id}`}>
+                    再開する
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => scrollByAmount(1)}
+          aria-label={`${title} を右へスクロール`}
+          className="absolute right-0 top-1/2 z-10 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-200/70 bg-white/90 text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-700 sm:flex sm:items-center sm:justify-center"
+        >
+          ▶
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
@@ -15,23 +91,20 @@ export default function Home() {
     async function loadSavedSessions() {
       const lastScenario = await storage.loadLastScenarioId();
       setLastScenarioId(lastScenario);
-      const map: Record<string, boolean> = {};
-      for (const section of scenarioCatalog) {
-        for (const scenario of section.scenarios) {
-          map[scenario.id] = !!(await storage.loadLastSessionId(scenario.id));
-        }
-      }
-      setSavedByScenario(map);
+      const entries = await Promise.all(
+        homeScenarioIds.map(async (scenarioId) => {
+          const lastSessionId = await storage.loadLastSessionId(scenarioId);
+          return [scenarioId, !!lastSessionId] as const;
+        }),
+      );
+      setSavedByScenario(Object.fromEntries(entries));
     }
     loadSavedSessions();
   }, []);
 
   const defaultStartHref = `/scenario?scenarioId=${defaultScenario.id}&restart=1`;
   const resumeHref = lastScenarioId ? `/scenario?scenarioId=${lastScenarioId}` : defaultStartHref;
-  const totalScenarios = useMemo(
-    () => scenarioCatalog.reduce((count, section) => count + section.scenarios.length, 0),
-    [],
-  );
+  const totalScenarios = totalScenarioCount;
   return (
     <div className="space-y-12">
       <section
@@ -135,41 +208,28 @@ export default function Home() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Scenarios</p>
             <h2 className="font-display text-2xl font-bold text-slate-900">シナリオを選択</h2>
-            <p className="mt-2 text-sm text-slate-600">基礎とチャレンジ、2つのレベルで練習できます。</p>
+            <p className="mt-2 text-sm text-slate-600">
+              PMアシスタントとPMの2カテゴリで、目的別にシナリオを選べます。
+            </p>
           </div>
         </div>
 
-        {scenarioCatalog.map((section, sectionIndex) => (
-          <div key={section.discipline} className="space-y-4">
+        {homeScenarioCatalog.map((category, categoryIndex) => (
+          <div key={category.id} className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="badge badge-large">{section.title}</span>
+                <span className="badge badge-large">{category.title}</span>
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {section.scenarios.map((scenario, index) => (
-                <div
-                  key={scenario.id}
-                  className="card flex flex-col justify-between p-5 reveal"
-                  style={revealDelay(160 + sectionIndex * 80 + index * 60)}
-                >
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-semibold text-slate-900">{scenario.title}</h4>
-                    <p className="text-sm text-slate-600">{scenario.description}</p>
-                  </div>
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    <Link className="btn-primary" href={`/scenario?scenarioId=${scenario.id}&restart=1`}>
-                      このシナリオを始める
-                    </Link>
-                    {savedByScenario[scenario.id] ? (
-                      <Link className="btn-secondary" href={`/scenario?scenarioId=${scenario.id}`}>
-                        再開する
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {category.subcategories.map((subcategory, subcategoryIndex) => (
+              <ScenarioCarousel
+                key={subcategory.id}
+                title={subcategory.title}
+                scenarios={subcategory.scenarios}
+                savedByScenario={savedByScenario}
+                baseDelay={160 + categoryIndex * 140 + subcategoryIndex * 80}
+              />
+            ))}
           </div>
         ))}
       </section>
