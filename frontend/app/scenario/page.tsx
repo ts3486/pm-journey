@@ -2,6 +2,7 @@
 
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
+import { TestCaseScenarioLayout } from "@/components/TestCaseScenarioLayout";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
   createLocalMessage,
@@ -127,8 +128,6 @@ function ScenarioContent() {
       if (!restart) {
         const existing = await resumeSession(targetScenario.id);
         if (existing && !state) {
-          setLastSessionId(existing.session.id);
-          setLastSessionStatus(existing.session.status);
           if (existing.session.status === "evaluated" || existing.session.status === "completed") {
             void handleStart(targetScenario);
           } else {
@@ -144,6 +143,19 @@ function ScenarioContent() {
     initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
+
+  if (activeScenario.scenarioType === "test-case") {
+    return (
+      <TestCaseScenarioLayout
+        scenario={activeScenario}
+        state={state}
+        awaitingReply={awaitingReply}
+        onSend={handleSend}
+        onComplete={handleCompleteScenario}
+        onReset={handleReset}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

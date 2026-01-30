@@ -9,6 +9,8 @@ import type {
   MissionStatus,
   Session,
   RatingCriterion,
+  Scenario,
+  TestCase,
 } from "@/types/session";
 
 const base = env.apiBase;
@@ -64,6 +66,9 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 }
 
 export const api = {
+  async createScenario(payload: Scenario): Promise<Scenario> {
+    return request<Scenario>("/scenarios", { method: "POST", body: payload });
+  },
   async createSession(scenarioId: string): Promise<Session> {
     return request<Session>("/sessions", { method: "POST", body: { scenarioId } });
   },
@@ -115,6 +120,8 @@ export const api = {
       scenarioDescription?: string;
       productContext?: string;
       scenarioPrompt?: string;
+      scenarioType?: string;
+      testCasesContext?: string;
     },
   ): Promise<Evaluation> {
     return request<Evaluation>(`/sessions/${sessionId}/evaluate`, {
@@ -133,5 +140,25 @@ export const api = {
       method: "POST",
       body: payload,
     });
+  },
+  async listTestCases(sessionId: string): Promise<TestCase[]> {
+    return request<TestCase[]>(`/sessions/${sessionId}/test-cases`);
+  },
+  async createTestCase(
+    sessionId: string,
+    payload: {
+      name: string;
+      preconditions: string;
+      steps: string;
+      expectedResult: string;
+    },
+  ): Promise<TestCase> {
+    return request<TestCase>(`/sessions/${sessionId}/test-cases`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+  async deleteTestCase(id: string): Promise<void> {
+    await request(`/test-cases/${id}`, { method: "DELETE" });
   },
 };

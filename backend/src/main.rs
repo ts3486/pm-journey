@@ -1,15 +1,19 @@
 mod api;
-mod db;
 mod error;
+mod features;
 mod middleware;
 mod models;
+mod shared;
+mod state;
 
 use axum::{middleware::from_fn, Router};
-use sqlx::{PgPool, migrate::Migrator};
+use sqlx::{migrate::Migrator, PgPool};
 use std::env;
 use tower::make::Shared;
 use tower_http::cors::{Any, CorsLayer};
+
 use middleware::telemetry::{init_tracing, tracing_middleware};
+use state::state_with_pool;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
@@ -23,8 +27,7 @@ async fn main() {
     dotenvy::dotenv().ok();
     init_tracing();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     tracing::info!("Connecting to Postgres at {}", database_url);
     let pool = PgPool::connect(&database_url)
@@ -32,10 +35,12 @@ async fn main() {
         .expect("failed to connect to Postgres");
 
     tracing::info!("Running database migrations...");
-    run_migrations(&pool).await.expect("failed to run migrations");
+    run_migrations(&pool)
+        .await
+        .expect("failed to run migrations");
     tracing::info!("Migrations completed successfully");
 
-    let state = api::state_with_pool(pool);
+    let state = state_with_pool(pool);
     let cors = CorsLayer::new()
         .allow_origin([
             "http://localhost:3000".parse().unwrap(),

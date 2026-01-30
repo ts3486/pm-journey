@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import type { Scenario } from "@/types/session";
 import { validateScenario, type ScenarioInput } from "@/schemas/scenario";
+import { api } from "@/services/api";
 
 // ============================================================================
 // Types
@@ -73,6 +74,21 @@ export const scenarioService = {
     }
 
     const newScenario = validation.data as Scenario;
+
+    if (env.apiBase) {
+      try {
+        const created = await api.createScenario(newScenario);
+        scenarios.push(created);
+        saveAllScenarios(scenarios);
+        return { success: true, data: created };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "保存に失敗しました",
+        };
+      }
+    }
+
     scenarios.push(newScenario);
     saveAllScenarios(scenarios);
 

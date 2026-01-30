@@ -33,6 +33,23 @@ export type Evaluation = {
 
 export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
+export type ScenarioType = "basic" | "test-case";
+
+export type FeatureMockup = {
+  component: "login" | "form" | "file-upload";
+  description: string;
+};
+
+export type TestCase = {
+  id: string;
+  sessionId: string;
+  name: string;
+  preconditions: string;
+  steps: string;
+  expectedResult: string;
+  createdAt: string;
+};
+
 export type ScenarioBehavior = {
   userLed?: boolean;
   allowProactive?: boolean;
@@ -118,6 +135,8 @@ export type Scenario = {
   title: string;
   description: string;
   discipline: ScenarioDiscipline;
+  scenarioType?: ScenarioType;
+  featureMockup?: FeatureMockup;
   behavior?: ScenarioBehavior;
   product: {
     name: string;

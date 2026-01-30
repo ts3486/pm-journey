@@ -6,6 +6,8 @@ import type {
   ScenarioDiscipline,
   ScenarioBehavior,
   ScenarioSummary,
+  ScenarioType,
+  FeatureMockup,
 } from "@/types/session";
 
 // ============================================================================
@@ -164,6 +166,162 @@ const testcaseDesignCriteria: RatingCriterion[] = [
       good: "優先度を設定。根拠が一部曖昧",
       needsImprovement: "優先度に言及したが基準が不明確",
       poor: "優先順位付けがない",
+    },
+  },
+];
+
+// 3a. test-login: ログイン機能テストケース作成
+const testLoginCriteria: RatingCriterion[] = [
+  {
+    id: "login-normal-flow",
+    name: "正常系の網羅性",
+    weight: 25,
+    description: "ログイン成功パターンを漏れなくカバーしているか",
+    scoringGuidelines: {
+      excellent: "メール/パスワード、SNS連携、記憶機能など主要フローを網羅",
+      good: "基本的なログイン成功パターンをカバー。一部欠落",
+      needsImprovement: "単純なログイン成功のみ。バリエーションが不足",
+      poor: "正常系の洗い出しが不十分",
+    },
+  },
+  {
+    id: "login-error-cases",
+    name: "異常系・エラーケースの考慮",
+    weight: 30,
+    description: "認証エラー、入力エラー、セキュリティ関連のケースを検討しているか",
+    scoringGuidelines: {
+      excellent: "パスワード誤り、アカウントロック、セッション切れ、CSRF対策など多角的に検討",
+      good: "主要なエラーケースをカバー。一部のセキュリティ観点が欠落",
+      needsImprovement: "基本的なエラーのみ。セキュリティ観点が不足",
+      poor: "異常系の検討がほぼない",
+    },
+  },
+  {
+    id: "login-boundary",
+    name: "境界値・制限値のテスト",
+    weight: 25,
+    description: "入力文字数制限、試行回数制限などの境界条件を検討しているか",
+    scoringGuidelines: {
+      excellent: "文字数上限/下限、試行回数制限、特殊文字など境界条件を網羅",
+      good: "主要な境界値をカバー。一部欠落",
+      needsImprovement: "境界値に言及したが体系的でない",
+      poor: "境界値の検討がない",
+    },
+  },
+  {
+    id: "login-precondition",
+    name: "前提条件とテストデータ",
+    weight: 20,
+    description: "テストユーザー、環境、初期状態を明確にしているか",
+    scoringGuidelines: {
+      excellent: "各ケースにテストユーザー・環境・初期状態を明記",
+      good: "前提条件を記載。一部のケースで不足",
+      needsImprovement: "前提条件の記述が断片的",
+      poor: "前提条件の記載がない",
+    },
+  },
+];
+
+// 3a-2. test-form: フォーム機能テストケース作成
+const testFormCriteria: RatingCriterion[] = [
+  {
+    id: "form-input-validation",
+    name: "入力バリデーションの網羅性",
+    weight: 30,
+    description: "必須項目、フォーマット、文字種などのバリデーションをカバーしているか",
+    scoringGuidelines: {
+      excellent: "必須/任意、フォーマット、文字種、長さなど全バリデーションを網羅",
+      good: "主要なバリデーションをカバー。一部欠落",
+      needsImprovement: "基本的な必須チェックのみ",
+      poor: "バリデーションの検討が不十分",
+    },
+  },
+  {
+    id: "form-error-handling",
+    name: "エラー表示・ハンドリング",
+    weight: 25,
+    description: "エラーメッセージ、フィールドハイライト、サーバーエラーを検討しているか",
+    scoringGuidelines: {
+      excellent: "フィールド単位エラー、サマリー表示、サーバーエラー、タイムアウトを網羅",
+      good: "主要なエラー表示をカバー。一部欠落",
+      needsImprovement: "基本的なエラー表示のみ",
+      poor: "エラーハンドリングの検討がない",
+    },
+  },
+  {
+    id: "form-ux-flow",
+    name: "UXフロー・操作性",
+    weight: 25,
+    description: "タブ移動、Enter送信、クリア、戻るなどの操作性を検討しているか",
+    scoringGuidelines: {
+      excellent: "キーボード操作、フォーカス管理、確認画面、中断再開を網羅",
+      good: "主要な操作フローをカバー。一部欠落",
+      needsImprovement: "基本的な送信フローのみ",
+      poor: "操作性の検討がない",
+    },
+  },
+  {
+    id: "form-data-persistence",
+    name: "データ永続化・送信",
+    weight: 20,
+    description: "送信成功、重複送信防止、一時保存などを検討しているか",
+    scoringGuidelines: {
+      excellent: "送信成功、重複防止、一時保存、オフライン対応を検討",
+      good: "送信成功と重複防止をカバー。一部欠落",
+      needsImprovement: "送信成功のみ",
+      poor: "データ永続化の検討がない",
+    },
+  },
+];
+
+// 3a-3. test-file-upload: ファイルアップロード機能テストケース作成
+const testFileUploadCriteria: RatingCriterion[] = [
+  {
+    id: "upload-file-types",
+    name: "ファイル種別・サイズの検証",
+    weight: 30,
+    description: "許可拡張子、MIMEタイプ、サイズ制限を網羅しているか",
+    scoringGuidelines: {
+      excellent: "許可/禁止拡張子、MIMEチェック、サイズ上限/下限、0バイトを網羅",
+      good: "主要なファイル検証をカバー。一部欠落",
+      needsImprovement: "基本的な拡張子チェックのみ",
+      poor: "ファイル検証の検討が不十分",
+    },
+  },
+  {
+    id: "upload-error-handling",
+    name: "エラー・例外ケース",
+    weight: 25,
+    description: "アップロード失敗、ネットワークエラー、タイムアウトを検討しているか",
+    scoringGuidelines: {
+      excellent: "ネットワーク切断、タイムアウト、サーバーエラー、ストレージ満杯を網羅",
+      good: "主要なエラーケースをカバー。一部欠落",
+      needsImprovement: "基本的なエラーのみ",
+      poor: "エラーケースの検討がない",
+    },
+  },
+  {
+    id: "upload-ux",
+    name: "UX・進捗表示",
+    weight: 25,
+    description: "進捗バー、キャンセル、複数ファイル、ドラッグ&ドロップを検討しているか",
+    scoringGuidelines: {
+      excellent: "進捗表示、キャンセル、複数選択、D&D、プレビューを網羅",
+      good: "主要なUX要素をカバー。一部欠落",
+      needsImprovement: "基本的なアップロードUIのみ",
+      poor: "UXの検討がない",
+    },
+  },
+  {
+    id: "upload-security",
+    name: "セキュリティ・検証",
+    weight: 20,
+    description: "悪意あるファイル、実行ファイル、ウイルスチェックを検討しているか",
+    scoringGuidelines: {
+      excellent: "実行ファイル拒否、拡張子偽装検知、サニタイズ、スキャン連携を検討",
+      good: "主要なセキュリティ検証をカバー。一部欠落",
+      needsImprovement: "基本的な拡張子制限のみ",
+      poor: "セキュリティの検討がない",
     },
   },
 ];
@@ -1176,6 +1334,94 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "カバレッジを意識しつつ、時間制約に収まる最小セットを優先してください。",
   },
   {
+    id: "test-login",
+    title: "ログイン機能のテストケース作成",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "login",
+      description: "メールアドレスとパスワードで認証するログインフォームです。",
+    },
+    description: "ログイン機能のテストケースを作成し、認証フローとセキュリティ観点を網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとしてログイン機能のテストケースを作成します。正常系・異常系・セキュリティ観点を洗い出し、前提条件を明記してください。モックアップを参考にテストケースを考えてください。",
+    evaluationCriteria: testLoginCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-login-m1", title: "正常系ログインフローを列挙する", order: 1 },
+      { id: "test-login-m2", title: "異常系・セキュリティ観点を洗い出す", order: 2 },
+      { id: "test-login-m3", title: "前提条件とテストデータを整理する", order: 3 },
+    ],
+    supplementalInfo: `ログイン仕様:
+- メールアドレス: 有効なメール形式のみ
+- パスワード: 8文字以上
+- ログイン試行: 5回失敗で15分ロック
+- 「ログイン状態を保持」: 30日間有効
+パスワード誤り、アカウントロック、セッション管理などの観点を意識してください。`,
+  },
+  {
+    id: "test-form",
+    title: "フォーム機能のテストケース作成",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "form",
+      description: "お問い合わせフォームです。入力検証とエラー表示を確認できます。",
+    },
+    description: "入力フォームのテストケースを作成し、バリデーションとUXを網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとしてフォーム機能のテストケースを作成します。入力バリデーション・エラー表示・操作性を洗い出し、前提条件を明記してください。モックアップを参考にテストケースを考えてください。",
+    evaluationCriteria: testFormCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-form-m1", title: "入力バリデーションケースを列挙する", order: 1 },
+      { id: "test-form-m2", title: "エラー表示と操作性を検討する", order: 2 },
+      { id: "test-form-m3", title: "前提条件とテストデータを整理する", order: 3 },
+    ],
+    supplementalInfo: `フォーム仕様:
+- 必須項目: 名前、メール、カテゴリ、内容、同意
+- メール: 有効な形式のみ
+- 電話: 任意、10〜13桁の数字とハイフン
+- 内容: 10〜1000文字
+必須/任意、フォーマット、文字種、長さ制限などの観点を網羅してください。`,
+  },
+  {
+    id: "test-file-upload",
+    title: "ファイルアップロード機能のテストケース作成",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "file-upload",
+      description: "ドラッグ＆ドロップ対応のファイルアップロード機能です。",
+    },
+    description: "ファイルアップロード機能のテストケースを作成し、ファイル検証とセキュリティを網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "あなたはQA/PMとしてファイルアップロード機能のテストケースを作成します。ファイル種別・サイズ・エラー処理・セキュリティを洗い出し、前提条件を明記してください。モックアップを参考にテストケースを考えてください。",
+    evaluationCriteria: testFileUploadCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-upload-m1", title: "ファイル種別とサイズ検証ケースを列挙する", order: 1 },
+      { id: "test-upload-m2", title: "エラー処理とセキュリティ観点を検討する", order: 2 },
+      { id: "test-upload-m3", title: "前提条件とテストデータを整理する", order: 3 },
+    ],
+    supplementalInfo: `アップロード仕様:
+- 対応形式: JPEG, PNG, GIF, PDF
+- 最大サイズ: 10MB/ファイル
+- 最大ファイル数: 5
+- ドラッグ＆ドロップ対応
+- アップロード失敗時は再試行可能
+拡張子偽装、ウイルスチェック、ストレージ容量などのセキュリティ観点を意識してください。`,
+  },
+  {
     id: "basic-test-viewpoints",
     title: "テスト観点の洗い出しと優先度付け (基礎)",
     discipline: "BASIC",
@@ -1501,74 +1747,31 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
 
 export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
   {
-    id: "pm-assistant",
-    title: "PMアシスタント",
+    id: "soft-skills",
+    title: "",
     subcategories: [
       {
-        id: "assistant-foundation",
-        title: "基礎スキル・知識",
+        id: "basic-soft-skills",
+        title: "基礎ソフトスキル",
         scenarios: [
           requireScenarioSummary("basic-intro-alignment"),
           requireScenarioSummary("basic-agenda-facilitation"),
-          requireScenarioSummary("basic-meeting-minutes"),
           requireScenarioSummary("basic-schedule-share"),
-          requireScenarioSummary("basic-docs-refine"),
-        ],
-      },
-      {
-        id: "assistant-test-design",
-        title: "テスト設計",
-        scenarios: [
-          requireScenarioSummary("basic-testcase-design"),
-          requireScenarioSummary("basic-test-viewpoints"),
-          requireScenarioSummary("basic-test-risk-review"),
-          requireScenarioSummary("basic-regression-smoke"),
-        ],
-      },
-      {
-        id: "assistant-ticket",
-        title: "チケット要件整理",
-        scenarios: [
-          requireScenarioSummary("basic-ticket-refine"),
-          requireScenarioSummary("basic-unknowns-discovery"),
-          requireScenarioSummary("basic-ticket-splitting"),
-          requireScenarioSummary("basic-acceptance-review"),
         ],
       },
     ],
   },
   {
-    id: "pm",
-    title: "PM",
+    id: "test-cases",
+    title: "",
     subcategories: [
       {
-        id: "pm-recovery",
-        title: "プロジェクト立て直し",
+        id: "test-case-creation",
+        title: "テストケース作成",
         scenarios: [
-          requireScenarioSummary("challenge-project-rescue"),
-          requireScenarioSummary("challenge-deadline-advance"),
-          requireScenarioSummary("challenge-progress-visibility"),
-          requireScenarioSummary("challenge-quality-fire"),
-        ],
-      },
-      {
-        id: "pm-negotiation",
-        title: "交渉・合意形成",
-        scenarios: [
-          requireScenarioSummary("challenge-ambiguous-request"),
-          requireScenarioSummary("challenge-scope-negotiation"),
-          requireScenarioSummary("challenge-impossible-request"),
-          requireScenarioSummary("challenge-scope-addition"),
-        ],
-      },
-      {
-        id: "pm-stakeholder",
-        title: "ステークホルダー調整",
-        scenarios: [
-          requireScenarioSummary("challenge-conflict-mediation"),
-          requireScenarioSummary("challenge-stakeholder-misalignment"),
-          requireScenarioSummary("challenge-user-perspective"),
-          requireScenarioSummary("challenge-priority-conflict"),
+          requireScenarioSummary("test-login"),
+          requireScenarioSummary("test-form"),
+          requireScenarioSummary("test-file-upload"),
         ],
       },
     ],

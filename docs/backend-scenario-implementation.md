@@ -2,6 +2,8 @@
 
 This guide walks you through implementing the backend API for custom scenario creation, update, and deletion. It's designed for developers learning Rust and Axum.
 
+Architecture note: keep layers separated — HTTP handlers stay thin, services own business logic, and repositories handle SQL.
+
 ---
 
 ## Table of Contents
@@ -11,11 +13,12 @@ This guide walks you through implementing the backend API for custom scenario cr
 3. [Step 1: Database Migration](#step-1-database-migration)
 4. [Step 2: Update Models](#step-2-update-models)
 5. [Step 3: Create Repository Layer](#step-3-create-repository-layer)
-6. [Step 4: Implement API Handlers](#step-4-implement-api-handlers)
-7. [Step 5: Register Routes](#step-5-register-routes)
-8. [Step 6: Update OpenAPI Documentation](#step-6-update-openapi-documentation)
-9. [Testing Your Implementation](#testing-your-implementation)
-10. [Frontend Integration](#frontend-integration)
+6. [Step 4: Create Service Layer](#step-4-create-service-layer)
+7. [Step 5: Implement API Handlers](#step-5-implement-api-handlers)
+8. [Step 6: Register Routes](#step-6-register-routes)
+9. [Step 7: Update OpenAPI Documentation](#step-7-update-openapi-documentation)
+10. [Testing Your Implementation](#testing-your-implementation)
+11. [Frontend Integration](#frontend-integration)
 
 ---
 
@@ -178,7 +181,9 @@ backend/
 │   ├── lib.rs            # Module declarations
 │   ├── error.rs          # Custom error types
 │   ├── api/
-│   │   └── mod.rs        # HTTP handlers & routing
+│   │   └── mod.rs        # HTTP handlers & routing (thin)
+│   ├── services/
+│   │   └── scenarios.rs  # NEW: Scenario service
 │   ├── db/
 │   │   ├── mod.rs        # Repository exports
 │   │   ├── sessions.rs   # Session repository (reference)
@@ -599,9 +604,56 @@ pub use scenarios::ScenarioRepository;  // ADD THIS
 
 ---
 
-## Step 4: Implement API Handlers
+## Step 4: Create Service Layer
 
-### 4.1 Request/Response Types
+Services sit between handlers and repositories. They keep business logic out of HTTP handlers and make reuse/testing easier.
+
+Create a service module that wraps the repository and exposes domain-focused methods:
+
+```rust
+// src/services/scenarios.rs
+
+use sqlx::PgPool;
+use crate::db::ScenarioRepository;
+use crate::error::{anyhow_error, AppError};
+use crate::models::Scenario;
+
+#[derive(Clone)]
+pub struct ScenarioService {
+    repo: ScenarioRepository,
+}
+
+impl ScenarioService {
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            repo: ScenarioRepository::new(pool),
+        }
+    }
+
+    pub async fn create(&self, scenario: &Scenario) -> Result<Scenario, AppError> {
+        self.repo
+            .create(scenario)
+            .await
+            .map_err(|e| anyhow_error(format!("Failed to create scenario: {}", e)))
+    }
+
+    pub async fn get(&self, id: &str) -> Result<Scenario, AppError> {
+        self.repo
+            .get(id)
+            .await
+            .map_err(|e| anyhow_error(format!("Failed to get scenario: {}", e)))?
+            .ok_or_else(|| anyhow_error("scenario not found"))
+    }
+}
+```
+
+Then expose the service from app state (for example via a `Services` struct), so handlers can call `state.services().scenarios()`.
+
+---
+
+## Step 5: Implement API Handlers
+
+### 5.1 Request/Response Types
 
 Add these to `src/api/mod.rs`:
 
@@ -684,7 +736,7 @@ struct MissionInput {
 type UpdateScenarioRequest = CreateScenarioRequest;
 ```
 
-### 4.2 Handler Functions
+### 5.2 Handler Functions
 
 ```rust
 // Import at top of api/mod.rs
@@ -937,7 +989,7 @@ async fn delete_scenario(
 
 ---
 
-## Step 5: Register Routes
+## Step 6: Register Routes
 
 Update the `router_with_state` function in `src/api/mod.rs`:
 
@@ -966,7 +1018,7 @@ pub fn router_with_state(state: SharedState) -> Router {
 
 ---
 
-## Step 6: Update OpenAPI Documentation
+## Step 7: Update OpenAPI Documentation
 
 Update the `ApiDoc` struct to include new endpoints:
 
@@ -1105,6 +1157,7 @@ export const scenarioService = {
 - [ ] Add/verify model structs in `src/models/mod.rs`
 - [ ] Create `src/db/scenarios.rs` with `ScenarioRepository`
 - [ ] Export repository in `src/db/mod.rs`
+- [ ] Create `src/services/scenarios.rs` and keep handlers thin
 - [ ] Add request types in `src/api/mod.rs`
 - [ ] Implement handler functions (create, update, delete)
 - [ ] Update `router_with_state` to include new routes
