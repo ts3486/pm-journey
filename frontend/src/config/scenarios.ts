@@ -1380,11 +1380,50 @@ const simpleTestCriteria: RatingCriterion[] = [
   },
 ];
 
+const relaxedCommentGuidelines: RatingCriterion["scoringGuidelines"] = {
+  excellent: "ミッションの狙いがはっきり伝わり、必要な背景や意図も補足されている",
+  good: "主要なポイントには触れられており、実務で十分参考になる",
+  needsImprovement: "方向性は合っているが、具体性や抜けが目立つ",
+  poor: "ミッションで求められた内容に十分に答えていない",
+};
+
+const distributeWeights = (count: number): number[] => {
+  if (count <= 0) return [];
+  const base = Math.floor(100 / count);
+  const weights = Array(count).fill(base);
+  let remainder = 100 - base * count;
+  let index = 0;
+  while (remainder > 0 && index < weights.length) {
+    weights[index] += 1;
+    remainder -= 1;
+    index += 1;
+  }
+  return weights;
+};
+
+const applyRelaxedCriteriaToBasicScenarios = (list: Scenario[]) => {
+  list.forEach((scenario) => {
+    if (scenario.scenarioType !== "basic" || !scenario.missions || scenario.missions.length === 0) {
+      return;
+    }
+    const missions = [...scenario.missions].sort((a, b) => a.order - b.order);
+    const weights = distributeWeights(missions.length);
+    scenario.evaluationCriteria = missions.map((mission, index) => ({
+      id: `${scenario.id}-mission-${index + 1}`,
+      name: mission.title,
+      weight: weights[index] ?? 100,
+      description: `${mission.title}の内容が具体的に伝わっているかをコメントで評価します。`,
+      scoringGuidelines: relaxedCommentGuidelines,
+    }));
+  });
+};
+
 const scenarioList: Scenario[] = [
   {
     id: "basic-intro-alignment",
     title: "自己紹介＆期待値合わせ",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "新規プロジェクトに合流し、役割と期待値を擦り合わせる。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1401,6 +1440,7 @@ const scenarioList: Scenario[] = [
     id: "basic-agenda-facilitation",
     title: "アジェンダ設定",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "ミーティングの目的とアジェンダを定義する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1418,6 +1458,7 @@ const scenarioList: Scenario[] = [
     id: "basic-meeting-minutes",
     title: "議事メモの作成と共有",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "会議の決定事項とアクションを整理する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1435,6 +1476,7 @@ const scenarioList: Scenario[] = [
     id: "basic-schedule-share",
     title: "スケジュール調整",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "プロジェクトのスケジュール感を共有する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1452,6 +1494,7 @@ const scenarioList: Scenario[] = [
     id: "basic-docs-refine",
     title: "既存資料の軽微な修正",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "資料の目的を整理し改善点を提案する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1469,6 +1512,7 @@ const scenarioList: Scenario[] = [
     id: "basic-ticket-refine",
     title: "チケット要件整理",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "チケットの目的と受入条件を整理する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1485,6 +1529,7 @@ const scenarioList: Scenario[] = [
     id: "basic-ticket-splitting",
     title: "チケット分割と優先度付け",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "大きなチケットを分割し優先度を付ける。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1502,6 +1547,7 @@ const scenarioList: Scenario[] = [
     id: "basic-acceptance-review",
     title: "受入条件のレビュー",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "受入条件をレビューし改善する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1519,6 +1565,7 @@ const scenarioList: Scenario[] = [
     id: "basic-unknowns-discovery",
     title: "不明点の洗い出し",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "不明点を洗い出し確認方法を整理する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1640,6 +1687,7 @@ const scenarioList: Scenario[] = [
     id: "basic-test-viewpoints",
     title: "テスト観点の洗い出しと優先度付け",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "テスト観点を洗い出す。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1657,6 +1705,7 @@ const scenarioList: Scenario[] = [
     id: "basic-test-risk-review",
     title: "テスト計画のリスクレビュー",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "テスト計画をリスク観点でレビューする。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1674,6 +1723,7 @@ const scenarioList: Scenario[] = [
     id: "basic-regression-smoke",
     title: "回帰テストの最小セット整理",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "回帰テストの最小セットを整理する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -1953,6 +2003,8 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
       })),
   },
 ];
+
+applyRelaxedCriteriaToBasicScenarios(scenarioList);
 
 export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
   {

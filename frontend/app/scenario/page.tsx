@@ -51,6 +51,9 @@ function ScenarioContent() {
     (state?.session.missionStatus ?? []).forEach((m) => map.set(m.missionId, true));
     return map;
   }, [state?.session?.missionStatus]);
+  const isBasicScenario = activeScenario.scenarioType === "basic";
+  const hasUserResponse = (state?.messages ?? []).some((message) => message.role === "user");
+  const scenarioLocked = isBasicScenario && hasUserResponse;
   const allMissionsComplete = missions.length > 0 && missions.every((m) => missionStatusMap.get(m.id));
   const scenarioInfo = activeScenario.product;
   const hasScenarioInfo =
@@ -99,6 +102,10 @@ function ScenarioContent() {
     if (!state) return;
     const trimmed = content.trim();
     if (!trimmed) return;
+    if (activeScenario.scenarioType === "basic") {
+      const alreadyAnswered = state.messages.some((message) => message.role === "user");
+      if (alreadyAnswered) return;
+    }
     const optimisticMessage = createLocalMessage(state.session.id, "user", trimmed);
     const optimisticState: SessionState = {
       ...state,
@@ -181,13 +188,18 @@ function ScenarioContent() {
           />
           <ChatComposer
             onSend={handleSend}
-            disabled={!hasActive}
+            disabled={!hasActive || scenarioLocked}
             quickPrompts={[
               "現状と課題を整理してください",
               "前提を教えてください",
               "制約条件を教えてください",
             ]}
           />
+          {scenarioLocked ? (
+            <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+              ベーシックシナリオは1回の回答で終了します。右側の「シナリオを完了する」ボタンから評価を依頼してください。
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-4">

@@ -241,8 +241,18 @@ pub enum ScenarioDiscipline {
     Challenge,
 }
 
+fn scenario_type_for_id(id: &str) -> Option<ScenarioType> {
+    if id.starts_with("basic-") {
+        Some(ScenarioType::Basic)
+    } else if id.starts_with("test-") {
+        Some(ScenarioType::TestCase)
+    } else {
+        None
+    }
+}
+
 pub fn default_scenarios() -> Vec<Scenario> {
-    vec![
+    let mut scenarios = vec![
         Scenario {
             id: "basic-intro-alignment".to_string(),
             title: "自己紹介＆期待値合わせ".to_string(),
@@ -1212,7 +1222,15 @@ pub fn default_scenarios() -> Vec<Scenario> {
             ]),
             supplemental_info: Some("機能ではなく価値に立ち返り、最小の打ち手を提案してください。".to_string()),
         },
-    ]
+    ];
+
+    for scenario in scenarios.iter_mut() {
+        if scenario.scenario_type.is_none() {
+            scenario.scenario_type = scenario_type_for_id(&scenario.id);
+        }
+    }
+
+    scenarios
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]

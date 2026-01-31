@@ -201,6 +201,7 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
     ? {
         criteria: scenario.evaluationCriteria,
         passingScore: scenario.passingScore,
+        scenarioType: scenario.scenarioType,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
         productContext: formatProductContext(scenario.product),

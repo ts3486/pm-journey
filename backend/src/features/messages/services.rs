@@ -4,11 +4,22 @@ use sqlx::PgPool;
 
 use crate::error::{anyhow_error, AppError};
 use crate::features::sessions::repository::SessionRepository;
-use crate::models::{Message, MessageRole, MessageTag};
+use crate::models::{default_scenarios, Message, MessageRole, MessageTag, ScenarioType};
 use crate::shared::helpers::{next_id, normalize_model_id, now_ts};
 
 use super::models::{AgentContext, CreateMessageRequest, MessageResponse};
 use super::repository::MessageRepository;
+
+fn single_turn_completion_message(title: Option<&str>) -> String {
+    let intro = title
+        .filter(|t| !t.is_empty())
+        .map(|t| format!("『{}』", t))
+        .unwrap_or_else(|| "このベーシックシナリオ".to_string());
+    format!(
+        "{}はこれで終了です。右側の「シナリオを完了する」ボタンから評価を依頼してください。",
+        intro
+    )
+}
 
 #[derive(Clone)]
 pub struct MessageService {
@@ -52,6 +63,10 @@ impl MessageService {
             .ok_or_else(|| anyhow_error("session not found"))?;
 
         let is_user = body.role == MessageRole::User;
+        let scenario_type = default_scenarios()
+            .into_iter()
+            .find(|s| s.id == session.scenario_id)
+            .and_then(|s| s.scenario_type);
 
         // Create message
         let message = Message {
@@ -89,41 +104,83 @@ impl MessageService {
                 .agent_context
                 .as_ref()
                 .ok_or_else(|| anyhow_error("agentContext is required for user messages"))?;
-            let history = message_repo
-                .list_by_session(session_id)
-                .await
-                .map_err(|e| anyhow_error(&format!("Failed to load message history: {}", e)))?;
-            let reply_text = generate_agent_reply(context, &history).await?;
+            let behavior_single_response = context
+                .behavior
+                .as_ref()
+                .and_then(|b| b.single_response)
+                .unwrap_or(false);
+            let skip_agent_reply =
+                behavior_single_response || matches!(scenario_type, Some(ScenarioType::Basic));
 
-            let agent_message = Message {
-                id: next_id("msg"),
-                session_id: session_id.to_string(),
-                role: MessageRole::Agent,
-                content: reply_text,
-                created_at: now_ts(),
-                tags: Some(vec![MessageTag::Summary]),
-                queued_offline: None,
-            };
+            if skip_agent_reply {
+                let closing_content =
+                    single_turn_completion_message(context.scenario_title.as_deref());
+                let system_message = Message {
+                    id: next_id("msg"),
+                    session_id: session_id.to_string(),
+                    role: MessageRole::System,
+                    content: closing_content,
+                    created_at: now_ts(),
+                    tags: Some(vec![MessageTag::Summary]),
+                    queued_offline: None,
+                };
 
-            let mut reply_tx = self
-                .pool
-                .begin()
-                .await
-                .map_err(|e| anyhow_error(&format!("Failed to begin reply transaction: {}", e)))?;
-            message_repo
-                .create_in_tx(&mut reply_tx, &agent_message)
-                .await
-                .map_err(|e| anyhow_error(&format!("Failed to create agent message: {}", e)))?;
-            session_repo
-                .update_last_activity_in_tx(&mut reply_tx, session_id)
-                .await
-                .map_err(|e| anyhow_error(&format!("Failed to update session activity: {}", e)))?;
-            reply_tx
-                .commit()
-                .await
-                .map_err(|e| anyhow_error(&format!("Failed to commit reply transaction: {}", e)))?;
+                let mut reply_tx = self.pool.begin().await.map_err(|e| {
+                    anyhow_error(&format!("Failed to begin reply transaction: {}", e))
+                })?;
+                message_repo
+                    .create_in_tx(&mut reply_tx, &system_message)
+                    .await
+                    .map_err(|e| {
+                        anyhow_error(&format!("Failed to create system message: {}", e))
+                    })?;
+                session_repo
+                    .update_last_activity_in_tx(&mut reply_tx, session_id)
+                    .await
+                    .map_err(|e| {
+                        anyhow_error(&format!("Failed to update session activity: {}", e))
+                    })?;
+                reply_tx.commit().await.map_err(|e| {
+                    anyhow_error(&format!("Failed to commit reply transaction: {}", e))
+                })?;
 
-            reply = agent_message;
+                reply = system_message;
+            } else {
+                let history = message_repo
+                    .list_by_session(session_id)
+                    .await
+                    .map_err(|e| anyhow_error(&format!("Failed to load message history: {}", e)))?;
+                let reply_text = generate_agent_reply(context, &history).await?;
+
+                let agent_message = Message {
+                    id: next_id("msg"),
+                    session_id: session_id.to_string(),
+                    role: MessageRole::Agent,
+                    content: reply_text,
+                    created_at: now_ts(),
+                    tags: Some(vec![MessageTag::Summary]),
+                    queued_offline: None,
+                };
+
+                let mut reply_tx = self.pool.begin().await.map_err(|e| {
+                    anyhow_error(&format!("Failed to begin reply transaction: {}", e))
+                })?;
+                message_repo
+                    .create_in_tx(&mut reply_tx, &agent_message)
+                    .await
+                    .map_err(|e| anyhow_error(&format!("Failed to create agent message: {}", e)))?;
+                session_repo
+                    .update_last_activity_in_tx(&mut reply_tx, session_id)
+                    .await
+                    .map_err(|e| {
+                        anyhow_error(&format!("Failed to update session activity: {}", e))
+                    })?;
+                reply_tx.commit().await.map_err(|e| {
+                    anyhow_error(&format!("Failed to commit reply transaction: {}", e))
+                })?;
+
+                reply = agent_message;
+            }
         }
 
         // Fetch updated session
@@ -166,7 +223,10 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
 
         if behavior.single_response.unwrap_or(false) {
             behavior_lines.push("- これは1回応答のシナリオです".to_string());
-            behavior_lines.push("- ユーザーの回答を受け取ったら、簡潔に内容を確認し、シナリオ終了を伝えてください".to_string());
+            behavior_lines.push(
+                "- ユーザーの回答を受け取ったら、簡潔に内容を確認し、シナリオ終了を伝えてください"
+                    .to_string(),
+            );
             behavior_lines.push("- 回答の最後に必ず「以上でこのシナリオは終了です。右側の「シナリオを完了する」ボタンから評価を受けてください。」と伝えてください".to_string());
             behavior_lines.push("- 追加の質問はしない".to_string());
         } else if behavior.user_led.unwrap_or(false) {
@@ -238,9 +298,14 @@ async fn generate_agent_reply(
         .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
         .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
 
-    let default_model =
-        std::env::var("GEMINI_DEFAULT_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
-    let model_id = normalize_model_id(context.model_id.as_deref().unwrap_or(default_model.as_str()));
+    let default_model = std::env::var("GEMINI_DEFAULT_MODEL")
+        .unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
+    let model_id = normalize_model_id(
+        context
+            .model_id
+            .as_deref()
+            .unwrap_or(default_model.as_str()),
+    );
     let system_instruction = build_system_instruction(context);
 
     let context_messages = if messages.len() > 20 {
@@ -286,7 +351,10 @@ async fn generate_agent_reply(
     if !res.status().is_success() {
         let status = res.status();
         let text = res.text().await.unwrap_or_default();
-        return Err(anyhow_error(format!("Gemini API error {}: {}", status, text)));
+        return Err(anyhow_error(format!(
+            "Gemini API error {}: {}",
+            status, text
+        )));
     }
 
     let data: serde_json::Value = res

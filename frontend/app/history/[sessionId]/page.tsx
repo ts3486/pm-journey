@@ -226,6 +226,11 @@ export default function HistoryDetailPage() {
   const autoTriggeredRef = useRef(false);
   const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
   const isTestCaseScenario = scenario?.scenarioType === "test-case";
+  const isBasicScenario = scenario?.scenarioType === "basic";
+  const missionList =
+    scenario?.missions && scenario.missions.length > 0
+      ? [...scenario.missions].sort((a, b) => a.order - b.order)
+      : undefined;
   const { data: testCases = [] } = useTestCases(isTestCaseScenario ? sessionId : undefined);
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
   const hasMessages = (item?.actions?.length ?? 0) > 0;
@@ -474,28 +479,78 @@ export default function HistoryDetailPage() {
                 </div>
               )}
             </div>
-            <ScoreRing score={evaluation?.overallScore} size={130} />
+            {!isBasicScenario ? (
+              <ScoreRing score={evaluation?.overallScore} size={130} />
+            ) : (
+              <div className="max-w-xs rounded-2xl border border-white/30 bg-white/10 px-5 py-4 text-center text-slate-100">
+                <p className="text-sm font-semibold text-white">ベーシックシナリオはコメント評価のみ</p>
+                <p className="mt-1 text-xs text-slate-200">
+                  スコアの代わりに各ミッションへのコメントをご確認ください。
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Category scores grid */}
+        {/* Category scores or mission comments */}
         {evaluation && (
           <div className="p-5">
-            <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-              Category Breakdown
-            </p>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {primaryCategories.map((c, idx) => (
-                <CategoryCard
-                  key={c.name}
-                  name={c.name}
-                  score={c.score}
-                  weight={c.weight}
-                  palette={categoryPalettes[idx % categoryPalettes.length]}
-                  delay={100 + idx * 100}
-                />
-              ))}
-            </div>
+            {isBasicScenario ? (
+              <>
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Mission Feedback
+                </p>
+                <div className="space-y-3">
+                  {(missionList && missionList.length > 0 ? missionList : categories).map(
+                    (mission, idx) => {
+                      const category = categories[idx];
+                      const missionTitle =
+                        "title" in mission
+                          ? mission.title
+                          : mission.name ?? `コメント ${idx + 1}`;
+                      const key =
+                        "id" in mission
+                          ? mission.id
+                          : `${mission.name ?? "category"}-${idx}`;
+                      const feedback =
+                        category?.feedback ?? "評価コメントがまだありません。";
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-2xl border border-slate-200/60 bg-white/90 p-4 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-slate-900">{missionTitle}</p>
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                              comment only
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-slate-700 leading-relaxed">{feedback}</p>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Category Breakdown
+                </p>
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  {primaryCategories.map((c, idx) => (
+                    <CategoryCard
+                      key={c.name}
+                      name={c.name}
+                      score={c.score}
+                      weight={c.weight}
+                      palette={categoryPalettes[idx % categoryPalettes.length]}
+                      delay={100 + idx * 100}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Summary and improvement sections */}
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -562,7 +617,7 @@ export default function HistoryDetailPage() {
             </div>
 
             {/* Detailed category feedback */}
-            {categories.length > 0 && (
+            {!isBasicScenario && categories.length > 0 && (
               <div className="mt-6 rounded-xl border border-slate-200/60 bg-gradient-to-br from-slate-50/80 to-white p-4">
                 <p className="mb-4 text-xs font-bold uppercase tracking-wide text-slate-600">
                   カテゴリ別フィードバック
