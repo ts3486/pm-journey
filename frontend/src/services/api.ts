@@ -11,12 +11,14 @@ import type {
   RatingCriterion,
   Scenario,
   TestCase,
+  ProductConfig,
+  UpdateProductConfigRequest,
 } from "@/types/session";
 
 const base = env.apiBase;
 
 type FetchOptions = {
-  method?: "GET" | "POST" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
 };
 
@@ -160,5 +162,16 @@ export const api = {
   },
   async deleteTestCase(id: string): Promise<void> {
     await request(`/test-cases/${id}`, { method: "DELETE" });
+  },
+
+  // Product Config
+  async getProductConfig(): Promise<ProductConfig> {
+    return request<ProductConfig>("/product-config");
+  },
+  async updateProductConfig(payload: UpdateProductConfigRequest): Promise<ProductConfig> {
+    return request<ProductConfig>("/product-config", { method: "PUT", body: payload });
+  },
+  async resetProductConfig(): Promise<ProductConfig> {
+    return request<ProductConfig>("/product-config/reset", { method: "POST" });
   },
 };

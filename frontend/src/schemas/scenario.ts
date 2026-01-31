@@ -59,6 +59,28 @@ export const productSchema = z.object({
 });
 
 // ============================================================================
+// Product Config Schema (for Settings page)
+// ============================================================================
+
+export const productConfigSchema = z.object({
+  name: z.string().min(1, "プロダクト名を入力してください"),
+  summary: z.string().min(1, "概要を入力してください"),
+  audience: z.string().min(1, "ターゲットを入力してください"),
+  problems: z.array(z.string()).min(1, "課題を1つ以上入力してください"),
+  goals: z.array(z.string()).min(1, "目標を1つ以上入力してください"),
+  differentiators: z.array(z.string()).default([]),
+  scope: z.array(z.string()).default([]),
+  constraints: z.array(z.string()).default([]),
+  timeline: z.string().optional(),
+  successCriteria: z.array(z.string()).default([]),
+  uniqueEdge: z.string().optional(),
+  techStack: z.array(z.string()).default([]),
+  coreFeatures: z.array(z.string()).default([]),
+});
+
+export type ProductConfigFormValues = z.infer<typeof productConfigSchema>;
+
+// ============================================================================
 // Main Scenario Schema
 // ============================================================================
 

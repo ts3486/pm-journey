@@ -612,7 +612,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
             },
             mode: "guided".to_string(),
             behavior: ScenarioBehavior::default(),
-            kickoff_prompt: "あなたはQA/PMとして新機能のテストケースを作成します。正常系と主要な異常系を洗い出し、前提データと環境を明記してください。".to_string(),
+            kickoff_prompt: "新機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
                 EvaluationCategory { name: "計画と実行可能性".to_string(), weight: 25.0, score: None, feedback: None },
@@ -1223,6 +1223,7 @@ pub struct ScenarioBehavior {
     pub max_questions: Option<u32>,
     pub response_style: Option<String>,
     pub phase: Option<String>,
+    pub single_response: Option<bool>,
 }
 
 impl Default for ScenarioBehavior {
@@ -1233,6 +1234,7 @@ impl Default for ScenarioBehavior {
             max_questions: None,
             response_style: None,
             phase: None,
+            single_response: None,
         }
     }
 }

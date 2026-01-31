@@ -8,6 +8,11 @@ use crate::features::comments::handlers::{
 use crate::features::evaluations::handlers::{__path_evaluate_session, evaluate_session};
 use crate::features::health::handlers::{__path_health, health};
 use crate::features::imports::handlers::{__path_import_sessions, import_sessions};
+use crate::features::product_config::handlers::{
+    __path_get_product_config, __path_reset_product_config, __path_update_product_config,
+    get_product_config, reset_product_config, update_product_config,
+};
+use crate::features::product_config::models::{ProductConfig, UpdateProductConfigRequest};
 use crate::features::messages::handlers::{
     __path_list_messages, __path_post_message, list_messages, post_message,
 };
@@ -55,7 +60,10 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         import_sessions,
         list_test_cases,
         create_test_case,
-        delete_test_case
+        delete_test_case,
+        get_product_config,
+        update_product_config,
+        reset_product_config
     ),
     components(schemas(
         Scenario,
@@ -80,7 +88,9 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         TestCaseResponse,
         CreateTestCaseRequest,
         crate::models::ProductInfo,
-        AgentContext
+        AgentContext,
+        ProductConfig,
+        UpdateProductConfigRequest
     ))
 )]
 struct ApiDoc;
@@ -105,6 +115,11 @@ pub fn router_with_state(state: SharedState) -> Router {
         )
         .route("/test-cases/:id", axum::routing::delete(delete_test_case))
         .route("/import", post(import_sessions))
+        .route(
+            "/product-config",
+            get(get_product_config).put(update_product_config),
+        )
+        .route("/product-config/reset", post(reset_product_config))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }

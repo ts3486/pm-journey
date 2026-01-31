@@ -228,7 +228,9 @@ export default function HistoryDetailPage() {
   const isTestCaseScenario = scenario?.scenarioType === "test-case";
   const { data: testCases = [] } = useTestCases(isTestCaseScenario ? sessionId : undefined);
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
-  const canEvaluate = (item?.actions?.length ?? 0) > 0;
+  const hasMessages = (item?.actions?.length ?? 0) > 0;
+  const hasTestCases = isTestCaseScenario && testCases.length > 0;
+  const canEvaluate = hasMessages || hasTestCases;
   const evaluating = evaluateMutation.isPending;
   const manualEvaluationRequested =
     manualEvaluationRequest.sessionId === sessionId
@@ -239,7 +241,9 @@ export default function HistoryDetailPage() {
   const missingActionsError = evaluationAttempted && !canEvaluate;
   const evaluationError = evaluationAttempted
     ? missingActionsError
-      ? "評価対象のメッセージがありません。"
+      ? isTestCaseScenario
+        ? "評価対象のテストケースがありません。"
+        : "評価対象のメッセージがありません。"
       : evaluateMutation.error?.message ?? null
     : null;
 
@@ -247,29 +251,45 @@ export default function HistoryDetailPage() {
     autoTriggeredRef.current = false;
   }, [sessionId, autoEvaluate]);
 
-  const runEvaluation = useCallback(
-    () => {
-      if (!sessionId || !item || evaluating) return;
-      if (!item.actions || item.actions.length === 0) {
-        return;
-      }
-      evaluateMutation.mutate(
-        { scenarioId: item.scenarioId },
-        {
-          onSuccess: (evaluation) => {
-            logEvent({
-              type: "evaluation",
-              sessionId,
-              scenarioId: item.scenarioId,
-              scenarioDiscipline: item.scenarioDiscipline,
-              score: evaluation?.overallScore,
-            });
-          },
+  const formatTestCasesContext = useCallback(() => {
+    if (!isTestCaseScenario || testCases.length === 0) return undefined;
+    return testCases
+      .map((tc, i) => {
+        const lines = [
+          `### テストケース ${i + 1}: ${tc.name}`,
+          `- 前提条件: ${tc.preconditions || "なし"}`,
+          `- 手順: ${tc.steps}`,
+          `- 期待結果: ${tc.expectedResult}`,
+        ];
+        return lines.join("\n");
+      })
+      .join("\n\n");
+  }, [isTestCaseScenario, testCases]);
+
+  const runEvaluation = useCallback((): boolean => {
+    if (!sessionId || !item || evaluating) return false;
+    const testCasesContext = formatTestCasesContext();
+    const hasActions = item.actions && item.actions.length > 0;
+    const hasTestCasesForEval = !!testCasesContext;
+    if (!hasActions && !hasTestCasesForEval) {
+      return false;
+    }
+    evaluateMutation.mutate(
+      { scenarioId: item.scenarioId, testCasesContext },
+      {
+        onSuccess: (evaluation) => {
+          logEvent({
+            type: "evaluation",
+            sessionId,
+            scenarioId: item.scenarioId,
+            scenarioDiscipline: item.scenarioDiscipline,
+            score: evaluation?.overallScore,
+          });
         },
-      );
-    },
-    [sessionId, item, evaluating, evaluateMutation],
-  );
+      },
+    );
+    return true;
+  }, [sessionId, item, evaluating, evaluateMutation, formatTestCasesContext]);
 
   const handleRunEvaluation = useCallback(() => {
     if (!sessionId) return;
@@ -303,8 +323,10 @@ export default function HistoryDetailPage() {
     if (!autoEvaluate) return;
     if (!item || item.evaluation) return;
     if (autoTriggeredRef.current) return;
-    autoTriggeredRef.current = true;
-    runEvaluation();
+    const triggered = runEvaluation();
+    if (triggered) {
+      autoTriggeredRef.current = true;
+    }
   }, [autoEvaluate, item, runEvaluation]);
 
   if (!sessionId) {
@@ -681,52 +703,6 @@ export default function HistoryDetailPage() {
         )}
       </div>
 
-      {/* Chat Log */}
-      <div className="card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700">
-            <svg
-              className="h-4 w-4 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-sm font-bold text-slate-900">チャットログ</h2>
-        </div>
-        <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
-          {item.actions?.length ? (
-            item.actions.map((m, idx) => (
-              <div
-                key={m.id}
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  m.role === "user"
-                    ? "ml-8 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100/50"
-                    : "mr-8 bg-white border border-slate-100"
-                }`}
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                <p
-                  className={`text-[10px] font-semibold uppercase tracking-wide ${m.role === "user" ? "text-orange-600" : "text-slate-500"}`}
-                >
-                  {m.role}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-slate-800">{m.content}</p>
-              </div>
-            ))
-          ) : (
-            <p className="py-8 text-center text-xs text-slate-500">チャットログはありません。</p>
-          )}
-        </div>
-      </div>
-
       {/* Test Cases Section - only show for test-case scenarios */}
       {isTestCaseScenario && (
         <div className="card p-5">
@@ -850,6 +826,52 @@ export default function HistoryDetailPage() {
           )}
         </div>
       )}
+
+      {/* Chat Log */}
+      <div className="card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700">
+            <svg
+              className="h-4 w-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-sm font-bold text-slate-900">チャットログ</h2>
+        </div>
+        <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
+          {item.actions?.length ? (
+            item.actions.map((m, idx) => (
+              <div
+                key={m.id}
+                className={`rounded-lg px-3 py-2 text-sm ${
+                  m.role === "user"
+                    ? "ml-8 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100/50"
+                    : "mr-8 bg-white border border-slate-100"
+                }`}
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <p
+                  className={`text-[10px] font-semibold uppercase tracking-wide ${m.role === "user" ? "text-orange-600" : "text-slate-500"}`}
+                >
+                  {m.role}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-slate-800">{m.content}</p>
+              </div>
+            ))
+          ) : (
+            <p className="py-8 text-center text-xs text-slate-500">チャットログはありません。</p>
+          )}
+        </div>
+      </div>
 
       {/* User Outputs */}
       <div className="card p-5">

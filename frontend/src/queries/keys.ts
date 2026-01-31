@@ -12,4 +12,7 @@ export const queryKeys = {
   testCases: {
     list: (sessionId: string) => ["testCases", sessionId] as const,
   },
+  productConfig: {
+    detail: () => ["productConfig"] as const,
+  },
 };

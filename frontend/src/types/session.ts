@@ -56,6 +56,7 @@ export type ScenarioBehavior = {
   maxQuestions?: number;
   responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
   phase?: string;
+  singleResponse?: boolean;
 };
 
 export type ScenarioSummary = {
@@ -185,6 +186,34 @@ export type ScenarioCatalogSection = {
   title: string;
   scenarios: ScenarioSummary[];
 };
+
+/**
+ * Central product configuration used across all scenarios
+ */
+export type ProductConfig = {
+  id?: string;
+  name: string;
+  summary: string;
+  audience: string;
+  problems: string[];
+  goals: string[];
+  differentiators: string[];
+  scope: string[];
+  constraints: string[];
+  timeline?: string;
+  successCriteria: string[];
+  uniqueEdge?: string;
+  techStack: string[];
+  coreFeatures: string[];
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/**
+ * Request to update product configuration
+ */
+export type UpdateProductConfigRequest = Omit<ProductConfig, 'id' | 'isDefault' | 'createdAt' | 'updatedAt'>;
 
 export type ScenarioCatalogSubcategory = {
   id: string;

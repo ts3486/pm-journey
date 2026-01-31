@@ -199,7 +199,7 @@ export default function Home() {
         {homeScenarioCatalog.map((category, categoryIndex) => (
           <div key={category.id} className="space-y-6">
             {category.subcategories.map((subcategory, subcategoryIndex) => (
-              <div className="flex flex-col gap-6">
+              <div key={subcategory.id} className="flex flex-col gap-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between px-11">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{categoryIndex === 0 ? "Basic" : "Test Cases"}</p>

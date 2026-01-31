@@ -94,8 +94,12 @@ impl EvaluationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to load messages: {}", e)))?;
         let has_evaluable_messages = messages.iter().any(|m| m.role != MessageRole::System);
-        if !has_evaluable_messages {
-            return Err(client_error("評価対象のメッセージがありません。"));
+        let has_test_cases = request
+            .test_cases_context
+            .as_ref()
+            .is_some_and(|tc| !tc.trim().is_empty());
+        if !has_evaluable_messages && !has_test_cases {
+            return Err(client_error("評価対象のメッセージまたはテストケースがありません。"));
         }
 
         // Create evaluation via Gemini

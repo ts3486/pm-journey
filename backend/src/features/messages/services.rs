@@ -164,7 +164,12 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
     if let Some(behavior) = &ctx.behavior {
         let mut behavior_lines = vec!["## シナリオ行動方針".to_string()];
 
-        if behavior.user_led.unwrap_or(false) {
+        if behavior.single_response.unwrap_or(false) {
+            behavior_lines.push("- これは1回応答のシナリオです".to_string());
+            behavior_lines.push("- ユーザーの回答を受け取ったら、簡潔に内容を確認し、シナリオ終了を伝えてください".to_string());
+            behavior_lines.push("- 回答の最後に必ず「以上でこのシナリオは終了です。右側の「シナリオを完了する」ボタンから評価を受けてください。」と伝えてください".to_string());
+            behavior_lines.push("- 追加の質問はしない".to_string());
+        } else if behavior.user_led.unwrap_or(false) {
             behavior_lines.push("- ユーザー主導：こちらから議題を進めない".to_string());
             behavior_lines.push("- まずは受領・挨拶の応答に留める".to_string());
         } else if behavior.allow_proactive.unwrap_or(true) {
@@ -172,7 +177,9 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
         }
 
         let response_style = behavior.response_style.as_deref();
-        let forbid_questions = behavior.user_led.unwrap_or(false)
+        let is_single_response = behavior.single_response.unwrap_or(false);
+        let forbid_questions = is_single_response
+            || behavior.user_led.unwrap_or(false)
             || response_style == Some("acknowledge_then_wait")
             || behavior.max_questions == Some(0);
 

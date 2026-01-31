@@ -3,6 +3,7 @@ pub mod evaluations;
 pub mod health;
 pub mod imports;
 pub mod messages;
+pub mod product_config;
 pub mod scenarios;
 pub mod sessions;
 pub mod test_cases;
@@ -45,5 +46,9 @@ impl Services {
 
     pub fn test_cases(&self) -> test_cases::services::TestCaseService {
         test_cases::services::TestCaseService::new(self.pool.clone())
+    }
+
+    pub fn product_config(&self) -> product_config::services::ProductConfigService {
+        product_config::services::ProductConfigService::new(self.pool.clone())
     }
 }

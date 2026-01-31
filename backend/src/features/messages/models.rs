@@ -40,6 +40,7 @@ pub struct AgentBehavior {
     pub max_questions: Option<u32>,
     pub response_style: Option<String>,
     pub phase: Option<String>,
+    pub single_response: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]
