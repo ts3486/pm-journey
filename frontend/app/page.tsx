@@ -31,9 +31,6 @@ function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: Scen
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <span className="badge">{title}</span>
-      </div>
       <div className="relative">
         <button
           type="button"
@@ -198,17 +195,18 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="space-y-6 reveal" style={revealDelay(120)}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Basic</p>
-            <h2 className="font-display text-2xl font-bold text-slate-900">基礎ソフトスキル</h2>
-          </div>
-        </div>
-
+      <section className="space-y-10 reveal" style={revealDelay(120)}>
         {homeScenarioCatalog.map((category, categoryIndex) => (
           <div key={category.id} className="space-y-6">
             {category.subcategories.map((subcategory, subcategoryIndex) => (
+              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between px-11">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{categoryIndex === 0 ? "Basic" : "Test Cases"}</p>
+                  <h2 className="font-display text-2xl font-bold text-slate-900">{categoryIndex === 0 ? "基礎ソフトスキル" : "テストケース作成"}</h2>
+                </div>
+              </div>
+
               <ScenarioCarousel
                 key={subcategory.id}
                 title={subcategory.title}
@@ -216,6 +214,7 @@ export default function Home() {
                 savedByScenario={savedByScenario}
                 baseDelay={160 + categoryIndex * 140 + subcategoryIndex * 80}
               />
+              </div>
             ))}
           </div>
         ))}

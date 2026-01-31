@@ -245,7 +245,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
     vec![
         Scenario {
             id: "basic-intro-alignment".to_string(),
-            title: "自己紹介＆期待値合わせ (基礎)".to_string(),
+            title: "自己紹介＆期待値合わせ".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "新規プロジェクトに合流し、役割と成功条件を30分で擦り合わせる。".to_string(),
             scenario_type: None,
@@ -276,15 +276,13 @@ pub fn default_scenarios() -> Vec<Scenario> {
             ],
             passing_score: Some(70.0),
             missions: Some(vec![
-                Mission { id: "basic-intro-m1".to_string(), title: "自己紹介と役割・責任範囲の確認".to_string(), description: None, order: 1 },
-                Mission { id: "basic-intro-m2".to_string(), title: "成功条件と優先度の合意".to_string(), description: None, order: 2 },
-                Mission { id: "basic-intro-m3".to_string(), title: "次アクションと連絡リズムの設定".to_string(), description: None, order: 3 },
+                Mission { id: "basic-intro-m1".to_string(), title: "自己紹介を行う".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。".to_string()),
         },
         Scenario {
             id: "basic-agenda-facilitation".to_string(),
-            title: "アジェンダを設定してミーティングを進行 (基礎)".to_string(),
+            title: "アジェンダを設定してミーティングを進行".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "目的に沿った会議を進行し、合意と次アクションを作る。".to_string(),
             scenario_type: None,
@@ -315,15 +313,13 @@ pub fn default_scenarios() -> Vec<Scenario> {
             ],
             passing_score: Some(70.0),
             missions: Some(vec![
-                Mission { id: "basic-agenda-m1".to_string(), title: "ミーティング目的を定義する".to_string(), description: None, order: 1 },
-                Mission { id: "basic-agenda-m2".to_string(), title: "アジェンダと時間配分を提示する".to_string(), description: None, order: 2 },
-                Mission { id: "basic-agenda-m3".to_string(), title: "決定事項と次アクションを合意する".to_string(), description: None, order: 3 },
+                Mission { id: "basic-agenda-m1".to_string(), title: "ミーティングのアジェンダを作成する".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("目的の一文定義と時間配分の明確化を意識してください。".to_string()),
         },
         Scenario {
             id: "basic-meeting-minutes".to_string(),
-            title: "議事メモの作成と共有 (基礎)".to_string(),
+            title: "議事メモの作成と共有".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "会議内容を要点・決定・アクションに整理し共有する。".to_string(),
             scenario_type: None,
@@ -362,7 +358,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-schedule-share".to_string(),
-            title: "スケジュール感の共有 (基礎)".to_string(),
+            title: "スケジュール感の共有".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "プロジェクトの見通しとマイルストーンを共有する。".to_string(),
             scenario_type: None,
@@ -394,14 +390,12 @@ pub fn default_scenarios() -> Vec<Scenario> {
             passing_score: Some(70.0),
             missions: Some(vec![
                 Mission { id: "basic-schedule-m1".to_string(), title: "全体像と進め方を共有する".to_string(), description: None, order: 1 },
-                Mission { id: "basic-schedule-m2".to_string(), title: "主要マイルストーンを整理する".to_string(), description: None, order: 2 },
-                Mission { id: "basic-schedule-m3".to_string(), title: "前提と次の判断ポイントを明記する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("不確実性や前提条件を必ず共有してください。".to_string()),
         },
         Scenario {
             id: "basic-docs-refine".to_string(),
-            title: "既存資料の軽微な修正 (基礎)".to_string(),
+            title: "既存資料の軽微な修正".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "資料を読み手に伝わる形に整える。".to_string(),
             scenario_type: None,
@@ -440,7 +434,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-ticket-refine".to_string(),
-            title: "チケット要件整理 (基礎)".to_string(),
+            title: "チケット要件整理".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "曖昧なチケットを受入可能な形に分解し、スプリントに載せられる状態へ整理する。".to_string(),
             scenario_type: None,
@@ -479,7 +473,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-ticket-splitting".to_string(),
-            title: "チケット分割と優先度付け (基礎)".to_string(),
+            title: "チケット分割と優先度付け".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "大きな依頼を分割し、優先順位と依存を整理する。".to_string(),
             scenario_type: None,
@@ -518,7 +512,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-acceptance-review".to_string(),
-            title: "受入条件のレビュー (基礎)".to_string(),
+            title: "受入条件のレビュー".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "既存の受入条件を見直し、検証可能性を高める。".to_string(),
             scenario_type: None,
@@ -557,7 +551,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-unknowns-discovery".to_string(),
-            title: "不明点の洗い出し (基礎)".to_string(),
+            title: "不明点の洗い出し".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "曖昧な前提や未決事項を可視化し、確認計画を立てる。".to_string(),
             scenario_type: None,
@@ -596,7 +590,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-testcase-design".to_string(),
-            title: "テストケース作成 (基礎)".to_string(),
+            title: "テストケース作成".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "新機能の仕様からスモーク/回帰テストケースを洗い出し、漏れのない最小集合を作る。".to_string(),
             scenario_type: None,
@@ -635,7 +629,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-test-viewpoints".to_string(),
-            title: "テスト観点の洗い出しと優先度付け (基礎)".to_string(),
+            title: "テスト観点の洗い出しと優先度付け".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "仕様からテスト観点を洗い出し、リスクベースで優先度を付ける。".to_string(),
             scenario_type: None,
@@ -674,7 +668,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-test-risk-review".to_string(),
-            title: "テスト計画のリスクレビュー (基礎)".to_string(),
+            title: "テスト計画のリスクレビュー".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "既存のテスト計画を見直し、リスクベースで優先度を調整する。".to_string(),
             scenario_type: None,
@@ -713,7 +707,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-regression-smoke".to_string(),
-            title: "回帰テストの最小セット整理 (基礎)".to_string(),
+            title: "回帰テストの最小セット整理".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "回帰テストの必須ケースを最小セットで整理する。".to_string(),
             scenario_type: None,

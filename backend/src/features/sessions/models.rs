@@ -1,9 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-pub use crate::models::{
-    HistoryItem, HistoryMetadata, ProgressFlags, ScenarioDiscipline, Session, SessionStatus,
-};
+pub use crate::models::{HistoryItem, Session};
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

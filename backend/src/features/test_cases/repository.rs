@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use crate::models::TestCase;
 use anyhow::{Result, Context};
 use chrono::{DateTime, Utc};
@@ -17,21 +17,21 @@ impl TestCaseRepository {
         let created_at: DateTime<Utc> = test_case.created_at.parse()
             .context("Failed to parse created_at timestamp")?;
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO test_cases (
                 id, session_id, name, preconditions, steps, expected_result, created_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
-            test_case.id,
-            test_case.session_id,
-            test_case.name,
-            test_case.preconditions,
-            test_case.steps,
-            test_case.expected_result,
-            created_at,
         )
+        .bind(&test_case.id)
+        .bind(&test_case.session_id)
+        .bind(&test_case.name)
+        .bind(&test_case.preconditions)
+        .bind(&test_case.steps)
+        .bind(&test_case.expected_result)
+        .bind(created_at)
         .execute(&self.pool)
         .await
         .context("Failed to insert test case")?;
@@ -41,7 +41,7 @@ impl TestCaseRepository {
     }
 
     pub async fn get(&self, id: &str) -> Result<Option<TestCase>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT
                 id, session_id, name, preconditions, steps, expected_result,
@@ -49,25 +49,32 @@ impl TestCaseRepository {
             FROM test_cases
             WHERE id = $1
             "#,
-            id
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await
         .context("Failed to fetch test case")?;
 
-        Ok(row.map(|r| TestCase {
-            id: r.id,
-            session_id: r.session_id,
-            name: r.name,
-            preconditions: r.preconditions,
-            steps: r.steps,
-            expected_result: r.expected_result,
-            created_at: r.created_at.unwrap_or_default(),
+        Ok(row.map(|r| {
+            let created_at = r
+                .try_get::<Option<String>, _>("created_at")
+                .unwrap_or(None)
+                .unwrap_or_default();
+
+            TestCase {
+                id: r.get("id"),
+                session_id: r.get("session_id"),
+                name: r.get("name"),
+                preconditions: r.get("preconditions"),
+                steps: r.get("steps"),
+                expected_result: r.get("expected_result"),
+                created_at,
+            }
         }))
     }
 
     pub async fn list_by_session(&self, session_id: &str) -> Result<Vec<TestCase>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT
                 id, session_id, name, preconditions, steps, expected_result,
@@ -76,25 +83,36 @@ impl TestCaseRepository {
             WHERE session_id = $1
             ORDER BY created_at ASC
             "#,
-            session_id
         )
+        .bind(session_id)
         .fetch_all(&self.pool)
         .await
         .context("Failed to list test cases")?;
 
-        Ok(rows.into_iter().map(|r| TestCase {
-            id: r.id,
-            session_id: r.session_id,
-            name: r.name,
-            preconditions: r.preconditions,
-            steps: r.steps,
-            expected_result: r.expected_result,
-            created_at: r.created_at.unwrap_or_default(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let created_at = r
+                    .try_get::<Option<String>, _>("created_at")
+                    .unwrap_or(None)
+                    .unwrap_or_default();
+
+                TestCase {
+                    id: r.get("id"),
+                    session_id: r.get("session_id"),
+                    name: r.get("name"),
+                    preconditions: r.get("preconditions"),
+                    steps: r.get("steps"),
+                    expected_result: r.get("expected_result"),
+                    created_at,
+                }
+            })
+            .collect())
     }
 
     pub async fn delete(&self, id: &str) -> Result<bool> {
-        let result = sqlx::query!("DELETE FROM test_cases WHERE id = $1", id)
+        let result = sqlx::query("DELETE FROM test_cases WHERE id = $1")
+            .bind(id)
             .execute(&self.pool)
             .await
             .context("Failed to delete test case")?;
@@ -104,7 +122,8 @@ impl TestCaseRepository {
 
     #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
-        sqlx::query!("DELETE FROM test_cases WHERE session_id = $1", session_id)
+        sqlx::query("DELETE FROM test_cases WHERE session_id = $1")
+            .bind(session_id)
             .execute(&self.pool)
             .await
             .context("Failed to delete test cases")?;

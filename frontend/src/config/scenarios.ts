@@ -6,8 +6,6 @@ import type {
   ScenarioDiscipline,
   ScenarioBehavior,
   ScenarioSummary,
-  ScenarioType,
-  FeatureMockup,
 } from "@/types/session";
 
 // ============================================================================
@@ -1148,7 +1146,7 @@ const challengeBehavior: ScenarioBehavior = {
 const scenarioList: Scenario[] = [
   {
     id: "basic-intro-alignment",
-    title: "自己紹介＆期待値合わせ (基礎)",
+    title: "自己紹介＆期待値合わせ",
     discipline: "BASIC",
     description: "新規プロジェクトに合流し、役割と期待値を擦り合わせる。",
     behavior: introBehavior,
@@ -1158,15 +1156,13 @@ const scenarioList: Scenario[] = [
     evaluationCriteria: introAlignmentCriteria,
     passingScore: 70,
     missions: [
-      { id: "basic-intro-m1", title: "自己紹介と役割・責任範囲の確認", order: 1 },
-      { id: "basic-intro-m2", title: "現状と優先度の擦り合わせ", order: 2 },
-      { id: "basic-intro-m3", title: "ネクストアクションの決定", order: 3 },
+      { id: "basic-intro-m1", title: "自己紹介を行う", order: 1 },
     ],
     supplementalInfo: "時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。",
   },
   {
     id: "basic-agenda-facilitation",
-    title: "アジェンダを設定してミーティングを進行 (基礎)",
+    title: "アジェンダ設定",
     discipline: "BASIC",
     description: "目的に沿った会議を進行し、合意と次アクションを作る。",
     behavior: guidedBehavior,
@@ -1178,14 +1174,12 @@ const scenarioList: Scenario[] = [
     passingScore: 70,
     missions: [
       { id: "basic-agenda-m1", title: "ミーティング目的を定義する", order: 1 },
-      { id: "basic-agenda-m2", title: "アジェンダと時間配分を提示する", order: 2 },
-      { id: "basic-agenda-m3", title: "決定事項と次アクションを合意する", order: 3 },
     ],
     supplementalInfo: "目的の一文定義と時間配分の明確化を意識してください。",
   },
   {
     id: "basic-meeting-minutes",
-    title: "議事メモの作成と共有 (基礎)",
+    title: "議事メモの作成と共有",
     discipline: "BASIC",
     description: "会議内容を要点・決定・アクションに整理し共有する。",
     behavior: guidedBehavior,
@@ -1204,7 +1198,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-schedule-share",
-    title: "スケジュール感の共有 (基礎)",
+    title: "スケジュール調整",
     discipline: "BASIC",
     description: "プロジェクトの見通しとマイルストーンを共有する。",
     behavior: guidedBehavior,
@@ -1216,14 +1210,12 @@ const scenarioList: Scenario[] = [
     passingScore: 70,
     missions: [
       { id: "basic-schedule-m1", title: "全体像と進め方を共有する", order: 1 },
-      { id: "basic-schedule-m2", title: "主要マイルストーンを整理する", order: 2 },
-      { id: "basic-schedule-m3", title: "前提と次の判断ポイントを明記する", order: 3 },
     ],
     supplementalInfo: "不確実性や前提条件を必ず共有してください。",
   },
   {
     id: "basic-docs-refine",
-    title: "既存資料の軽微な修正 (基礎)",
+    title: "既存資料の軽微な修正",
     discipline: "BASIC",
     description: "資料を読み手に伝わる形に整える。",
     behavior: guidedBehavior,
@@ -1242,7 +1234,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-ticket-refine",
-    title: "チケット要件整理 (基礎)",
+    title: "チケット要件整理",
     discipline: "BASIC",
     description: "曖昧なチケットを受入可能な形に分解し、スプリントに載せられる状態へ整理する。",
     behavior: guidedBehavior,
@@ -1260,7 +1252,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-ticket-splitting",
-    title: "チケット分割と優先度付け (基礎)",
+    title: "チケット分割と優先度付け",
     discipline: "BASIC",
     description: "大きな依頼を分割し、優先順位と依存を整理する。",
     behavior: guidedBehavior,
@@ -1279,7 +1271,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-acceptance-review",
-    title: "受入条件のレビュー (基礎)",
+    title: "受入条件のレビュー",
     discipline: "BASIC",
     description: "既存の受入条件を見直し、検証可能性を高める。",
     behavior: guidedBehavior,
@@ -1298,7 +1290,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-unknowns-discovery",
-    title: "不明点の洗い出し (基礎)",
+    title: "不明点の洗い出し",
     discipline: "BASIC",
     description: "曖昧な前提や未決事項を可視化し、確認計画を立てる。",
     behavior: guidedBehavior,
@@ -1317,7 +1309,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-testcase-design",
-    title: "テストケース作成 (基礎)",
+    title: "テストケース作成",
     discipline: "BASIC",
     description: "新機能の仕様からスモーク/回帰テストケースを洗い出し、漏れのない最小集合を作る。",
     behavior: guidedBehavior,
@@ -1335,7 +1327,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "test-login",
-    title: "ログイン機能のテストケース作成",
+    title: "ログイン機能",
     discipline: "BASIC",
     scenarioType: "test-case",
     featureMockup: {
@@ -1364,7 +1356,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "test-form",
-    title: "フォーム機能のテストケース作成",
+    title: "フォーム機能",
     discipline: "BASIC",
     scenarioType: "test-case",
     featureMockup: {
@@ -1393,7 +1385,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "test-file-upload",
-    title: "ファイルアップロード機能のテストケース作成",
+    title: "ファイルアップロード機能",
     discipline: "BASIC",
     scenarioType: "test-case",
     featureMockup: {
@@ -1423,7 +1415,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-test-viewpoints",
-    title: "テスト観点の洗い出しと優先度付け (基礎)",
+    title: "テスト観点の洗い出しと優先度付け",
     discipline: "BASIC",
     description: "仕様からテスト観点を洗い出し、リスクベースで優先度を付ける。",
     behavior: guidedBehavior,
@@ -1442,7 +1434,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-test-risk-review",
-    title: "テスト計画のリスクレビュー (基礎)",
+    title: "テスト計画のリスクレビュー",
     discipline: "BASIC",
     description: "既存のテスト計画を見直し、リスクベースで優先度を調整する。",
     behavior: guidedBehavior,
@@ -1461,7 +1453,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-regression-smoke",
-    title: "回帰テストの最小セット整理 (基礎)",
+    title: "回帰テストの最小セット整理",
     discipline: "BASIC",
     description: "回帰テストの必須ケースを最小セットで整理する。",
     behavior: guidedBehavior,

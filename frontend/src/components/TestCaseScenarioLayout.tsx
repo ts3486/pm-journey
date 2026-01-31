@@ -70,7 +70,7 @@ export function TestCaseScenarioLayout({
       default:
         return (
           <div className="bg-gray-100 rounded-lg p-8 text-center text-gray-500">
-            モックアップが設定されていません
+            デザインが設定されていません
           </div>
         );
     }
@@ -92,12 +92,40 @@ export function TestCaseScenarioLayout({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
+      <div className="card p-4">
+        <h3 className="text-sm font-semibold text-slate-900 mb-4">機能デザイン</h3>
+        <div className="p-4">{renderMockup()}</div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-4">
           <div className="card p-4">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">機能モックアップ</h3>
-            <div className="overflow-auto max-h-[60vh]">{renderMockup()}</div>
+            <TestCaseForm
+              testCases={testCases}
+              onAdd={handleAddTestCase}
+              onDelete={handleDeleteTestCase}
+              isLoading={isLoadingTestCases}
+            />
           </div>
+
+          {/* 完了ボタン - テストケースフォームの下に配置 */}
+          {hasActive && (
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-sm text-slate-600">
+                {testCases.length === 0
+                  ? "テストケースを追加してから提出してください"
+                  : `${testCases.length}件のテストケースを作成しました`}
+              </p>
+              <button
+                type="button"
+                className="btn-primary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={onComplete}
+                disabled={testCases.length === 0}
+              >
+                テストケースを提出する
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -111,60 +139,6 @@ export function TestCaseScenarioLayout({
               "異常系のテストケースを考えてください",
             ]}
           />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="card p-4">
-          <TestCaseForm
-            testCases={testCases}
-            onAdd={handleAddTestCase}
-            onDelete={handleDeleteTestCase}
-            isLoading={isLoadingTestCases}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <div className="card p-4">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">仕様・背景情報</h3>
-            <div className="text-xs text-slate-700 space-y-2">
-              {scenario.product.summary && (
-                <p>
-                  <span className="font-semibold">概要:</span> {scenario.product.summary}
-                </p>
-              )}
-              {scenario.product.constraints?.length > 0 && (
-                <div>
-                  <p className="font-semibold">制約:</p>
-                  <ul className="ml-4 list-disc">
-                    {scenario.product.constraints.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {scenario.supplementalInfo && (
-                <div>
-                  <p className="font-semibold">補足:</p>
-                  <p className="whitespace-pre-wrap">{scenario.supplementalInfo}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {testCases.length >= 3 && (
-            <div className="card-muted px-4 py-4 text-sm text-slate-700">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">テストケース作成完了</p>
-                  <p className="text-xs text-slate-600">{testCases.length}件のテストケースを作成しました</p>
-                </div>
-                <button type="button" className="btn-primary" onClick={onComplete}>
-                  評価を受ける
-                </button>
-              </div>
-            </div>
-          )}
 
           {hasActive && (
             <div className="flex justify-end">

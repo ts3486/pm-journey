@@ -9,6 +9,7 @@ mod state;
 use axum::{middleware::from_fn, Router};
 use sqlx::{migrate::Migrator, PgPool};
 use std::env;
+use std::time::Duration;
 use tower::make::Shared;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -28,15 +29,19 @@ async fn main() {
     init_tracing();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let connect_timeout = Duration::from_secs(10);
+    let migrations_timeout = Duration::from_secs(30);
 
     tracing::info!("Connecting to Postgres at {}", database_url);
-    let pool = PgPool::connect(&database_url)
+    let pool = tokio::time::timeout(connect_timeout, PgPool::connect(&database_url))
         .await
+        .expect("timed out connecting to Postgres")
         .expect("failed to connect to Postgres");
 
     tracing::info!("Running database migrations...");
-    run_migrations(&pool)
+    tokio::time::timeout(migrations_timeout, run_migrations(&pool))
         .await
+        .expect("timed out running migrations")
         .expect("failed to run migrations");
     tracing::info!("Migrations completed successfully");
 

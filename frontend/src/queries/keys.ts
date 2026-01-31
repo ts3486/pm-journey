@@ -9,4 +9,7 @@ export const queryKeys = {
   outputs: {
     list: (sessionId: string) => ["outputs", sessionId] as const,
   },
+  testCases: {
+    list: (sessionId: string) => ["testCases", sessionId] as const,
+  },
 };

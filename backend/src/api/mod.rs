@@ -2,14 +2,27 @@ use axum::{routing::{get, post}, Router};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::features::comments::handlers::{create_comment, list_comments};
-use crate::features::evaluations::handlers::evaluate_session;
-use crate::features::health::handlers::health;
-use crate::features::imports::handlers::import_sessions;
-use crate::features::messages::handlers::{list_messages, post_message};
-use crate::features::scenarios::handlers::{create_scenario, get_scenario, list_scenarios};
-use crate::features::sessions::handlers::{create_session, delete_session, get_session, list_sessions};
-use crate::features::test_cases::handlers::{create_test_case, delete_test_case, list_test_cases};
+use crate::features::comments::handlers::{
+    __path_create_comment, __path_list_comments, create_comment, list_comments,
+};
+use crate::features::evaluations::handlers::{__path_evaluate_session, evaluate_session};
+use crate::features::health::handlers::{__path_health, health};
+use crate::features::imports::handlers::{__path_import_sessions, import_sessions};
+use crate::features::messages::handlers::{
+    __path_list_messages, __path_post_message, list_messages, post_message,
+};
+use crate::features::scenarios::handlers::{
+    __path_create_scenario, __path_get_scenario, __path_list_scenarios, create_scenario,
+    get_scenario, list_scenarios,
+};
+use crate::features::sessions::handlers::{
+    __path_create_session, __path_delete_session, __path_get_session, __path_list_sessions,
+    create_session, delete_session, get_session, list_sessions,
+};
+use crate::features::test_cases::handlers::{
+    __path_create_test_case, __path_delete_test_case, __path_list_test_cases, create_test_case,
+    delete_test_case, list_test_cases,
+};
 use crate::features::evaluations::models::{EvaluationCriterion, EvaluationRequest, ScoringGuidelines};
 use crate::features::messages::models::AgentContext;
 use crate::features::test_cases::models::{CreateTestCaseRequest, TestCaseResponse};

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-pub use crate::models::{Evaluation, EvaluationCategory};
+pub use crate::models::Evaluation;
 
 #[derive(Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +31,7 @@ pub struct EvaluationRequest {
     pub scenario_description: Option<String>,
     pub product_context: Option<String>,
     pub scenario_prompt: Option<String>,
+    #[allow(dead_code)]
     pub scenario_type: Option<String>,
     pub test_cases_context: Option<String>,
 }
