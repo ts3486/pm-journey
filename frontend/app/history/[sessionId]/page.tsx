@@ -7,6 +7,7 @@ import { useAddComment } from "@/queries/comments";
 import { useEvaluateSession } from "@/queries/evaluation";
 import { useHistoryItem } from "@/queries/history";
 import { useAddOutput, useDeleteOutput, useOutputs } from "@/queries/outputs";
+import { useTestCases } from "@/queries/testCases";
 import { getScenarioById } from "@/config/scenarios";
 import { logEvent } from "@/services/telemetry";
 import type { OutputSubmissionType } from "@/types/session";
@@ -224,8 +225,12 @@ export default function HistoryDetailPage() {
   const [outputNote, setOutputNote] = useState("");
   const autoTriggeredRef = useRef(false);
   const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
+  const isTestCaseScenario = scenario?.scenarioType === "test-case";
+  const { data: testCases = [] } = useTestCases(isTestCaseScenario ? sessionId : undefined);
   const [showScenarioInfo, setShowScenarioInfo] = useState(false);
-  const canEvaluate = (item?.actions?.length ?? 0) > 0;
+  const hasMessages = (item?.actions?.length ?? 0) > 0;
+  const hasTestCases = isTestCaseScenario && testCases.length > 0;
+  const canEvaluate = hasMessages || hasTestCases;
   const evaluating = evaluateMutation.isPending;
   const manualEvaluationRequested =
     manualEvaluationRequest.sessionId === sessionId
@@ -236,7 +241,9 @@ export default function HistoryDetailPage() {
   const missingActionsError = evaluationAttempted && !canEvaluate;
   const evaluationError = evaluationAttempted
     ? missingActionsError
-      ? "評価対象のメッセージがありません。"
+      ? isTestCaseScenario
+        ? "評価対象のテストケースがありません。"
+        : "評価対象のメッセージがありません。"
       : evaluateMutation.error?.message ?? null
     : null;
 
@@ -244,29 +251,45 @@ export default function HistoryDetailPage() {
     autoTriggeredRef.current = false;
   }, [sessionId, autoEvaluate]);
 
-  const runEvaluation = useCallback(
-    () => {
-      if (!sessionId || !item || evaluating) return;
-      if (!item.actions || item.actions.length === 0) {
-        return;
-      }
-      evaluateMutation.mutate(
-        { scenarioId: item.scenarioId },
-        {
-          onSuccess: (evaluation) => {
-            logEvent({
-              type: "evaluation",
-              sessionId,
-              scenarioId: item.scenarioId,
-              scenarioDiscipline: item.scenarioDiscipline,
-              score: evaluation?.overallScore,
-            });
-          },
+  const formatTestCasesContext = useCallback(() => {
+    if (!isTestCaseScenario || testCases.length === 0) return undefined;
+    return testCases
+      .map((tc, i) => {
+        const lines = [
+          `### テストケース ${i + 1}: ${tc.name}`,
+          `- 前提条件: ${tc.preconditions || "なし"}`,
+          `- 手順: ${tc.steps}`,
+          `- 期待結果: ${tc.expectedResult}`,
+        ];
+        return lines.join("\n");
+      })
+      .join("\n\n");
+  }, [isTestCaseScenario, testCases]);
+
+  const runEvaluation = useCallback((): boolean => {
+    if (!sessionId || !item || evaluating) return false;
+    const testCasesContext = formatTestCasesContext();
+    const hasActions = item.actions && item.actions.length > 0;
+    const hasTestCasesForEval = !!testCasesContext;
+    if (!hasActions && !hasTestCasesForEval) {
+      return false;
+    }
+    evaluateMutation.mutate(
+      { scenarioId: item.scenarioId, testCasesContext },
+      {
+        onSuccess: (evaluation) => {
+          logEvent({
+            type: "evaluation",
+            sessionId,
+            scenarioId: item.scenarioId,
+            scenarioDiscipline: item.scenarioDiscipline,
+            score: evaluation?.overallScore,
+          });
         },
-      );
-    },
-    [sessionId, item, evaluating, evaluateMutation],
-  );
+      },
+    );
+    return true;
+  }, [sessionId, item, evaluating, evaluateMutation, formatTestCasesContext]);
 
   const handleRunEvaluation = useCallback(() => {
     if (!sessionId) return;
@@ -300,8 +323,10 @@ export default function HistoryDetailPage() {
     if (!autoEvaluate) return;
     if (!item || item.evaluation) return;
     if (autoTriggeredRef.current) return;
-    autoTriggeredRef.current = true;
-    runEvaluation();
+    const triggered = runEvaluation();
+    if (triggered) {
+      autoTriggeredRef.current = true;
+    }
   }, [autoEvaluate, item, runEvaluation]);
 
   if (!sessionId) {
@@ -677,6 +702,130 @@ export default function HistoryDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Test Cases Section - only show for test-case scenarios */}
+      {isTestCaseScenario && (
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+                <svg
+                  className="h-4 w-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-sm font-bold text-slate-900">テストケース</h2>
+              <span className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-semibold text-cyan-700">
+                {testCases.length} 件
+              </span>
+            </div>
+            {testCases.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const headers = ["No", "テスト名", "前提条件", "手順", "期待結果"];
+                  const rows = testCases.map((tc, idx) => [
+                    idx + 1,
+                    tc.name,
+                    tc.preconditions,
+                    tc.steps,
+                    tc.expectedResult,
+                  ]);
+
+                  const escapeCSV = (value: string | number) => {
+                    const str = String(value);
+                    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+                      return `"${str.replace(/"/g, '""')}"`;
+                    }
+                    return str;
+                  };
+
+                  const csvContent = [headers, ...rows]
+                    .map((row) => row.map(escapeCSV).join(","))
+                    .join("\n");
+
+                  // UTF-8 BOM for Excel compatibility
+                  const bom = "\uFEFF";
+                  const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `test-cases-${sessionId}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 hover:border-cyan-300"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                CSVダウンロード
+              </button>
+            )}
+          </div>
+
+          {testCases.length === 0 ? (
+            <p className="py-8 text-center text-xs text-slate-500">テストケースはまだ作成されていません。</p>
+          ) : (
+            <div className="space-y-3">
+              {testCases.map((tc, idx) => (
+                <div
+                  key={tc.id}
+                  className="rounded-xl border border-slate-200/70 bg-gradient-to-br from-slate-50/80 to-white p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 text-xs font-bold text-white">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <p className="font-semibold text-sm text-slate-900">{tc.name}</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start gap-2">
+                          <span className="flex-shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                            前提条件
+                          </span>
+                          <p className="text-xs text-slate-600 leading-relaxed">{tc.preconditions}</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="flex-shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                            手順
+                          </span>
+                          <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{tc.steps}</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="flex-shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            期待結果
+                          </span>
+                          <p className="text-xs text-slate-600 leading-relaxed">{tc.expectedResult}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Chat Log */}
       <div className="card p-5">

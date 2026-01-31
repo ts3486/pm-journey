@@ -2,6 +2,7 @@
 
 import { ChatComposer } from "@/components/ChatComposer";
 import { ChatStream } from "@/components/ChatStream";
+import { TestCaseScenarioLayout } from "@/components/TestCaseScenarioLayout";
 import { defaultScenario, getScenarioById } from "@/config/scenarios";
 import {
   createLocalMessage,
@@ -127,8 +128,6 @@ function ScenarioContent() {
       if (!restart) {
         const existing = await resumeSession(targetScenario.id);
         if (existing && !state) {
-          setLastSessionId(existing.session.id);
-          setLastSessionStatus(existing.session.status);
           if (existing.session.status === "evaluated" || existing.session.status === "completed") {
             void handleStart(targetScenario);
           } else {
@@ -144,6 +143,19 @@ function ScenarioContent() {
     initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
+
+  if (activeScenario.scenarioType === "test-case") {
+    return (
+      <TestCaseScenarioLayout
+        scenario={activeScenario}
+        state={state}
+        awaitingReply={awaitingReply}
+        onSend={handleSend}
+        onComplete={handleCompleteScenario}
+        onReset={handleReset}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -237,77 +249,116 @@ function ScenarioContent() {
 
           {hasScenarioInfo ? (
             <div className="card p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">背景・補足情報</p>
+              <p className="text-sm font-semibold text-slate-900 mb-4">背景・補足情報</p>
+              <div className="space-y-3">
+                {scenarioInfo.summary ? (
+                  <div className="rounded-lg bg-slate-50/80 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-200 text-[10px]">📋</span>
+                      <span className="text-xs font-semibold text-slate-700">背景</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.summary}</p>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.audience ? (
+                  <div className="rounded-lg bg-blue-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[10px]">👥</span>
+                      <span className="text-xs font-semibold text-blue-800">対象ユーザー</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.audience}</p>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.goals?.length ? (
+                  <div className="rounded-lg bg-emerald-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-100 text-[10px]">🎯</span>
+                      <span className="text-xs font-semibold text-emerald-800">ゴール</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {scenarioInfo.goals.map((goal) => (
+                        <li key={goal} className="flex items-start gap-2 text-xs text-slate-600">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                          <span className="leading-relaxed">{goal}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.problems?.length ? (
+                  <div className="rounded-lg bg-amber-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-[10px]">⚠️</span>
+                      <span className="text-xs font-semibold text-amber-800">課題</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {scenarioInfo.problems.map((problem) => (
+                        <li key={problem} className="flex items-start gap-2 text-xs text-slate-600">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                          <span className="leading-relaxed">{problem}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.constraints?.length ? (
+                  <div className="rounded-lg bg-rose-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-rose-100 text-[10px]">🚧</span>
+                      <span className="text-xs font-semibold text-rose-800">制約条件</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {scenarioInfo.constraints.map((constraint) => (
+                        <li key={constraint} className="flex items-start gap-2 text-xs text-slate-600">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
+                          <span className="leading-relaxed">{constraint}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.timeline ? (
+                  <div className="rounded-lg bg-violet-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100 text-[10px]">📅</span>
+                      <span className="text-xs font-semibold text-violet-800">タイムライン</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.timeline}</p>
+                  </div>
+                ) : null}
+
+                {scenarioInfo.successCriteria?.length ? (
+                  <div className="rounded-lg bg-teal-50/60 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-teal-100 text-[10px]">✅</span>
+                      <span className="text-xs font-semibold text-teal-800">成功条件</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {scenarioInfo.successCriteria.map((criterion) => (
+                        <li key={criterion} className="flex items-start gap-2 text-xs text-slate-600">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" />
+                          <span className="leading-relaxed">{criterion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {activeScenario.supplementalInfo ? (
+                  <div className="rounded-lg bg-slate-100/80 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-200 text-[10px]">💡</span>
+                      <span className="text-xs font-semibold text-slate-700">補足情報</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{activeScenario.supplementalInfo}</p>
+                  </div>
+                ) : null}
               </div>
-              <details className="mt-3 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs text-slate-700">
-                <summary className="cursor-pointer select-none font-semibold text-slate-800">
-                  開く
-                </summary>
-                <div className="mt-2 space-y-2">
-                  {scenarioInfo.summary ? (
-                    <p>
-                      <span className="font-semibold text-slate-800">背景:</span> {scenarioInfo.summary}
-                    </p>
-                  ) : null}
-                  {scenarioInfo.audience ? (
-                    <p>
-                      <span className="font-semibold text-slate-800">対象:</span> {scenarioInfo.audience}
-                    </p>
-                  ) : null}
-                  {scenarioInfo.goals?.length ? (
-                    <div>
-                      <p className="font-semibold text-slate-800">ゴール</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {scenarioInfo.goals.map((goal) => (
-                          <li key={goal}>{goal}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {scenarioInfo.problems?.length ? (
-                    <div>
-                      <p className="font-semibold text-slate-800">課題</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {scenarioInfo.problems.map((problem) => (
-                          <li key={problem}>{problem}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {scenarioInfo.constraints?.length ? (
-                    <div>
-                      <p className="font-semibold text-slate-800">制約</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {scenarioInfo.constraints.map((constraint) => (
-                          <li key={constraint}>{constraint}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {scenarioInfo.timeline ? (
-                    <p>
-                      <span className="font-semibold text-slate-800">タイムライン:</span> {scenarioInfo.timeline}
-                    </p>
-                  ) : null}
-                  {scenarioInfo.successCriteria?.length ? (
-                    <div>
-                      <p className="font-semibold text-slate-800">成功条件</p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        {scenarioInfo.successCriteria.map((criterion) => (
-                          <li key={criterion}>{criterion}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {activeScenario.supplementalInfo ? (
-                    <div>
-                      <p className="font-semibold text-slate-800">補足情報</p>
-                      <p className="whitespace-pre-wrap">{activeScenario.supplementalInfo}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </details>
             </div>
           ) : null}
 

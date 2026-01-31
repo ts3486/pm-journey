@@ -1,0 +1,20 @@
+use axum::{extract::State, Json};
+
+use crate::error::AppError;
+use crate::state::SharedState;
+
+use super::models::{ImportRequest, ImportResult};
+
+#[utoipa::path(
+    post,
+    path = "/import",
+    request_body = ImportRequest,
+    responses((status = 200, body = ImportResult))
+)]
+pub async fn import_sessions(
+    State(state): State<SharedState>,
+    Json(body): Json<ImportRequest>,
+) -> Result<Json<ImportResult>, AppError> {
+    let result = state.services().imports().import_sessions(body.sessions).await?;
+    Ok(Json(result))
+}

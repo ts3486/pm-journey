@@ -1,6 +1,20 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ScenarioType {
+    Basic,
+    TestCase,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureMockup {
+    pub component: String,
+    pub description: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Scenario {
@@ -8,8 +22,16 @@ pub struct Scenario {
     pub title: String,
     pub discipline: ScenarioDiscipline,
     pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(alias = "scenario_type")]
+    pub scenario_type: Option<ScenarioType>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(alias = "feature_mockup")]
+    pub feature_mockup: Option<FeatureMockup>,
     pub product: ProductInfo,
     pub mode: String,
+    #[serde(default)]
+    pub behavior: ScenarioBehavior,
     #[serde(alias = "kickoff_prompt")]
     pub kickoff_prompt: String,
     #[serde(alias = "evaluation_criteria")]
@@ -197,6 +219,21 @@ pub struct ManagerComment {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TestCase {
+    pub id: String,
+    #[serde(alias = "session_id")]
+    pub session_id: String,
+    pub name: String,
+    pub preconditions: String,
+    pub steps: String,
+    #[serde(alias = "expected_result")]
+    pub expected_result: String,
+    #[serde(alias = "created_at")]
+    pub created_at: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ScenarioDiscipline {
@@ -208,9 +245,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
     vec![
         Scenario {
             id: "basic-intro-alignment".to_string(),
-            title: "自己紹介＆期待値合わせ (基礎)".to_string(),
+            title: "自己紹介＆期待値合わせ".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "新規プロジェクトに合流し、役割と成功条件を30分で擦り合わせる。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "オンボーディングワークショップ".to_string(),
                 summary: "ステークホルダーと目的・役割・進め方を合意する初回ミーティング。".to_string(),
@@ -227,6 +266,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["メモ".to_string(), "アクション記録".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたは新規PJに参加するPM/PMOとして、初回ミーティングで役割と期待値を揃えます。短時間で目的・進め方・次アクションを決めてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -236,17 +276,17 @@ pub fn default_scenarios() -> Vec<Scenario> {
             ],
             passing_score: Some(70.0),
             missions: Some(vec![
-                Mission { id: "basic-intro-m1".to_string(), title: "自己紹介と役割・責任範囲の確認".to_string(), description: None, order: 1 },
-                Mission { id: "basic-intro-m2".to_string(), title: "成功条件と優先度の合意".to_string(), description: None, order: 2 },
-                Mission { id: "basic-intro-m3".to_string(), title: "次アクションと連絡リズムの設定".to_string(), description: None, order: 3 },
+                Mission { id: "basic-intro-m1".to_string(), title: "自己紹介を行う".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。".to_string()),
         },
         Scenario {
             id: "basic-agenda-facilitation".to_string(),
-            title: "アジェンダを設定してミーティングを進行 (基礎)".to_string(),
+            title: "アジェンダを設定してミーティングを進行".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "目的に沿った会議を進行し、合意と次アクションを作る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "ミーティング進行テンプレ".to_string(),
                 summary: "目的とアジェンダを明確にし、短時間で合意を得る進行メモ。".to_string(),
@@ -263,6 +303,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["アジェンダ表".to_string(), "タイムボックス".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとしてミーティングを進行します。目的を一文で定義し、アジェンダと時間配分を設定し、次のアクションを合意してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -272,17 +313,17 @@ pub fn default_scenarios() -> Vec<Scenario> {
             ],
             passing_score: Some(70.0),
             missions: Some(vec![
-                Mission { id: "basic-agenda-m1".to_string(), title: "ミーティング目的を定義する".to_string(), description: None, order: 1 },
-                Mission { id: "basic-agenda-m2".to_string(), title: "アジェンダと時間配分を提示する".to_string(), description: None, order: 2 },
-                Mission { id: "basic-agenda-m3".to_string(), title: "決定事項と次アクションを合意する".to_string(), description: None, order: 3 },
+                Mission { id: "basic-agenda-m1".to_string(), title: "ミーティングのアジェンダを作成する".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("目的の一文定義と時間配分の明確化を意識してください。".to_string()),
         },
         Scenario {
             id: "basic-meeting-minutes".to_string(),
-            title: "議事メモの作成と共有 (基礎)".to_string(),
+            title: "議事メモの作成と共有".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "会議内容を要点・決定・アクションに整理し共有する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "議事メモテンプレ".to_string(),
                 summary: "会議内容を決定/未決/アクションに整理し、共有しやすくする。".to_string(),
@@ -299,6 +340,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["議事メモ欄".to_string(), "アクションチェック".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして会議内容を議事メモに整理します。決定事項・未決事項・次アクションと担当を明記し、共有用のまとめを作成してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -316,9 +358,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-schedule-share".to_string(),
-            title: "スケジュール感の共有 (基礎)".to_string(),
+            title: "スケジュール感の共有".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "プロジェクトの見通しとマイルストーンを共有する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "スケジュール共有シート".to_string(),
                 summary: "全体像とマイルストーンを整理し、関係者に共有する。".to_string(),
@@ -335,6 +379,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["マイルストーン表".to_string(), "前提メモ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとしてプロジェクトのスケジュール感を共有します。全体像、マイルストーン、前提条件、次の判断ポイントを整理してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -345,16 +390,16 @@ pub fn default_scenarios() -> Vec<Scenario> {
             passing_score: Some(70.0),
             missions: Some(vec![
                 Mission { id: "basic-schedule-m1".to_string(), title: "全体像と進め方を共有する".to_string(), description: None, order: 1 },
-                Mission { id: "basic-schedule-m2".to_string(), title: "主要マイルストーンを整理する".to_string(), description: None, order: 2 },
-                Mission { id: "basic-schedule-m3".to_string(), title: "前提と次の判断ポイントを明記する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("不確実性や前提条件を必ず共有してください。".to_string()),
         },
         Scenario {
             id: "basic-docs-refine".to_string(),
-            title: "既存資料の軽微な修正 (基礎)".to_string(),
+            title: "既存資料の軽微な修正".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "資料を読み手に伝わる形に整える。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "資料修正メモ".to_string(),
                 summary: "目的と対象を整理し、表現と構成を改善する。".to_string(),
@@ -371,6 +416,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["修正メモ".to_string(), "レビュー観点".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして既存資料を軽微に修正します。目的と対象読者を整理し、表現と構成を改善してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -388,9 +434,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-ticket-refine".to_string(),
-            title: "チケット要件整理 (基礎)".to_string(),
+            title: "チケット要件整理".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "曖昧なチケットを受入可能な形に分解し、スプリントに載せられる状態へ整理する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "チケット精査セッション".to_string(),
                 summary: "目的と受入条件を固め、開発が着手できる粒度に落とし込む。".to_string(),
@@ -407,6 +455,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["ACテンプレ".to_string(), "依存チェックリスト".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして曖昧なチケットをスプリントに載せられる形へ精査します。目的、受入条件、依存/リスクを明文化してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -424,9 +473,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-ticket-splitting".to_string(),
-            title: "チケット分割と優先度付け (基礎)".to_string(),
+            title: "チケット分割と優先度付け".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "大きな依頼を分割し、優先順位と依存を整理する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "チケット分割メモ".to_string(),
                 summary: "大きな依頼を実行可能な単位に分割し、優先順位を付ける。".to_string(),
@@ -443,6 +494,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["分割リスト".to_string(), "優先度タグ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして大きな依頼を分割します。価値の高い順に優先度を付け、依存関係とリスクを整理してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -460,9 +512,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-acceptance-review".to_string(),
-            title: "受入条件のレビュー (基礎)".to_string(),
+            title: "受入条件のレビュー".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "既存の受入条件を見直し、検証可能性を高める。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "受入条件レビュー".to_string(),
                 summary: "既存の受入条件を見直し、検証可能な形に整える。".to_string(),
@@ -479,6 +533,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["ACリスト".to_string(), "修正メモ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして受入条件をレビューします。曖昧な表現を修正し、検証可能な形に整えてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -496,9 +551,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-unknowns-discovery".to_string(),
-            title: "不明点の洗い出し (基礎)".to_string(),
+            title: "不明点の洗い出し".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "曖昧な前提や未決事項を可視化し、確認計画を立てる。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "不明点整理シート".to_string(),
                 summary: "要件の不明点を洗い出し、確認計画を立てるための整理シート。".to_string(),
@@ -515,6 +572,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["不明点一覧".to_string(), "確認先メモ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとして要件の不明点を洗い出します。確認先・優先度・解消方法を整理してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -532,9 +590,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-testcase-design".to_string(),
-            title: "テストケース作成 (基礎)".to_string(),
+            title: "テストケース作成".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "新機能の仕様からスモーク/回帰テストケースを洗い出し、漏れのない最小集合を作る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "テスト計画メモ".to_string(),
                 summary: "正常系と主要な異常系を素早く列挙し、優先度を付ける。".to_string(),
@@ -551,7 +611,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["ケース一覧".to_string(), "優先度タグ".to_string()]),
             },
             mode: "guided".to_string(),
-            kickoff_prompt: "あなたはQA/PMとして新機能のテストケースを作成します。正常系と主要な異常系を洗い出し、前提データと環境を明記してください。".to_string(),
+            behavior: ScenarioBehavior::default(),
+            kickoff_prompt: "新機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
                 EvaluationCategory { name: "計画と実行可能性".to_string(), weight: 25.0, score: None, feedback: None },
@@ -568,9 +629,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-test-viewpoints".to_string(),
-            title: "テスト観点の洗い出しと優先度付け (基礎)".to_string(),
+            title: "テスト観点の洗い出しと優先度付け".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "仕様からテスト観点を洗い出し、リスクベースで優先度を付ける。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "テスト観点リスト".to_string(),
                 summary: "仕様からテスト観点を整理し、優先度を付けるためのチェックリスト。".to_string(),
@@ -587,6 +650,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["観点一覧".to_string(), "優先度タグ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはQA/PMとしてテスト観点を洗い出し、影響度と頻度で優先順位を決めます。前提条件も整理してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -604,9 +668,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-test-risk-review".to_string(),
-            title: "テスト計画のリスクレビュー (基礎)".to_string(),
+            title: "テスト計画のリスクレビュー".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "既存のテスト計画を見直し、リスクベースで優先度を調整する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "テスト計画レビュー".to_string(),
                 summary: "高リスク領域のテスト優先度を見直すレビューセッション。".to_string(),
@@ -623,6 +689,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["リスク一覧".to_string(), "優先度タグ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはQA/PMとして既存のテスト計画をレビューします。高リスク領域の優先度を見直し、前提条件を再整理してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -640,9 +707,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         },
         Scenario {
             id: "basic-regression-smoke".to_string(),
-            title: "回帰テストの最小セット整理 (基礎)".to_string(),
+            title: "回帰テストの最小セット整理".to_string(),
             discipline: ScenarioDiscipline::Basic,
             description: "回帰テストの必須ケースを最小セットで整理する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "回帰テスト整理メモ".to_string(),
                 summary: "回帰テストの必須ケースを整理し、最小セットを合意する。".to_string(),
@@ -659,6 +728,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["回帰フロー".to_string(), "優先度タグ".to_string()]),
             },
             mode: "guided".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはQA/PMとして回帰テストの最小セットを整理します。必須フローと優先度、前提条件を明確にしてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -679,6 +749,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "遅延プロジェクト立て直し (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "遅延しているプロジェクトでスコープ再交渉とリカバリ計画を短時間でまとめる。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "リカバリプラン".to_string(),
                 summary: "納期リスクを抑えつつ、価値を守るための再計画を提示する。".to_string(),
@@ -695,6 +767,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["リカバリメモ".to_string(), "ステークホルダー通知".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -715,6 +788,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "リリース期限の突然の前倒し (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "外部要因で期限が前倒しになり、影響分析と打ち手を提案する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "前倒し対応ブリーフ".to_string(),
                 summary: "期限前倒しの影響を整理し、選択肢を合意するためのブリーフ。".to_string(),
@@ -731,6 +806,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["影響チェック表".to_string(), "対応方針メモ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとしてリリース期限が突然前倒しになった状況に対応します。影響範囲を整理し、複数の打ち手と合意形成を進めてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -751,6 +827,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "進捗が見えない状況への対応 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "進捗が見えない状況で可視化と打ち手を設計する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "進捗可視化メモ".to_string(),
                 summary: "最小限の指標と報告リズムを設計し、進捗を見える化する。".to_string(),
@@ -767,6 +845,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["進捗メトリクス".to_string(), "報告テンプレ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして進捗が見えない状況に対応します。最小限の可視化手段と報告リズムを設計し、次アクションを決めてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -787,6 +866,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "品質問題の緊急対応と優先度調整 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "品質問題が発生し、緊急対応と優先度を再調整する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "品質緊急対応メモ".to_string(),
                 summary: "品質問題の原因と影響を整理し、対応方針を合意する。".to_string(),
@@ -803,6 +884,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["影響整理".to_string(), "優先度マトリクス".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして品質問題に緊急対応します。原因と影響を整理し、優先度と対応方針を合意してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -823,6 +905,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "要件が曖昧な依頼への対応 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "曖昧な要求を具体化し、合意できるスコープを作る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "要件整理ブリーフ".to_string(),
                 summary: "曖昧な要求を具体化し、仮スコープと確認事項を整理する。".to_string(),
@@ -839,6 +923,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["成功条件メモ".to_string(), "確認事項リスト".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして曖昧な依頼に対応します。成功条件と仮スコープを整理し、確認事項と次アクションを合意してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -859,6 +944,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "追加スコープ要求の交渉 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "追加要求に対してスコープ調整と合意形成を行う。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "追加要求ブリーフ".to_string(),
                 summary: "追加要求の背景を整理し、代替案と影響を比較する。".to_string(),
@@ -875,6 +962,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["代替案表".to_string(), "影響整理".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして追加スコープ要求の交渉を行います。代替案と影響を提示し、合意内容をまとめてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -895,6 +983,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "スコープ／リソース交渉 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "顧客や上長とスコープ削減かリソース増加を交渉し、合意形成する。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "交渉ブリーフィング".to_string(),
                 summary: "事前に代替案とインパクトを整理し、短時間で合意を目指す。".to_string(),
@@ -911,6 +1001,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["提案メモ".to_string(), "インパクト表".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -931,6 +1022,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "エンジニアから「無理です」と言われる (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "技術的制約を理解し、代替案と合意を作る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "実現性レビュー".to_string(),
                 summary: "制約を整理し、代替案と合意形成を進めるためのレビュー。".to_string(),
@@ -947,6 +1040,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["制約メモ".to_string(), "代替案表".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPMとしてエンジニアから実現困難と指摘された状況に対応します。制約を整理し、代替案と合意形成を進めてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -967,6 +1061,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "コンフリクト調整 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "開発とQA・ビジネスの対立をファシリテートし、合意に導く。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "調整セッション".to_string(),
                 summary: "論点を分解し、事実と解釈を整理して合意を形成する。".to_string(),
@@ -983,6 +1079,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["論点リスト".to_string(), "合意メモ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -1003,6 +1100,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "優先度対立のファシリテーション (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "関係者間の優先度対立を整理し、合意に導く。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "優先度調整セッション".to_string(),
                 summary: "論点と優先度を整理し、合意形成とフォローを行う。".to_string(),
@@ -1019,6 +1118,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["論点整理".to_string(), "合意メモ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとして優先度対立をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -1039,6 +1139,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "ステークホルダーとの認識ズレ解消 (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "期待値のズレを解消し、共通認識と再発防止を作る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "認識合わせセッション".to_string(),
                 summary: "認識ズレを整理し、共通認識と再発防止プロセスを合意する。".to_string(),
@@ -1055,6 +1157,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["論点整理".to_string(), "合意メモ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとしてステークホルダー間の認識ズレを解消します。ズレの原因を整理し、共通認識と再発防止プロセスを合意してください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -1075,6 +1178,8 @@ pub fn default_scenarios() -> Vec<Scenario> {
             title: "ユーザー視点が抜けていることへの気づき (チャレンジ)".to_string(),
             discipline: ScenarioDiscipline::Challenge,
             description: "ユーザー視点の欠落に気づき、価値に立ち返る。".to_string(),
+            scenario_type: None,
+            feature_mockup: None,
             product: ProductInfo {
                 name: "ユーザー価値再確認".to_string(),
                 summary: "ユーザー行動を整理し、価値と最小改善案を再確認する。".to_string(),
@@ -1091,6 +1196,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 core_features: Some(vec!["行動フロー".to_string(), "価値メモ".to_string()]),
             },
             mode: "freeform".to_string(),
+            behavior: ScenarioBehavior::default(),
             kickoff_prompt: "あなたはPM/PMOとしてユーザー視点が抜けていることに気づきます。ユーザー行動を整理し、最小限の改善案と合意を作ってください。".to_string(),
             evaluation_criteria: vec![
                 EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
@@ -1107,4 +1213,51 @@ pub fn default_scenarios() -> Vec<Scenario> {
             supplemental_info: Some("機能ではなく価値に立ち返り、最小の打ち手を提案してください。".to_string()),
         },
     ]
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScenarioBehavior {
+    pub user_led: Option<bool>,
+    pub allow_proactive: Option<bool>,
+    pub max_questions: Option<u32>,
+    pub response_style: Option<String>,
+    pub phase: Option<String>,
+    pub single_response: Option<bool>,
+}
+
+impl Default for ScenarioBehavior {
+    fn default() -> Self {
+        Self {
+            user_led: None,
+            allow_proactive: None,
+            max_questions: None,
+            response_style: None,
+            phase: None,
+            single_response: None,
+        }
+    }
+}
+
+// Add ScoringGuidelines for evaluation criteria
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoringGuidelines {
+    pub excellent: String,
+    pub good: String,
+    pub needs_improvement: String,
+    pub poor: String,
+}
+
+// Add RatingCriterion (full version with guidelines)
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RatingCriterion {
+    pub id: String,
+    pub name: String,
+    pub weight: f32,
+    pub description: String,
+    pub scoring_guidelines: ScoringGuidelines,
 }

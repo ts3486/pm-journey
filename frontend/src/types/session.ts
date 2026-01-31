@@ -33,12 +33,30 @@ export type Evaluation = {
 
 export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 
+export type ScenarioType = "basic" | "test-case";
+
+export type FeatureMockup = {
+  component: "login" | "form" | "file-upload";
+  description: string;
+};
+
+export type TestCase = {
+  id: string;
+  sessionId: string;
+  name: string;
+  preconditions: string;
+  steps: string;
+  expectedResult: string;
+  createdAt: string;
+};
+
 export type ScenarioBehavior = {
   userLed?: boolean;
   allowProactive?: boolean;
   maxQuestions?: number;
   responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
   phase?: string;
+  singleResponse?: boolean;
 };
 
 export type ScenarioSummary = {
@@ -118,6 +136,8 @@ export type Scenario = {
   title: string;
   description: string;
   discipline: ScenarioDiscipline;
+  scenarioType?: ScenarioType;
+  featureMockup?: FeatureMockup;
   behavior?: ScenarioBehavior;
   product: {
     name: string;
@@ -166,6 +186,34 @@ export type ScenarioCatalogSection = {
   title: string;
   scenarios: ScenarioSummary[];
 };
+
+/**
+ * Central product configuration used across all scenarios
+ */
+export type ProductConfig = {
+  id?: string;
+  name: string;
+  summary: string;
+  audience: string;
+  problems: string[];
+  goals: string[];
+  differentiators: string[];
+  scope: string[];
+  constraints: string[];
+  timeline?: string;
+  successCriteria: string[];
+  uniqueEdge?: string;
+  techStack: string[];
+  coreFeatures: string[];
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/**
+ * Request to update product configuration
+ */
+export type UpdateProductConfigRequest = Omit<ProductConfig, 'id' | 'isDefault' | 'createdAt' | 'updatedAt'>;
 
 export type ScenarioCatalogSubcategory = {
   id: string;

@@ -5,6 +5,7 @@ import type { Evaluation, HistoryItem } from "@/types/session";
 
 type EvaluateInput = {
   scenarioId?: string;
+  testCasesContext?: string;
 };
 
 export const useEvaluateSession = (sessionId?: string) => {
@@ -14,7 +15,7 @@ export const useEvaluateSession = (sessionId?: string) => {
       if (!sessionId) {
         throw new Error("sessionId is required");
       }
-      return evaluateSessionById(sessionId, input.scenarioId);
+      return evaluateSessionById(sessionId, input.scenarioId, input.testCasesContext);
     },
     onSuccess: (evaluation) => {
       if (!sessionId) return;

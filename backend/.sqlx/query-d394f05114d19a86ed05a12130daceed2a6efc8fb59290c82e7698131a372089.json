@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT session_id, overall_score, passing, categories, summary, improvement_advice\n            FROM evaluations\n            WHERE session_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "overall_score",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 2,
+        "name": "passing",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "categories",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "summary",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "improvement_advice",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "d394f05114d19a86ed05a12130daceed2a6efc8fb59290c82e7698131a372089"
+}

@@ -31,9 +31,6 @@ function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: Scen
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <span className="badge">{title}</span>
-      </div>
       <div className="relative">
         <button
           type="button"
@@ -50,7 +47,7 @@ function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: Scen
           {scenarios.map((scenario, index) => (
             <div
               key={scenario.id}
-              className="card flex w-[260px] shrink-0 flex-col justify-between p-5 reveal snap-start sm:w-[280px] lg:w-[300px]"
+              className="card flex w-65 shrink-0 flex-col justify-between p-5 reveal snap-start sm:w-[280px] lg:w-[300px]"
               style={revealDelay(baseDelay + index * 60)}
             >
               <div className="space-y-3">
@@ -61,11 +58,6 @@ function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: Scen
                 <Link className="btn-primary" href={`/scenario?scenarioId=${scenario.id}&restart=1`}>
                   このシナリオを始める
                 </Link>
-                {savedByScenario[scenario.id] ? (
-                  <Link className="btn-secondary" href={`/scenario?scenarioId=${scenario.id}`}>
-                    再開する
-                  </Link>
-                ) : null}
               </div>
             </div>
           ))}
@@ -203,25 +195,18 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="space-y-6 reveal" style={revealDelay(120)}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Scenarios</p>
-            <h2 className="font-display text-2xl font-bold text-slate-900">シナリオを選択</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              PMアシスタントとPMの2カテゴリで、目的別にシナリオを選べます。
-            </p>
-          </div>
-        </div>
-
+      <section className="space-y-10 reveal" style={revealDelay(120)}>
         {homeScenarioCatalog.map((category, categoryIndex) => (
           <div key={category.id} className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="badge badge-large">{category.title}</span>
-              </div>
-            </div>
             {category.subcategories.map((subcategory, subcategoryIndex) => (
+              <div key={subcategory.id} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between px-11">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{categoryIndex === 0 ? "Basic" : "Test Cases"}</p>
+                  <h2 className="font-display text-2xl font-bold text-slate-900">{categoryIndex === 0 ? "基礎ソフトスキル" : "テストケース作成"}</h2>
+                </div>
+              </div>
+
               <ScenarioCarousel
                 key={subcategory.id}
                 title={subcategory.title}
@@ -229,6 +214,7 @@ export default function Home() {
                 savedByScenario={savedByScenario}
                 baseDelay={160 + categoryIndex * 140 + subcategoryIndex * 80}
               />
+              </div>
             ))}
           </div>
         ))}

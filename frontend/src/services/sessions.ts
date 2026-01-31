@@ -225,6 +225,7 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
 export async function evaluateSessionById(
   sessionId: string,
   scenarioId?: string,
+  testCasesContext?: string,
 ): Promise<Evaluation> {
   const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
   const payload = scenario
@@ -235,6 +236,8 @@ export async function evaluateSessionById(
         scenarioDescription: scenario.description,
         productContext: formatProductContext(scenario.product),
         scenarioPrompt: scenario.kickoffPrompt,
+        scenarioType: scenario.scenarioType,
+        testCasesContext,
       }
     : undefined;
   const evaluation = await api.evaluate(sessionId, payload);
