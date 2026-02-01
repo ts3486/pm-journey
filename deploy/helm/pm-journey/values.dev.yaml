@@ -19,9 +19,18 @@ backend:
   replicaCount: 1
   image:
     tag: dev
+  createServiceAccount: true
+  serviceAccountName: backend-wi
+  serviceAccountAnnotations:
+    azure.workload.identity/client-id: "1a72ac03-d7e9-4d11-aece-776eb95bb838"
+    azure.workload.identity/tenant-id: "0371cd02-ac11-42af-92de-70133ed89669"
+  secretProviderClass: backend-akv
   secretEnv:
     - name: DATABASE_URL
-      secretName: dev-backend-database
+      secretName: backend-secrets
       secretKey: DATABASE_URL
+    - name: GEMINI_API_KEY
+      secretName: backend-secrets
+      secretKey: GEMINI_API_KEY
   ingress:
     enabled: false

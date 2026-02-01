@@ -41,12 +41,17 @@ frontend:
 backend:
   enabled: true
   replicaCount: 2
+  createServiceAccount: false
+  serviceAccountName: ""
+  serviceAccountAnnotations: {}
   image:
     repository: ghcr.io/example/pm-journey-backend
     tag: latest
     pullPolicy: IfNotPresent
   env:
     RUST_LOG: info
+  secretProviderClass: ""
+  secretMountPath: "/mnt/secrets-store"
   secretEnv:
     - name: DATABASE_URL
       secretName: backend-database

@@ -20,11 +20,23 @@ spec:
         app.kubernetes.io/component: backend
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- if .Values.backend.serviceAccountName }}
+      serviceAccountName: {{ .Values.backend.serviceAccountName }}
+      {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- range .Values.global.imagePullSecrets }}
         - name: {{ . }}
         {{- end }}
+      {{- end }}
+      {{- if .Values.backend.secretProviderClass }}
+      volumes:
+        - name: backend-secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.backend.secretProviderClass }}
       {{- end }}
       containers:
         - name: backend
@@ -33,6 +45,12 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.backend.service.port }}
+          {{- if .Values.backend.secretProviderClass }}
+          volumeMounts:
+            - name: backend-secrets-store
+              mountPath: {{ .Values.backend.secretMountPath }}
+              readOnly: true
+          {{- end }}
           env:
             {{- range $key, $value := .Values.backend.env }}
             - name: {{ $key }}

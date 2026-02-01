@@ -3,9 +3,9 @@
 _Last updated: 2026-01-31_
 
 ## Overview
-- Deploy the Next.js frontend and Axum backend to Azure Kubernetes Service (AKS) with Microsoft-secured network, identity, and observability guardrails.
+- Deploy the Next.js frontend and Axum backend to Azure Kubernetes Service (AKS) with Microsoft-secured network, identity, and observability guardrails, anchored in a hub-spoke Azure Virtual Network plus Network Security Groups (NSGs).
 - Use Azure Container Registry (ACR) for image storage, Azure Front Door + Application Gateway/WAF for global ingress, and GitHub Actions for CI/CD.
-- Promote changes through dev → staging → production AKS namespaces with staged rollouts and automated monitoring.
+- Promote changes through dev → production AKS namespaces with staged rollouts and automated monitoring.
 
 ## Phase & Task Breakdown
 
@@ -26,15 +26,15 @@ _Last updated: 2026-01-31_
   - **Managed identity placement**: Hub hosts identity & security services (Azure AD, Key Vault). AKS uses Managed Identity add-on with workload identity federation. User-assigned identities live in hub resource group and are referenced by AKS namespaces. Firewall, Front Door, Application Gateway log to centralized Log Analytics workspace in hub.
 
 - [x] Define workload identity mappings for GitHub Actions, AKS pods, and any external services (Key Vault, Storage, Cosmos DB, etc.).
-  - **GitHub Actions**: Create Entra ID app `pmjourney-ci` with workload identity federation per environment (`refs/heads/main` → prod, `refs/heads/release/*` → staging, `refs/heads/dev` → dev). Roles: `AcrPush` on ACR, `Azure Kubernetes Service RBAC Admin` (dev) / `Cluster User` (staging/prod) scoped to corresponding AKS namespaces, `Key Vault Secrets Officer` (dev only) for bootstrap. Actions authenticate via `azure/login@v2` with `permissions: id-token` and never store secrets.
+  - **GitHub Actions**: Create Entra ID app `pmjourney-ci` with workload identity federation per environment (`refs/heads/main` → prod, `refs/heads/dev` → dev). Roles: `AcrPush` on ACR, `Azure Kubernetes Service RBAC Admin` (dev) / `Cluster User` (prod) scoped to corresponding AKS namespaces, `Key Vault Secrets Officer` (dev only) for bootstrap. Actions authenticate via `azure/login@v2` with `permissions: id-token` and never store secrets.
   - **AKS namespaces & pods**: Assign per-component user-assigned identities: `id-frontend` (read-only access to Storage + Key Vault for feature flags), `id-backend` (Key Vault secrets `get`, Azure PostgreSQL `AzureRoleBasedAccess` via AAD authentication), `id-cron` (Storage + Service Bus in future). Bind via Kubernetes ServiceAccount annotations + Azure workload identity webhook.
   - **External services**: Key Vault uses private endpoint inside spoke; pods retrieve secrets through Azure SDK + workload identity. Azure Storage containers (`session-exports`, `scenario-artifacts`) restricted to `Storage Blob Data Contributor` for backend identity. Cosmos DB is not required initially; placeholder identity mapping reserved for future analytics workspace. GitHub Actions and AKS identities gain Reader on Log Analytics + Monitor to emit telemetry. Gemini API key stored in Key Vault secret `Gemini--ApiKey`, only backend identity may fetch, preventing leak.
 
 - [x] Capture regulatory/availability requirements to choose the number of regions, availability zones, and data residency constraints.
   - **Data classification**: Stores limited personal data (user display names, free-form text, decision logs) plus proprietary scenario IP. Classify as Confidential (C2) under company policy; encryption in transit + at rest mandatory, double encryption for backups storing scenario IP.
-  - **Regions**: Primary deployment in `East US 2` (zones 1-3) for low latency to majority of pilot users (US). Secondary hot-standby in `Central US` for disaster recovery with async PostgreSQL replication + ACR geo-replication. Azure Front Door handles active-passive failover with health probes every 30s.
+  - **Regions**: Primary deployment in `Japan East` (zones 1-3) to meet latency + residency needs. Secondary hot-standby in `Japan West` for disaster recovery with async PostgreSQL replication + ACR geo-replication. Azure Front Door handles active-passive failover with health probes every 30s.
   - **Availability targets**: Frontend+API composite SLA ≥ 99.9% during beta, scaling to 99.95% before GA. AKS node pools span 3 AZs; PostgreSQL Flexible Server provisioned with zone redundant high availability. Recovery time objective (RTO) 30 minutes; recovery point objective (RPO) < 5 minutes via PITR backups every 5 min + storage account GRS.
-  - **Data residency**: All customer data, logs, container images, and backups remain in US regions. Diagnostic exports to Log Analytics + Storage use geo-redundant replication restricted to US paired regions. Gemini API currently US-hosted; contract review ensures compliance for cross-border transfer (documented exception if needed).
+  - **Data residency**: All customer data, logs, container images, and backups remain in Japan regions. Diagnostic exports to Log Analytics + Storage use geo-redundant replication restricted to the Japan East/West pair. Gemini API currently US-hosted; contract review ensures compliance for any cross-border transfer (documented exception if needed).
   - **Compliance hooks**: SOC 2 Type I controls targeted in FY26 Q2—Key Vault logging retained 1 year, Azure AD audit logs 90 days, GitHub audit mirrored to Log Analytics via GH Advanced Security export.
 
 - [x] Produce a threat model + security baseline (network policies, pod security standards, image signing, vulnerability scanning expectations).
@@ -56,9 +56,9 @@ _Last updated: 2026-01-31_
 - [x] Author multi-stage Dockerfiles for `frontend` (Next.js 16.1/React 19) and `backend` (Rust 1.75/Axum 0.7) with BuildKit caching + deterministic builds.
 - [x] Add language-specific health endpoints and readiness probes to each service for Kubernetes liveness/readiness.
 - [x] Introduce Helm (or Kustomize) charts that define Deployments, Services, Ingress, ConfigMaps, Secrets, and HorizontalPodAutoscalers per component.
-- [x] Standardize environment overlays (`values.dev.yaml`, `values.staging.yaml`, `values.prod.yaml`) that hold resource requests/limits and replica counts.
+- [x] Standardize environment overlays (`values.dev.yaml`, `values.prod.yaml`) that hold resource requests/limits and replica counts.
 - [ ] Wire Azure Key Vault + workload identity so pods retrieve secrets at runtime; ensure no secrets exist in Docker images or git history.
-- [ ] Define logging sidecars or OpenTelemetry exporters where needed, plus common labels/annotations for Azure Monitor scraping.
+- [ ] Define logging sidecars or OpenTelemetry exporters where needed, plus common labels/annotations for Azure Monitor scraping **(perform this after every other Phase 1 task so observability is the final validation step).**
 
 ### Phase 2 – Azure Infrastructure
 **Objective:** provision the cloud foundation that will host and protect the workloads.
@@ -68,14 +68,16 @@ _Last updated: 2026-01-31_
 - [ ] Deploy Azure Front Door Premium in front of Application Gateway WAF; configure TLS certificates (Key Vault-backed) and routing rules per service path.
 - [ ] Connect App Gateway to AKS ingress via an internal load balancer; enforce web application firewall policies and rate limiting.
 - [ ] Configure Azure DNS zones/records for primary domains and any vanity subdomains (e.g., `app.pm-journey.dev`, `api.pm-journey.dev`).
+- [ ] Issue and validate production SSL certificates (Front Door custom domain + App Gateway backend) using Azure Key Vault certificates to provide auditable TLS proof for the prod environment.
 - [ ] Enable diagnostic settings on all services, sending logs/metrics to a Log Analytics workspace defined in IaC.
 
 ### Phase 3 – CI/CD & Promotion Workflow
 **Objective:** automate build, test, and deploy steps with GitHub Actions targeting each environment.
+- Baseline workflow (`.github/workflows/deploy.yml`) already builds/test both apps, pushes images to the environment-specific ACR, and runs `helm upgrade` into the `dev` namespace when `dev` branch updates, or the `prod` namespace when `main` updates. Remaining tasks refine this pipeline with stronger quality gates, security scans, and release automation.
 - [ ] Create GitHub Action reusable workflows that lint, run unit tests (Vitest, cargo test, etc.), and build container images with `docker/build-push-action` or `az acr build`.
 - [ ] Configure workload identity federation so GitHub Actions authenticate to Azure without secrets; grant least-privilege roles for ACR push and AKS deploy.
 - [ ] Push versioned images to ACR per commit/branch tag, using semantic or git SHA tagging conventions.
-- [ ] Add deployment jobs that run `helm upgrade --install` (or `azure/k8s-deploy`) into dev namespace, then gate staging/prod on manual approvals or automated integration test passes.
+- [ ] Add deployment jobs that run `helm upgrade --install` (or `azure/k8s-deploy`) into dev namespace, then gate prod on manual approvals or automated integration test passes.
 - [ ] Publish deployment status back to pull requests and capture release artifacts (Helm values, manifests, SBOMs).
 - [ ] Implement automated rollback triggers (failed probes, high error rates) leveraging AKS automated deployments or Argo Rollouts if adopted.
 

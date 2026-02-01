@@ -27,6 +27,12 @@ backend:
   replicaCount: 3
   image:
     tag: prod
+  createServiceAccount: true
+  serviceAccountName: backend-wi
+  serviceAccountAnnotations:
+    azure.workload.identity/client-id: "1a72ac03-d7e9-4d11-aece-776eb95bb838"
+    azure.workload.identity/tenant-id: "0371cd02-ac11-42af-92de-70133ed89669"
+  secretProviderClass: backend-akv
   resources:
     requests:
       cpu: 500m
@@ -36,14 +42,8 @@ backend:
       memory: 1Gi
   secretEnv:
     - name: DATABASE_URL
-      secretName: prod-backend-database
+      secretName: backend-secrets
       secretKey: DATABASE_URL
-    - name: AZURE_CLIENT_ID
-      secretName: prod-backend-msi
-      secretKey: clientId
-    - name: AZURE_TENANT_ID
-      secretName: prod-backend-msi
-      secretKey: tenantId
-    - name: AZURE_FEDERATED_TOKEN_FILE
-      secretName: prod-backend-msi
-      secretKey: federatedTokenFile
+    - name: GEMINI_API_KEY
+      secretName: backend-secrets
+      secretKey: GEMINI_API_KEY

@@ -1,0 +1,32 @@
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: backend-akv
+  namespace: prod
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "false"
+    userAssignedIdentityID: 1a72ac03-d7e9-4d11-aece-776eb95bb838
+    keyvaultName: pm-journey-dev
+    cloudName: AzurePublicCloud
+    objects: |
+      array:
+        - |
+          objectName: Database--Url
+          objectType: secret
+          objectAlias: DATABASE_URL
+        - |
+          objectName: Gemini--ApiKey
+          objectType: secret
+          objectAlias: GEMINI_API_KEY
+    tenantId: 0371cd02-ac11-42af-92de-70133ed89669
+  secretObjects:
+    - secretName: backend-secrets
+      type: Opaque
+      data:
+        - key: DATABASE_URL
+          objectName: DATABASE_URL
+        - key: GEMINI_API_KEY
+          objectName: GEMINI_API_KEY
