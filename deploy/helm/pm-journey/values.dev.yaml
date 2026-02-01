@@ -1,0 +1,27 @@
+global:
+  domain: "dev.pm-journey.local"
+
+frontend:
+  replicaCount: 1
+  image:
+    tag: dev
+  env:
+    NEXT_PUBLIC_API_BASE: "https://api.dev.pm-journey.local"
+  ingress:
+    hosts:
+      - host: "app.dev.pm-journey.local"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+backend:
+  replicaCount: 1
+  image:
+    tag: dev
+  secretEnv:
+    - name: DATABASE_URL
+      secretName: dev-backend-database
+      secretKey: DATABASE_URL
+  ingress:
+    enabled: false
