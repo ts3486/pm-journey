@@ -31,3 +31,10 @@ Thumbs.db
 # Misc
 *.log
 .npm-cache-local/
+
+# Certificates/keys
+*.crt
+*.key
+*.pfx
+*.csr
+*.srl
