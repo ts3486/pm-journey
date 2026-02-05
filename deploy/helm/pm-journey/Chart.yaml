@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pm-journey
+description: Helm chart for pm-journey frontend (Next.js) and backend (Axum)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

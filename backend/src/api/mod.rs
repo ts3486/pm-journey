@@ -68,6 +68,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
     components(schemas(
         Scenario,
         ScenarioType,
+        crate::features::health::handlers::HealthResponse,
         FeatureMockup,
         Session,
         SessionStatus,

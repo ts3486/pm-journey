@@ -1,0 +1,82 @@
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+  imagePullSecrets: []
+  domain: "pm-journey.local"
+
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ghcr.io/example/pm-journey-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    NEXT_PUBLIC_API_BASE: "http://pm-journey-backend:3001"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: true
+    className: "azure-application-gateway"
+    annotations: {}
+    hosts:
+      - host: "app.pm-journey.local"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: frontend-tls
+        hosts:
+          - "app.pm-journey.local"
+  secretEnv: []
+
+backend:
+  enabled: true
+  replicaCount: 2
+  createServiceAccount: false
+  serviceAccountName: ""
+  serviceAccountAnnotations: {}
+  image:
+    repository: ghcr.io/example/pm-journey-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    RUST_LOG: info
+  secretProviderClass: ""
+  secretMountPath: "/mnt/secrets-store"
+  secretEnv:
+    - name: DATABASE_URL
+      secretName: backend-database
+      secretKey: DATABASE_URL
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 512Mi
+  service:
+    type: ClusterIP
+    port: 3001
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+  migrationJob:
+    enabled: false
+    image:
+      repository: ghcr.io/example/pm-journey-backend
+      tag: latest
+      pullPolicy: IfNotPresent
+    command: ["backend"]
+    args: []

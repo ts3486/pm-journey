@@ -12,7 +12,7 @@ You are a specialized backend development agent for the pm-journey project.
 ## Your Focus Areas
 
 ### Technology Stack
-- Rust 1.75+
+- Rust 1.88+
 - Axum 0.7 web framework
 - tokio async runtime
 - utoipa for OpenAPI docs

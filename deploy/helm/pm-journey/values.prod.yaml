@@ -1,0 +1,49 @@
+global:
+  domain: "pm-journey.com"
+
+frontend:
+  replicaCount: 3
+  image:
+    tag: prod
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 2
+      memory: 512Mi
+  ingress:
+    hosts:
+      - host: "app.pm-journey.com"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: prod-frontend-tls
+        hosts:
+          - "app.pm-journey.com"
+
+backend:
+  replicaCount: 3
+  image:
+    tag: prod
+  createServiceAccount: true
+  serviceAccountName: backend-wi
+  serviceAccountAnnotations:
+    azure.workload.identity/client-id: "1a72ac03-d7e9-4d11-aece-776eb95bb838"
+    azure.workload.identity/tenant-id: "0371cd02-ac11-42af-92de-70133ed89669"
+  secretProviderClass: backend-akv
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 1Gi
+  secretEnv:
+    - name: DATABASE_URL
+      secretName: backend-secrets
+      secretKey: DATABASE_URL
+    - name: GEMINI_API_KEY
+      secretName: backend-secrets
+      secretKey: GEMINI_API_KEY
