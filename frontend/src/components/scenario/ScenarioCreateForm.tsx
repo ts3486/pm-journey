@@ -14,14 +14,6 @@ import {
 } from "@/schemas/scenario";
 import { scenarioService } from "@/services/scenarioService";
 import { ScenarioCloneSelector } from "./ScenarioCloneSelector";
-import {
-  BasicInfoSection,
-  BehaviorSection,
-  ProductSection,
-  CriteriaSection,
-  MissionsSection,
-  AdvancedSection,
-} from "./sections";
 
 // ============================================================================
 // State Types
@@ -337,43 +329,6 @@ export function ScenarioCreateForm() {
           </div>
         </div>
       )}
-
-      {/* Form Sections */}
-      <BasicInfoSection
-        data={state.data}
-        onChange={handleFieldChange}
-        errors={state.errors}
-      />
-
-      <BehaviorSection
-        data={state.data.behavior}
-        onChange={(v) => dispatch({ type: "SET_BEHAVIOR", value: v })}
-        errors={state.errors}
-      />
-
-      <ProductSection
-        data={state.data.product}
-        onChange={(v) => dispatch({ type: "SET_PRODUCT", value: v })}
-        errors={state.errors}
-      />
-
-      <CriteriaSection
-        data={state.data.evaluationCriteria}
-        onChange={(v) => dispatch({ type: "SET_CRITERIA", value: v })}
-        errors={state.errors}
-      />
-
-      <MissionsSection
-        data={state.data.missions}
-        onChange={(v) => dispatch({ type: "SET_MISSIONS", value: v })}
-        errors={state.errors}
-      />
-
-      <AdvancedSection
-        data={state.data}
-        onChange={handleFieldChange}
-        errors={state.errors}
-      />
 
       {/* Footer */}
       <div className="card px-6 py-5">

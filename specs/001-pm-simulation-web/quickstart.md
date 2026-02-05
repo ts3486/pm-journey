@@ -2,7 +2,7 @@
 
 ## Prereqs
 - Node 18+; pnpm/npm/yarn
-- Rust 1.75+; cargo
+- Rust 1.88+; cargo
 - HTTPS-capable environment if enabling API
 
 ## Frontend (Next.js + Tailwind + TanStack)

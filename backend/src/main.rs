@@ -50,6 +50,7 @@ async fn main() {
         .allow_origin([
             "http://localhost:3000".parse().unwrap(),
             "http://127.0.0.1:3000".parse().unwrap(),
+            "https://pm-journey-frontend.fly.dev".parse().unwrap(),
         ])
         .allow_methods(Any)
         .allow_headers(Any);

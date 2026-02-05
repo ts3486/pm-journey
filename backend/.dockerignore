@@ -1,8 +1,10 @@
-target
-.git
+target/
+target-run/
+.git/
 .gitignore
 **/*.rs.bk
-Cargo.lock
-.idea
-.vscode
+.idea/
+.vscode/
 .env*
+*.log
+fly.toml

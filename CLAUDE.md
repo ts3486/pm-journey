@@ -14,7 +14,7 @@ A full-stack web application for project management simulation and learning, fea
 - **Validation**: Zod
 
 ### Backend
-- **Language**: Rust 1.75+
+- **Language**: Rust 1.88+
 - **Framework**: Axum 0.7
 - **API Docs**: utoipa (OpenAPI)
 - **Async Runtime**: tokio

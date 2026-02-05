@@ -15,6 +15,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile
 
 FROM deps AS builder
+ARG NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
 COPY . .
 RUN pnpm run build
 
