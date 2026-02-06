@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pm-journey/types": ["packages/types/src"],
+      "@pm-journey/ui": ["packages/ui/src"],
+      "@pm-journey/hooks": ["packages/hooks/src"],
+      "@pm-journey/config": ["packages/config/src"],
+      "@pm-journey/storage": ["packages/storage/src"]
+    }
+  }
+}
