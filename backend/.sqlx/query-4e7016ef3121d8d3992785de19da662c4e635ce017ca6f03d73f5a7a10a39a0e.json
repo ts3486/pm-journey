@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO product_config (\n                name, summary, audience,\n                problems, goals, differentiators,\n                scope, constraints, timeline,\n                success_criteria, unique_edge, tech_stack, core_features\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n            ON CONFLICT ((true))\n            DO UPDATE SET\n                name = EXCLUDED.name,\n                summary = EXCLUDED.summary,\n                audience = EXCLUDED.audience,\n                problems = EXCLUDED.problems,\n                goals = EXCLUDED.goals,\n                differentiators = EXCLUDED.differentiators,\n                scope = EXCLUDED.scope,\n                constraints = EXCLUDED.constraints,\n                timeline = EXCLUDED.timeline,\n                success_criteria = EXCLUDED.success_criteria,\n                unique_edge = EXCLUDED.unique_edge,\n                tech_stack = EXCLUDED.tech_stack,\n                core_features = EXCLUDED.core_features,\n                updated_at = NOW()\n            RETURNING\n                id::text,\n                name, summary, audience,\n                problems, goals, differentiators,\n                scope, constraints, timeline,\n                success_criteria, unique_edge, tech_stack, core_features,\n                created_at, updated_at\n            ",
+  "query": "\n            SELECT\n                id::text,\n                name, summary, audience,\n                problems, goals, differentiators,\n                scope, constraints, timeline,\n                success_criteria, unique_edge, tech_stack, core_features,\n                product_prompt,\n                created_at, updated_at\n            FROM product_config\n            LIMIT 1\n            ",
   "describe": {
     "columns": [
       {
@@ -75,31 +75,22 @@
       },
       {
         "ordinal": 14,
+        "name": "product_prompt",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
-      "Left": [
-        "Text",
-        "Text",
-        "Text",
-        "Jsonb",
-        "Jsonb",
-        "Jsonb",
-        "Jsonb",
-        "Jsonb",
-        "Text",
-        "Jsonb",
-        "Text",
-        "Jsonb",
-        "Jsonb"
-      ]
+      "Left": []
     },
     "nullable": [
       null,
@@ -116,9 +107,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "776b8e3e476925d184dae04db9986f9044e686b299f74d0509b783056da15475"
+  "hash": "4e7016ef3121d8d3992785de19da662c4e635ce017ca6f03d73f5a7a10a39a0e"
 }
