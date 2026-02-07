@@ -127,7 +127,7 @@ export function SettingsPage() {
               disabled={updateMutation.isPending || resetMutation.isPending}
             />
             <p className="text-xs text-slate-500">
-              Markdownと以下の変数が利用できます。例: <code className="rounded bg-slate-100 px-1">顧客: {{`{{productAudience}}`}}</code>
+              Markdownと以下の変数が利用できます。例: <code className="rounded bg-slate-100 px-1">顧客: {"{{productAudience}}"}</code>
             </p>
             <ul className="flex flex-wrap gap-2 text-xs">
               {promptVariables.map((variable) => (
