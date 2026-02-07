@@ -1,6 +1,6 @@
-use sqlx::{PgPool, Postgres, Transaction};
 use crate::models::{Evaluation, EvaluationCategory};
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Clone)]
 pub struct EvaluationRepository {
@@ -18,7 +18,8 @@ impl EvaluationRepository {
         self.create_in_tx(&mut tx, evaluation).await?;
         tx.commit().await?;
 
-        self.get_by_session(&evaluation.session_id).await?
+        self.get_by_session(&evaluation.session_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created evaluation"))
     }
 
@@ -71,8 +72,8 @@ impl EvaluationRepository {
         .context("Failed to fetch evaluation")?;
 
         Ok(row.map(|r| {
-            let categories: Vec<EvaluationCategory> = serde_json::from_value(r.categories)
-                .unwrap_or_default();
+            let categories: Vec<EvaluationCategory> =
+                serde_json::from_value(r.categories).unwrap_or_default();
 
             Evaluation {
                 session_id: r.session_id,

@@ -1,7 +1,7 @@
-use sqlx::{PgPool, Postgres, Transaction};
 use crate::models::{Message, MessageRole, MessageTag};
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Clone)]
 pub struct MessageRepository {
@@ -19,7 +19,8 @@ impl MessageRepository {
         self.create_in_tx(&mut tx, message).await?;
         tx.commit().await?;
 
-        self.get(&message.id).await?
+        self.get(&message.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created message"))
     }
 
@@ -35,16 +36,23 @@ impl MessageRepository {
         };
 
         let tags: Option<Vec<String>> = message.tags.as_ref().map(|tags| {
-            tags.iter().map(|t| match t {
-                MessageTag::Decision => "decision",
-                MessageTag::Assumption => "assumption",
-                MessageTag::Risk => "risk",
-                MessageTag::NextAction => "next_action",
-                MessageTag::Summary => "summary",
-            }.to_string()).collect()
+            tags.iter()
+                .map(|t| {
+                    match t {
+                        MessageTag::Decision => "decision",
+                        MessageTag::Assumption => "assumption",
+                        MessageTag::Risk => "risk",
+                        MessageTag::NextAction => "next_action",
+                        MessageTag::Summary => "summary",
+                    }
+                    .to_string()
+                })
+                .collect()
         });
 
-        let created_at: DateTime<Utc> = message.created_at.parse()
+        let created_at: DateTime<Utc> = message
+            .created_at
+            .parse()
             .context("Failed to parse created_at timestamp")?;
 
         sqlx::query!(
@@ -95,14 +103,17 @@ impl MessageRepository {
             };
 
             let tags = r.tags.map(|tag_strs| {
-                tag_strs.iter().filter_map(|t| match t.as_str() {
-                    "decision" => Some(MessageTag::Decision),
-                    "assumption" => Some(MessageTag::Assumption),
-                    "risk" => Some(MessageTag::Risk),
-                    "next_action" => Some(MessageTag::NextAction),
-                    "summary" => Some(MessageTag::Summary),
-                    _ => None,
-                }).collect()
+                tag_strs
+                    .iter()
+                    .filter_map(|t| match t.as_str() {
+                        "decision" => Some(MessageTag::Decision),
+                        "assumption" => Some(MessageTag::Assumption),
+                        "risk" => Some(MessageTag::Risk),
+                        "next_action" => Some(MessageTag::NextAction),
+                        "summary" => Some(MessageTag::Summary),
+                        _ => None,
+                    })
+                    .collect()
             });
 
             Message {
@@ -134,35 +145,41 @@ impl MessageRepository {
         .await
         .context("Failed to list messages")?;
 
-        Ok(rows.into_iter().map(|r| {
-            let role = match r.role.as_str() {
-                "user" => MessageRole::User,
-                "agent" => MessageRole::Agent,
-                "system" => MessageRole::System,
-                _ => MessageRole::User,
-            };
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let role = match r.role.as_str() {
+                    "user" => MessageRole::User,
+                    "agent" => MessageRole::Agent,
+                    "system" => MessageRole::System,
+                    _ => MessageRole::User,
+                };
 
-            let tags = r.tags.map(|tag_strs| {
-                tag_strs.iter().filter_map(|t| match t.as_str() {
-                    "decision" => Some(MessageTag::Decision),
-                    "assumption" => Some(MessageTag::Assumption),
-                    "risk" => Some(MessageTag::Risk),
-                    "next_action" => Some(MessageTag::NextAction),
-                    "summary" => Some(MessageTag::Summary),
-                    _ => None,
-                }).collect()
-            });
+                let tags = r.tags.map(|tag_strs| {
+                    tag_strs
+                        .iter()
+                        .filter_map(|t| match t.as_str() {
+                            "decision" => Some(MessageTag::Decision),
+                            "assumption" => Some(MessageTag::Assumption),
+                            "risk" => Some(MessageTag::Risk),
+                            "next_action" => Some(MessageTag::NextAction),
+                            "summary" => Some(MessageTag::Summary),
+                            _ => None,
+                        })
+                        .collect()
+                });
 
-            Message {
-                id: r.id,
-                session_id: r.session_id,
-                role,
-                content: r.content,
-                created_at: r.created_at.unwrap_or_default(),
-                tags,
-                queued_offline: r.queued_offline,
-            }
-        }).collect())
+                Message {
+                    id: r.id,
+                    session_id: r.session_id,
+                    role,
+                    content: r.content,
+                    created_at: r.created_at.unwrap_or_default(),
+                    tags,
+                    queued_offline: r.queued_offline,
+                }
+            })
+            .collect())
     }
 
     #[allow(dead_code)]

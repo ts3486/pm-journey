@@ -99,7 +99,9 @@ impl EvaluationService {
             .as_ref()
             .is_some_and(|tc| !tc.trim().is_empty());
         if !has_evaluable_messages && !has_test_cases {
-            return Err(client_error("評価対象のメッセージまたはテストケースがありません。"));
+            return Err(client_error(
+                "評価対象のメッセージまたはテストケースがありません。",
+            ));
         }
 
         // Create evaluation via Gemini
@@ -210,7 +212,10 @@ fn build_evaluation_instruction(
     if strict {
         output_rules.push("- JSON以外の文字列や説明文は一切出力しない".to_string());
         output_rules.push("- ``` などのコードブロックは禁止".to_string());
-        output_rules.push("以下のJSONテンプレートの数値とコメントだけを埋めて返すこと。キーの追加・削除は禁止。".to_string());
+        output_rules.push(
+            "以下のJSONテンプレートの数値とコメントだけを埋めて返すこと。キーの追加・削除は禁止。"
+                .to_string(),
+        );
         let template = build_evaluation_template(criteria);
         output_rules.push(format!("JSONテンプレート:\n{}", template));
     }
@@ -265,7 +270,8 @@ fn build_evaluation_template(criteria: &[EvaluationCriterion]) -> serde_json::Va
 
 fn build_evaluation_template_json(criteria: &[EvaluationCriterion]) -> String {
     serde_json::to_string_pretty(&build_evaluation_template(criteria)).unwrap_or_else(|_| {
-        "{\"categories\":[],\"overallScore\":0,\"summary\":\"\",\"improvementAdvice\":\"\"}".to_string()
+        "{\"categories\":[],\"overallScore\":0,\"summary\":\"\",\"improvementAdvice\":\"\"}"
+            .to_string()
     })
 }
 
@@ -439,14 +445,13 @@ async fn generate_ai_evaluation(
                 "あなたはJSON修復担当です。以下のドラフトと評価基準/テンプレートを使い、必ず有効なJSONのみを返してください。追加説明は不要です。\n- JSON以外の文字列は禁止\n- テンプレートのキーを追加/削除しない\n- 数値は0-100の範囲\n\nJSONテンプレート:\n{}",
                 template
             );
-            let repair_input = format!("評価ドラフト:\n{}\n\n会話ログ:\n{}", strict_reply, transcript);
-            let repaired_reply = call_gemini_evaluation(
-                repair_instruction,
-                repair_input,
-                &eval_model,
-                &gemini_key,
-            )
-            .await?;
+            let repair_input = format!(
+                "評価ドラフト:\n{}\n\n会話ログ:\n{}",
+                strict_reply, transcript
+            );
+            let repaired_reply =
+                call_gemini_evaluation(repair_instruction, repair_input, &eval_model, &gemini_key)
+                    .await?;
             json_value = extract_json_value(&repaired_reply);
             if json_value.is_none() {
                 warn!(
@@ -504,8 +509,6 @@ async fn generate_ai_evaluation(
         passing: Some(passing),
         categories,
         summary: output.summary.filter(|s| !s.trim().is_empty()),
-        improvement_advice: output
-            .improvement_advice
-            .filter(|s| !s.trim().is_empty()),
+        improvement_advice: output.improvement_advice.filter(|s| !s.trim().is_empty()),
     })
 }

@@ -1,7 +1,7 @@
-use sqlx::{PgPool, Row};
 use crate::models::TestCase;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use sqlx::{PgPool, Row};
 
 #[derive(Clone)]
 pub struct TestCaseRepository {
@@ -14,7 +14,9 @@ impl TestCaseRepository {
     }
 
     pub async fn create(&self, test_case: &TestCase) -> Result<TestCase> {
-        let created_at: DateTime<Utc> = test_case.created_at.parse()
+        let created_at: DateTime<Utc> = test_case
+            .created_at
+            .parse()
             .context("Failed to parse created_at timestamp")?;
 
         sqlx::query(
@@ -36,7 +38,8 @@ impl TestCaseRepository {
         .await
         .context("Failed to insert test case")?;
 
-        self.get(&test_case.id).await?
+        self.get(&test_case.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created test case"))
     }
 

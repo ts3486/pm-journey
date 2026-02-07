@@ -1,4 +1,7 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 
 use crate::error::AppError;
 use crate::state::SharedState;
@@ -29,10 +32,6 @@ pub async fn post_message(
     Path(id): Path<String>,
     Json(body): Json<CreateMessageRequest>,
 ) -> Result<Json<MessageResponse>, AppError> {
-    let response = state
-        .services()
-        .messages()
-        .post_message(&id, body)
-        .await?;
+    let response = state.services().messages().post_message(&id, body).await?;
     Ok(Json(response))
 }

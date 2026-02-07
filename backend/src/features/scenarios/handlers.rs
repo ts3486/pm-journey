@@ -1,4 +1,7 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 
 use crate::error::AppError;
 use crate::state::SharedState;
@@ -25,7 +28,11 @@ pub async fn create_scenario(
     State(state): State<SharedState>,
     Json(scenario): Json<Scenario>,
 ) -> Result<Json<Scenario>, AppError> {
-    let scenario = state.services().scenarios().create_scenario(&scenario).await?;
+    let scenario = state
+        .services()
+        .scenarios()
+        .create_scenario(&scenario)
+        .await?;
     Ok(Json(scenario))
 }
 

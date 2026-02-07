@@ -38,18 +38,30 @@ impl ProductConfigRepository {
         Ok(row.map(|r| {
             let problems: Vec<String> = serde_json::from_value(r.problems).unwrap_or_default();
             let goals: Vec<String> = serde_json::from_value(r.goals).unwrap_or_default();
-            let differentiators: Vec<String> =
-                r.differentiators.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let scope: Vec<String> =
-                r.scope.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let constraints: Vec<String> =
-                r.constraints.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let success_criteria: Vec<String> =
-                r.success_criteria.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let tech_stack: Vec<String> =
-                r.tech_stack.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let core_features: Vec<String> =
-                r.core_features.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
+            let differentiators: Vec<String> = r
+                .differentiators
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let scope: Vec<String> = r
+                .scope
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let constraints: Vec<String> = r
+                .constraints
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let success_criteria: Vec<String> = r
+                .success_criteria
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let tech_stack: Vec<String> = r
+                .tech_stack
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let core_features: Vec<String> = r
+                .core_features
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
 
             ProductConfig {
                 id: r.id,
@@ -144,18 +156,30 @@ impl ProductConfigRepository {
 
         let problems: Vec<String> = serde_json::from_value(row.problems).unwrap_or_default();
         let goals: Vec<String> = serde_json::from_value(row.goals).unwrap_or_default();
-        let differentiators: Vec<String> =
-            row.differentiators.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let scope: Vec<String> =
-            row.scope.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let constraints: Vec<String> =
-            row.constraints.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let success_criteria: Vec<String> =
-            row.success_criteria.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let tech_stack: Vec<String> =
-            row.tech_stack.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let core_features: Vec<String> =
-            row.core_features.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
+        let differentiators: Vec<String> = row
+            .differentiators
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let scope: Vec<String> = row
+            .scope
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let constraints: Vec<String> = row
+            .constraints
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let success_criteria: Vec<String> = row
+            .success_criteria
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let tech_stack: Vec<String> = row
+            .tech_stack
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let core_features: Vec<String> = row
+            .core_features
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
 
         Ok(ProductConfig {
             id: row.id,

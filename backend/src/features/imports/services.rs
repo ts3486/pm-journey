@@ -40,7 +40,9 @@ async fn import_snapshot(pool: &PgPool, snapshot: &SessionSnapshot) -> anyhow::R
 
     // Insert session
     let session_repo = SessionRepository::new(pool.clone());
-    session_repo.create_in_tx(&mut tx, &snapshot.session).await?;
+    session_repo
+        .create_in_tx(&mut tx, &snapshot.session)
+        .await?;
 
     // Insert messages
     let message_repo = MessageRepository::new(pool.clone());

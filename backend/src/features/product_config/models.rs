@@ -74,7 +74,9 @@ impl ProductConfig {
         Self {
             id: None,
             name: "在庫最適化ダッシュボード".to_string(),
-            summary: "多店舗小売向けに、在庫・発注・売上を一画面で可視化し、欠品と過剰在庫を減らすSaaS。".to_string(),
+            summary:
+                "多店舗小売向けに、在庫・発注・売上を一画面で可視化し、欠品と過剰在庫を減らすSaaS。"
+                    .to_string(),
             audience: "店舗マネージャー、在庫管理担当、エリア統括".to_string(),
             problems: vec![
                 "欠品と過剰在庫が併発".to_string(),

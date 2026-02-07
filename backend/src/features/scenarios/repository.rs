@@ -1,8 +1,8 @@
-use sqlx::PgPool;
 use crate::models::{
     Mission, ProductInfo, RatingCriterion, Scenario, ScenarioBehavior, ScenarioDiscipline,
 };
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
+use sqlx::PgPool;
 
 /// Repository for custom scenarios CRUD operations
 #[allow(dead_code)]
@@ -18,7 +18,7 @@ impl ScenarioRepository {
         Self { pool }
     }
 
-       /// Create a new custom scenario
+    /// Create a new custom scenario
     pub async fn create(&self, scenario: &Scenario) -> Result<Scenario> {
         let discipline = match scenario.discipline {
             ScenarioDiscipline::Basic => "BASIC",
@@ -58,7 +58,8 @@ impl ScenarioRepository {
         .context("Failed to insert scenario")?;
 
         // Return the created scenario
-        self.get(&scenario.id).await?
+        self.get(&scenario.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created scenario"))
     }
 
@@ -91,13 +92,12 @@ impl ScenarioRepository {
                 .behavior
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
-            let product: ProductInfo = serde_json::from_value(r.product)
-                .expect("Invalid product JSON in database");
+            let product: ProductInfo =
+                serde_json::from_value(r.product).expect("Invalid product JSON in database");
             let evaluation_criteria: Vec<RatingCriterion> =
-                serde_json::from_value(r.evaluation_criteria)
-                    .unwrap_or_default();
-            let missions: Option<Vec<Mission>> = r.missions
-                .and_then(|v| serde_json::from_value(v).ok());
+                serde_json::from_value(r.evaluation_criteria).unwrap_or_default();
+            let missions: Option<Vec<Mission>> =
+                r.missions.and_then(|v| serde_json::from_value(v).ok());
 
             Scenario {
                 id: r.id,
@@ -110,7 +110,8 @@ impl ScenarioRepository {
                 mode: r.mode,
                 behavior,
                 kickoff_prompt: r.kickoff_prompt,
-                evaluation_criteria: evaluation_criteria.into_iter()
+                evaluation_criteria: evaluation_criteria
+                    .into_iter()
                     .map(|c| crate::models::EvaluationCategory {
                         name: c.name,
                         weight: c.weight,
@@ -141,48 +142,51 @@ impl ScenarioRepository {
         .await
         .context("Failed to list scenarios")?;
 
-        Ok(rows.into_iter().map(|r| {
-            let discipline = match r.discipline.as_str() {
-                "CHALLENGE" => ScenarioDiscipline::Challenge,
-                _ => ScenarioDiscipline::Basic,
-            };
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let discipline = match r.discipline.as_str() {
+                    "CHALLENGE" => ScenarioDiscipline::Challenge,
+                    _ => ScenarioDiscipline::Basic,
+                };
 
-            let behavior: ScenarioBehavior = r
-                .behavior
-                .and_then(|v| serde_json::from_value(v).ok())
-                .unwrap_or_default();
-            let product: ProductInfo = serde_json::from_value(r.product)
-                .expect("Invalid product JSON");
-            let evaluation_criteria: Vec<RatingCriterion> =
-                serde_json::from_value(r.evaluation_criteria)
+                let behavior: ScenarioBehavior = r
+                    .behavior
+                    .and_then(|v| serde_json::from_value(v).ok())
                     .unwrap_or_default();
-            let missions: Option<Vec<Mission>> = r.missions
-                .and_then(|v| serde_json::from_value(v).ok());
+                let product: ProductInfo =
+                    serde_json::from_value(r.product).expect("Invalid product JSON");
+                let evaluation_criteria: Vec<RatingCriterion> =
+                    serde_json::from_value(r.evaluation_criteria).unwrap_or_default();
+                let missions: Option<Vec<Mission>> =
+                    r.missions.and_then(|v| serde_json::from_value(v).ok());
 
-            Scenario {
-                id: r.id,
-                title: r.title,
-                description: r.description,
-                discipline,
-                scenario_type: None,
-                feature_mockup: None,
-                product,
-                mode: r.mode,
-                behavior,
-                kickoff_prompt: r.kickoff_prompt,
-                evaluation_criteria: evaluation_criteria.into_iter()
-                    .map(|c| crate::models::EvaluationCategory {
-                        name: c.name,
-                        weight: c.weight,
-                        score: None,
-                        feedback: None,
-                    })
-                    .collect(),
-                passing_score: r.passing_score,
-                missions,
-                supplemental_info: r.supplemental_info,
-            }
-        }).collect())
+                Scenario {
+                    id: r.id,
+                    title: r.title,
+                    description: r.description,
+                    discipline,
+                    scenario_type: None,
+                    feature_mockup: None,
+                    product,
+                    mode: r.mode,
+                    behavior,
+                    kickoff_prompt: r.kickoff_prompt,
+                    evaluation_criteria: evaluation_criteria
+                        .into_iter()
+                        .map(|c| crate::models::EvaluationCategory {
+                            name: c.name,
+                            weight: c.weight,
+                            score: None,
+                            feedback: None,
+                        })
+                        .collect(),
+                    passing_score: r.passing_score,
+                    missions,
+                    supplemental_info: r.supplemental_info,
+                }
+            })
+            .collect())
     }
 
     /// Update an existing scenario
@@ -234,7 +238,8 @@ impl ScenarioRepository {
             anyhow::bail!("Scenario not found");
         }
 
-        self.get(&scenario.id).await?
+        self.get(&scenario.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Scenario not found after update"))
     }
 
