@@ -47,8 +47,16 @@ impl ProductConfigService {
             return Err(crate::error::client_error("ゴールは1つ以上必要です"));
         }
 
+        let mut payload = request.clone();
+        if let Some(prompt) = payload.product_prompt.take() {
+            let trimmed = prompt.trim();
+            if !trimmed.is_empty() {
+                payload.product_prompt = Some(trimmed.to_string());
+            }
+        }
+
         let repo = ProductConfigRepository::new(self.pool.clone());
-        let config = repo.upsert(request).await?;
+        let config = repo.upsert(&payload).await?;
         Ok(config)
     }
 

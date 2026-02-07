@@ -28,6 +28,8 @@ pub struct ProductConfig {
     pub tech_stack: Vec<String>,
     #[serde(default, alias = "core_features")]
     pub core_features: Vec<String>,
+    #[serde(default, alias = "product_prompt")]
+    pub product_prompt: Option<String>,
     /// Whether this is the default product config (not user-customized)
     #[serde(default, alias = "is_default")]
     pub is_default: bool,
@@ -62,6 +64,8 @@ pub struct UpdateProductConfigRequest {
     pub tech_stack: Vec<String>,
     #[serde(default, alias = "core_features")]
     pub core_features: Vec<String>,
+    #[serde(default, alias = "product_prompt")]
+    pub product_prompt: Option<String>,
 }
 
 impl ProductConfig {
@@ -117,6 +121,7 @@ impl ProductConfig {
                 "低在庫アラート".to_string(),
                 "POS連携".to_string(),
             ],
+            product_prompt: None,
             is_default: true,
             created_at: None,
             updated_at: None,
