@@ -3,7 +3,15 @@ import type { Scenario, TestCase } from "@/types";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import { TestCaseForm } from "@/components/scenario/TestCaseForm";
-import { FileUploadMockup, FormMockup, LoginMockup } from "@/components/mockups";
+import {
+  FileUploadMockup,
+  FormMockup,
+  LoginMockup,
+  NotificationSettingsMockup,
+  PasswordResetMockup,
+  ProfileEditMockup,
+  SearchFilterMockup,
+} from "@/components/mockups";
 import { api } from "@/services/api";
 import type { SessionState } from "@/services/sessions";
 
@@ -65,6 +73,14 @@ export function TestCaseScenarioLayout({
         return <FormMockup description={description} />;
       case "file-upload":
         return <FileUploadMockup description={description} />;
+      case "password-reset":
+        return <PasswordResetMockup description={description} />;
+      case "search-filter":
+        return <SearchFilterMockup description={description} />;
+      case "notification-settings":
+        return <NotificationSettingsMockup description={description} />;
+      case "profile-edit":
+        return <ProfileEditMockup description={description} />;
       default:
         return (
           <div className="rounded-lg bg-gray-100 p-8 text-center text-gray-500">

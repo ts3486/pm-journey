@@ -18,6 +18,7 @@ const homeScenarioIds = homeScenarioCatalog.flatMap((category: ScenarioCatalogCa
     subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
   )
 );
+const scrollableSubcategoryIds = new Set(["test-case-creation"]);
 
 type JourneyStage = {
   role: string;
@@ -478,57 +479,67 @@ export function HomePage() {
                   </div>
 
                   <div className="space-y-3">
-                    {category.subcategories.map((subcategory) => (
-                      <div key={subcategory.id} className="space-y-2">
-                        <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
-                        <ul className="space-y-2">
-                          {subcategory.scenarios.map((scenario) => {
-                            const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
-                            const completed = Boolean(completedSessionId);
-                            const interrupted = savedByScenario[scenario.id] && !completed;
-                            return (
-                              <li
-                                key={scenario.id}
-                                className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
-                                  completed
-                                    ? "border-emerald-200/80 bg-emerald-50/60"
-                                    : palette.incompleteScenario
-                                }`}
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
-                                    <p className="text-xs text-slate-600">{scenario.description}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {completed ? (
-                                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                        完了
-                                      </span>
-                                    ) : null}
-                                    {interrupted ? (
-                                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
-                                        中断中
-                                      </span>
-                                    ) : null}
-                                    <Link
-                                      className="btn-secondary !px-3 !py-1.5 !text-xs"
-                                      to={
-                                        completedSessionId
-                                          ? `/history/${completedSessionId}`
-                                          : `/scenario?scenarioId=${scenario.id}&restart=1`
-                                      }
-                                    >
-                                      {completed ? "詳細" : interrupted ? "再開" : "開始"}
-                                    </Link>
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ))}
+                    {category.subcategories.map((subcategory) => {
+                      const isScrollableSubcategory = scrollableSubcategoryIds.has(subcategory.id);
+                      return (
+                        <div key={subcategory.id} className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
+                            {isScrollableSubcategory ? (
+                              <span className="text-[11px] text-slate-500">スクロールで表示</span>
+                            ) : null}
+                          </div>
+                          <div className={isScrollableSubcategory ? "max-h-[27rem] overflow-y-auto pr-1 no-scrollbar" : undefined}>
+                            <ul className="space-y-2">
+                              {subcategory.scenarios.map((scenario) => {
+                                const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
+                                const completed = Boolean(completedSessionId);
+                                const interrupted = savedByScenario[scenario.id] && !completed;
+                                return (
+                                  <li
+                                    key={scenario.id}
+                                    className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
+                                      completed
+                                        ? "border-emerald-200/80 bg-emerald-50/60"
+                                        : palette.incompleteScenario
+                                    }`}
+                                  >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                      <div>
+                                        <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
+                                        <p className="text-xs text-slate-600">{scenario.description}</p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {completed ? (
+                                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                            完了
+                                          </span>
+                                        ) : null}
+                                        {interrupted ? (
+                                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
+                                            中断中
+                                          </span>
+                                        ) : null}
+                                        <Link
+                                          className="btn-secondary !px-3 !py-1.5 !text-xs"
+                                          to={
+                                            completedSessionId
+                                              ? `/history/${completedSessionId}`
+                                              : `/scenario?scenarioId=${scenario.id}&restart=1`
+                                          }
+                                        >
+                                          {completed ? "詳細" : interrupted ? "再開" : "開始"}
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </article>

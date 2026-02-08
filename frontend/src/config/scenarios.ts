@@ -324,6 +324,214 @@ const testFileUploadCriteria: RatingCriterion[] = [
   },
 ];
 
+// 3a-4. test-password-reset: パスワード再設定機能テストケース作成
+const testPasswordResetCriteria: RatingCriterion[] = [
+  {
+    id: "reset-request-flow",
+    name: "再設定フローの網羅性",
+    weight: 30,
+    description: "メール送信、コード検証、パスワード更新までのフローをカバーしているか",
+    scoringGuidelines: {
+      excellent: "再設定要求から更新完了までの正常系を段階ごとに網羅",
+      good: "主要な正常系をカバー。一部の遷移が不足",
+      needsImprovement: "一部のフローのみで全体像が不足",
+      poor: "再設定フローの整理が不十分",
+    },
+  },
+  {
+    id: "reset-token-security",
+    name: "トークン・セキュリティ観点",
+    weight: 25,
+    description: "トークン有効期限、使い回し防止、不正アクセス対策を検討しているか",
+    scoringGuidelines: {
+      excellent: "有効期限、再利用不可、試行回数制限、漏えい時対策を網羅",
+      good: "主要なセキュリティ観点をカバー。一部欠落",
+      needsImprovement: "基本的な有効期限のみ",
+      poor: "セキュリティ観点の検討がない",
+    },
+  },
+  {
+    id: "reset-error-handling",
+    name: "異常系・エラーハンドリング",
+    weight: 25,
+    description: "無効コード、期限切れ、ネットワーク障害時の挙動を検討しているか",
+    scoringGuidelines: {
+      excellent: "入力エラー、期限切れ、サーバーエラー、連続失敗時挙動まで網羅",
+      good: "主要な異常系をカバー。一部不足",
+      needsImprovement: "基本的なエラー表示のみ",
+      poor: "異常系の検討がほぼない",
+    },
+  },
+  {
+    id: "reset-data-session",
+    name: "データ整合・セッション管理",
+    weight: 20,
+    description: "更新後のログイン状態や既存セッション無効化を検討しているか",
+    scoringGuidelines: {
+      excellent: "更新後再ログイン、既存セッション無効化、通知送信まで検証",
+      good: "主要なセッション処理をカバー。一部欠落",
+      needsImprovement: "更新成功の確認のみ",
+      poor: "更新後の整合性を検討していない",
+    },
+  },
+];
+
+// 3a-5. test-search-filter: 検索・絞り込み機能テストケース作成
+const testSearchFilterCriteria: RatingCriterion[] = [
+  {
+    id: "search-query-behavior",
+    name: "検索クエリ挙動の網羅性",
+    weight: 30,
+    description: "部分一致、完全一致、空文字、特殊文字などの検索挙動を検討しているか",
+    scoringGuidelines: {
+      excellent: "キーワード条件を体系的に網羅し、期待結果が明確",
+      good: "主要な検索条件をカバー。一部の境界が不足",
+      needsImprovement: "単純な検索条件のみ",
+      poor: "検索条件の検討が不十分",
+    },
+  },
+  {
+    id: "search-filter-sort-combination",
+    name: "絞り込み・並び替えの組み合わせ",
+    weight: 30,
+    description: "フィルターとソートの組み合わせ時の結果整合性を検討しているか",
+    scoringGuidelines: {
+      excellent: "複合条件、条件解除、ページング連動まで網羅",
+      good: "主要な組み合わせをカバー。一部不足",
+      needsImprovement: "単独条件のみの検証",
+      poor: "組み合わせ観点がない",
+    },
+  },
+  {
+    id: "search-empty-error-performance",
+    name: "0件・エラー・性能観点",
+    weight: 20,
+    description: "0件表示、APIエラー、レスポンス遅延時の挙動を検討しているか",
+    scoringGuidelines: {
+      excellent: "0件表示、エラー再試行、遅延時UIまで具体的に検証",
+      good: "主要な例外ケースをカバー。一部不足",
+      needsImprovement: "0件表示のみ",
+      poor: "例外ケースの検討がない",
+    },
+  },
+  {
+    id: "search-usability-state",
+    name: "操作性・状態保持",
+    weight: 20,
+    description: "検索条件の保持、戻る操作、キーボード操作を検討しているか",
+    scoringGuidelines: {
+      excellent: "条件保持、戻る復元、フォーカス制御まで網羅",
+      good: "主要な操作性をカバー。一部不足",
+      needsImprovement: "基本操作のみ",
+      poor: "操作性の検討がない",
+    },
+  },
+];
+
+// 3a-6. test-notification-settings: 通知設定機能テストケース作成
+const testNotificationSettingsCriteria: RatingCriterion[] = [
+  {
+    id: "notify-channel-coverage",
+    name: "通知チャネル設定の網羅性",
+    weight: 25,
+    description: "メール、プッシュ、外部連携などチャネル別設定を網羅しているか",
+    scoringGuidelines: {
+      excellent: "各チャネルのON/OFF、依存設定、反映条件まで網羅",
+      good: "主要なチャネル設定をカバー。一部不足",
+      needsImprovement: "単一チャネル中心の検証",
+      poor: "チャネル設定の検討が不十分",
+    },
+  },
+  {
+    id: "notify-event-frequency",
+    name: "通知種別・頻度制御",
+    weight: 25,
+    description: "通知イベントごとの受信設定や頻度制限を検討しているか",
+    scoringGuidelines: {
+      excellent: "イベント別設定、サマリー、Do Not Disturbまで網羅",
+      good: "主要な通知種別をカバー。一部不足",
+      needsImprovement: "イベント別設定が浅い",
+      poor: "通知種別の検討がない",
+    },
+  },
+  {
+    id: "notify-save-consistency",
+    name: "保存・反映の整合性",
+    weight: 25,
+    description: "保存成功、再ログイン後保持、複数端末反映を検討しているか",
+    scoringGuidelines: {
+      excellent: "保存成功/失敗、再読み込み、複数端末同期まで網羅",
+      good: "主要な保存挙動をカバー。一部不足",
+      needsImprovement: "保存成功のみの検証",
+      poor: "保存整合性の検討がない",
+    },
+  },
+  {
+    id: "notify-error-permission",
+    name: "権限・エラーケース",
+    weight: 25,
+    description: "通知権限拒否、外部連携失敗、APIエラー時の挙動を検討しているか",
+    scoringGuidelines: {
+      excellent: "権限拒否、連携切断、API障害時の復旧導線まで網羅",
+      good: "主要なエラーケースをカバー。一部不足",
+      needsImprovement: "基本的なエラー表示のみ",
+      poor: "エラーケースの検討がない",
+    },
+  },
+];
+
+// 3a-7. test-profile-edit: プロフィール編集機能テストケース作成
+const testProfileEditCriteria: RatingCriterion[] = [
+  {
+    id: "profile-field-validation",
+    name: "入力項目バリデーション",
+    weight: 30,
+    description: "表示名、自己紹介、連絡先などの入力制約を検証しているか",
+    scoringGuidelines: {
+      excellent: "必須/任意、文字数、文字種、禁止語を体系的に網羅",
+      good: "主要なバリデーションをカバー。一部不足",
+      needsImprovement: "基本的な必須チェックのみ",
+      poor: "入力制約の検討が不十分",
+    },
+  },
+  {
+    id: "profile-image-upload",
+    name: "画像アップロード・加工",
+    weight: 20,
+    description: "対応形式、サイズ上限、トリミング、削除操作を検証しているか",
+    scoringGuidelines: {
+      excellent: "画像形式、サイズ、トリミング、削除、失敗時再試行を網羅",
+      good: "主要な画像操作をカバー。一部不足",
+      needsImprovement: "基本的なアップロードのみ",
+      poor: "画像操作の検討がない",
+    },
+  },
+  {
+    id: "profile-save-concurrency",
+    name: "保存処理・同時編集整合性",
+    weight: 25,
+    description: "保存成功/失敗、二重送信防止、同時編集時の競合を検討しているか",
+    scoringGuidelines: {
+      excellent: "二重送信防止、競合検知、リトライ導線まで網羅",
+      good: "主要な保存挙動をカバー。一部不足",
+      needsImprovement: "保存成功のみの検証",
+      poor: "保存処理の検討がない",
+    },
+  },
+  {
+    id: "profile-privacy-permission",
+    name: "公開範囲・権限管理",
+    weight: 25,
+    description: "公開範囲設定、閲覧権限、監査観点を検討しているか",
+    scoringGuidelines: {
+      excellent: "公開範囲、閲覧権限、更新履歴、監査観点まで網羅",
+      good: "主要な権限観点をカバー。一部不足",
+      needsImprovement: "公開設定のみの検証",
+      poor: "権限・公開範囲の検討がない",
+    },
+  },
+];
+
 // 3b. basic-agenda-facilitation: アジェンダ設定と進行
 const agendaFacilitationCriteria: RatingCriterion[] = [
   {
@@ -1667,7 +1875,7 @@ const scenarioList: Scenario[] = [
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "ファイルアップロード機能のテストケースのテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      "ファイルアップロード機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
     evaluationCriteria: testFileUploadCriteria,
     passingScore: 70,
     missions: [
@@ -1682,6 +1890,122 @@ const scenarioList: Scenario[] = [
 - ドラッグ＆ドロップ対応
 - アップロード失敗時は再試行可能
 拡張子偽装、ウイルスチェック、ストレージ容量などのセキュリティ観点を意識してください。`,
+  },
+  {
+    id: "test-password-reset",
+    title: "パスワード再設定機能",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "password-reset",
+      description: "メール認証コードでパスワードを再設定するフローです。",
+    },
+    description: "パスワード再設定機能のテストケースを作成し、再設定フローとセキュリティ観点を網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "パスワード再設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    evaluationCriteria: testPasswordResetCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-reset-m1", title: "再設定フローの正常系を列挙する", order: 1 },
+      { id: "test-reset-m2", title: "セキュリティ・異常系観点を洗い出す", order: 2 },
+      { id: "test-reset-m3", title: "前提条件とテストデータを整理する", order: 3 },
+    ],
+    supplementalInfo: `再設定仕様:
+- 再設定メールは登録済みアドレスにのみ送信
+- 確認コード有効期限: 10分
+- コード入力失敗: 3回で無効化
+- 新しいパスワード: 8文字以上、英数字を含む
+トークン有効期限、再利用防止、既存セッション無効化の観点を意識してください。`,
+  },
+  {
+    id: "test-search-filter",
+    title: "検索・絞り込み機能",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "search-filter",
+      description: "一覧画面で検索・絞り込み・並び替えができる機能です。",
+    },
+    description: "検索・絞り込み機能のテストケースを作成し、検索精度と操作性を網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "検索・絞り込み機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    evaluationCriteria: testSearchFilterCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-search-m1", title: "検索クエリの正常系・境界値を列挙する", order: 1 },
+      { id: "test-search-m2", title: "絞り込みと並び替えの組み合わせを検討する", order: 2 },
+      { id: "test-search-m3", title: "0件・エラー・操作性観点を整理する", order: 3 },
+    ],
+    supplementalInfo: `検索仕様:
+- キーワード検索: 部分一致（2文字以上で検索）
+- 絞り込み: カテゴリ、ステータス、担当者
+- 並び替え: 更新日、作成日、名前
+- 検索条件は画面遷移後も保持
+複合条件、0件表示、APIエラー、条件保持の観点を意識してください。`,
+  },
+  {
+    id: "test-notification-settings",
+    title: "通知設定機能",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "notification-settings",
+      description: "チャネル別・イベント別に通知受信設定を変更できる機能です。",
+    },
+    description: "通知設定機能のテストケースを作成し、設定反映と権限観点を網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "通知設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    evaluationCriteria: testNotificationSettingsCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-notify-m1", title: "チャネル別・イベント別設定を列挙する", order: 1 },
+      { id: "test-notify-m2", title: "保存反映と権限エラー観点を洗い出す", order: 2 },
+      { id: "test-notify-m3", title: "前提条件と優先度を整理する", order: 3 },
+    ],
+    supplementalInfo: `通知設定仕様:
+- チャネル: メール、プッシュ、Slack
+- 通知種別: 週次サマリー、メンション、障害アラート
+- Do Not Disturb: 22:00〜07:00
+- 設定変更は保存ボタン押下で反映
+権限拒否、連携失敗、再ログイン後保持、複数端末反映の観点を意識してください。`,
+  },
+  {
+    id: "test-profile-edit",
+    title: "プロフィール編集機能",
+    discipline: "BASIC",
+    scenarioType: "test-case",
+    featureMockup: {
+      component: "profile-edit",
+      description: "プロフィール情報と画像を更新できる編集画面です。",
+    },
+    description: "プロフィール編集機能のテストケースを作成し、入力検証と保存整合性を網羅する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "プロフィール編集機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    evaluationCriteria: testProfileEditCriteria,
+    passingScore: 70,
+    missions: [
+      { id: "test-profile-m1", title: "入力項目バリデーションを列挙する", order: 1 },
+      { id: "test-profile-m2", title: "画像アップロードと保存処理を検討する", order: 2 },
+      { id: "test-profile-m3", title: "権限・公開範囲観点を整理する", order: 3 },
+    ],
+    supplementalInfo: `プロフィール仕様:
+- 表示名: 必須、最大50文字
+- 自己紹介: 任意、最大160文字
+- 画像: PNG/JPEG/WEBP、最大5MB
+- 保存時に最終更新日時をチェックし、競合時は再編集を促す
+入力制約、競合検知、公開範囲、権限観点を意識してください。`,
   },
   {
     id: "basic-test-viewpoints",
@@ -2033,6 +2357,10 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
           requireScenarioSummary("test-login"),
           requireScenarioSummary("test-form"),
           requireScenarioSummary("test-file-upload"),
+          requireScenarioSummary("test-password-reset"),
+          requireScenarioSummary("test-search-filter"),
+          requireScenarioSummary("test-notification-settings"),
+          requireScenarioSummary("test-profile-edit"),
         ],
       },
     ],

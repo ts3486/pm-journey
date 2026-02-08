@@ -36,7 +36,14 @@ export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
 export type ScenarioType = "basic" | "test-case";
 
 export type FeatureMockup = {
-  component: "login" | "form" | "file-upload";
+  component:
+    | "login"
+    | "form"
+    | "file-upload"
+    | "password-reset"
+    | "search-filter"
+    | "notification-settings"
+    | "profile-edit";
   description: string;
 };
 
