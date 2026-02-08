@@ -7,6 +7,7 @@ import type {
   Message,
   MessageRole,
   MessageTag,
+  ProductConfig,
   ProgressFlags,
   Scenario,
   ScenarioDiscipline,
@@ -54,75 +55,96 @@ export type SessionState = SessionSnapshot & {
   loading: boolean;
 };
 
-let cachedProductPrompt: string | null | undefined;
-let productPromptFetchPromise: Promise<string | undefined> | null = null;
+let cachedProductConfig: ProductConfig | null | undefined;
+let productConfigFetchPromise: Promise<ProductConfig | undefined> | null = null;
 
-async function getProductPrompt(): Promise<string | undefined> {
-  if (cachedProductPrompt !== undefined) {
-    return cachedProductPrompt ?? undefined;
+async function getProductConfigSnapshot(): Promise<ProductConfig | undefined> {
+  if (cachedProductConfig !== undefined) {
+    return cachedProductConfig ?? undefined;
   }
-  if (productPromptFetchPromise) {
-    return productPromptFetchPromise;
+  if (productConfigFetchPromise) {
+    return productConfigFetchPromise;
   }
-  productPromptFetchPromise = (async () => {
+  productConfigFetchPromise = (async () => {
     try {
       const config = await api.getProductConfig();
-      const prompt = config.productPrompt?.trim();
-      cachedProductPrompt = prompt ?? null;
-      return prompt ?? undefined;
+      cachedProductConfig = config;
+      return config;
     } catch {
-      cachedProductPrompt = null;
+      cachedProductConfig = null;
       return undefined;
     } finally {
-      productPromptFetchPromise = null;
+      productConfigFetchPromise = null;
     }
   })();
-  return productPromptFetchPromise;
+  return productConfigFetchPromise;
 }
 
 export function invalidateProductPromptCache() {
-  cachedProductPrompt = undefined;
+  cachedProductConfig = undefined;
 }
 
-const renderPromptTemplate = (template: string, scenario: Scenario) => {
-  const product = scenario.product;
+const renderPromptTemplate = (
+  template: string,
+  scenario: Scenario,
+  productConfig?: ProductConfig,
+) => {
   const variables: Record<string, string | undefined> = {
     scenarioTitle: scenario.title,
     scenarioDescription: scenario.description,
     scenarioDiscipline: scenario.discipline,
     scenarioType: scenario.scenarioType ?? "",
-    productName: product.name,
-    productSummary: product.summary,
-    productAudience: product.audience,
-    productTimeline: product.timeline,
+    productName: productConfig?.name,
+    productSummary: productConfig?.summary,
+    productAudience: productConfig?.audience,
+    productTimeline: productConfig?.timeline,
   };
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => variables[key] ?? "");
 };
 
-const formatProductContext = (scenario: Scenario, productPrompt?: string) => {
-  const product = scenario.product;
+const buildScenarioContext = (scenario: Scenario) => {
+  const lines = [
+    scenario.kickoffPrompt ? `- キックオフ: ${scenario.kickoffPrompt}` : "",
+    scenario.supplementalInfo ? `- 補足情報: ${scenario.supplementalInfo}` : "",
+  ].filter((line) => line.length > 0);
+  if (scenario.missions?.length) {
+    const missionLines = [...scenario.missions]
+      .sort((a, b) => a.order - b.order)
+      .map((mission, index) => `${index + 1}. ${mission.title}${mission.description ? ` (${mission.description})` : ""}`);
+    lines.push(`- ミッション:\n${missionLines.join("\n")}`);
+  }
+  return lines.length > 0 ? `## シナリオ詳細\n${lines.join("\n")}` : "";
+};
+
+const formatProductContext = (scenario: Scenario, productConfig?: ProductConfig) => {
+  const productPrompt = productConfig?.productPrompt?.trim();
   const list = (label: string, items?: string[]) =>
     items && items.length > 0 ? `- ${label}: ${items.join("、")}` : "";
 
-  const lines = [
-    ...(productPrompt ? ["## プロジェクトメモ", renderPromptTemplate(productPrompt, scenario)] : []),
-    "## プロダクト情報",
-    `- 名前: ${product.name}`,
-    `- 概要: ${product.summary}`,
-    `- 対象: ${product.audience}`,
-    list("課題", product.problems),
-    list("目標", product.goals),
-    list("差別化要素", product.differentiators),
-    list("スコープ", product.scope),
-    list("制約", product.constraints),
-    `- タイムライン: ${product.timeline}`,
-    list("成功条件", product.successCriteria),
-    product.uniqueEdge ? `- 学習の焦点: ${product.uniqueEdge}` : "",
-    list("技術スタック", product.techStack),
-    list("主要機能", product.coreFeatures),
+  const productLines = [
+    productConfig?.name ? `- 名前: ${productConfig.name}` : "",
+    productConfig?.summary ? `- 概要: ${productConfig.summary}` : "",
+    productConfig?.audience ? `- 対象: ${productConfig.audience}` : "",
+    list("課題", productConfig?.problems),
+    list("目標", productConfig?.goals),
+    list("差別化要素", productConfig?.differentiators),
+    list("スコープ", productConfig?.scope),
+    list("制約", productConfig?.constraints),
+    productConfig?.timeline ? `- タイムライン: ${productConfig.timeline}` : "",
+    list("成功条件", productConfig?.successCriteria),
+    productConfig?.uniqueEdge ? `- 学習の焦点: ${productConfig.uniqueEdge}` : "",
+    list("技術スタック", productConfig?.techStack),
+    list("主要機能", productConfig?.coreFeatures),
+  ].filter((line) => line.length > 0);
+
+  const sections = [
+    ...(productPrompt
+      ? ["## プロジェクトメモ", renderPromptTemplate(productPrompt, scenario, productConfig)]
+      : []),
+    ...(productLines.length > 0 ? ["## プロダクト情報", ...productLines] : []),
   ];
 
-  return lines.filter((line) => line.length > 0).join("\n");
+  return sections.join("\n");
 };
 
 export async function startSession(
@@ -198,17 +220,17 @@ export async function sendMessage(
   const messages = hasMessage ? [...state.messages] : [...state.messages, message];
   const scenario = getScenarioById(session.scenarioId);
   const profile = resolveAgentProfile(session.scenarioId);
-  const productPrompt = scenario ? await getProductPrompt() : undefined;
+  const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
 
   const agentContext =
     role === "user" && scenario
       ? {
           systemPrompt: profile.systemPrompt,
           modelId: profile.modelId,
-          scenarioPrompt: scenario.kickoffPrompt,
+          scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
           scenarioTitle: scenario.title,
           scenarioDescription: scenario.description,
-          productContext: formatProductContext(scenario, productPrompt),
+          productContext: formatProductContext(scenario, productConfig),
           behavior: scenario.behavior,
         }
       : undefined;
@@ -234,7 +256,7 @@ export async function sendMessage(
 
 export async function evaluate(state: SessionState): Promise<SessionState> {
   const scenario = getScenarioById(state.session.scenarioId);
-  const productPrompt = scenario ? await getProductPrompt() : undefined;
+  const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
   const payload = scenario
     ? {
         criteria: scenario.evaluationCriteria,
@@ -242,8 +264,8 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
         scenarioType: scenario.scenarioType,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        productContext: formatProductContext(scenario, productPrompt),
-        scenarioPrompt: scenario.kickoffPrompt,
+        productContext: formatProductContext(scenario, productConfig),
+        scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
       }
     : undefined;
   const evaluation = await api.evaluate(state.session.id, payload);
@@ -263,15 +285,15 @@ export async function evaluateSessionById(
   testCasesContext?: string,
 ): Promise<Evaluation> {
   const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
-  const productPrompt = scenario ? await getProductPrompt() : undefined;
+  const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
   const payload = scenario
     ? {
         criteria: scenario.evaluationCriteria,
         passingScore: scenario.passingScore,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        productContext: formatProductContext(scenario, productPrompt),
-        scenarioPrompt: scenario.kickoffPrompt,
+        productContext: formatProductContext(scenario, productConfig),
+        scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
         scenarioType: scenario.scenarioType,
         testCasesContext,
       }

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 
 import { getScenarioById } from "@/config";
+import { useProductConfig } from "@/queries/productConfig";
 import { api } from "@/services/api";
 import { getHistoryItem } from "@/services/history";
 import { addOutput, deleteOutput, listOutputs } from "@/services/outputs";
@@ -221,6 +222,7 @@ export function HistoryDetailPage() {
     queryFn: () => getHistoryItem(sessionId ?? ""),
     enabled: Boolean(sessionId),
   });
+  const { data: productConfig } = useProductConfig();
 
   const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
   const isTestCaseScenario = scenario?.scenarioType === "test-case";
@@ -440,10 +442,10 @@ export function HistoryDetailPage() {
     return (
       <div className="space-y-4">
         <Link
-          to="/history"
+          to="/"
           className="inline-flex items-center gap-2 text-sm font-semibold text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8efe4]"
         >
-          <span aria-hidden="true">←</span> 履歴一覧に戻る
+          <span aria-hidden="true">←</span> ロードマップに戻る
         </Link>
         <div className="card p-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
@@ -468,6 +470,44 @@ export function HistoryDetailPage() {
   const evaluation = item.evaluation;
   const categories = evaluation?.categories ?? [];
   const primaryCategories = categories.slice(0, 4);
+  const missionFeedbackEntries = useMemo(() => {
+    if (!isBasicScenario) return [];
+    const source = missionList && missionList.length > 0 ? missionList : categories;
+
+    return source.map((mission, idx) => {
+      const matchedCategory =
+        "title" in mission
+          ? categories.find((category) => category.name === mission.title) ?? categories[idx]
+          : mission;
+
+      return {
+        title: "title" in mission ? mission.title : mission.name ?? `コメント ${idx + 1}`,
+        key: "id" in mission ? mission.id : `${mission.name ?? "category"}-${idx}`,
+        score: typeof matchedCategory?.score === "number" ? matchedCategory.score : null,
+        weight: typeof matchedCategory?.weight === "number" ? matchedCategory.weight : 0,
+        feedback: matchedCategory?.feedback ?? "評価コメントがまだありません。",
+      };
+    });
+  }, [categories, isBasicScenario, missionList]);
+  const basicMissionScore = useMemo(() => {
+    if (!isBasicScenario || missionFeedbackEntries.length === 0) return null;
+
+    const scoredEntries = missionFeedbackEntries.filter((entry) => entry.score != null);
+    if (scoredEntries.length === 0) return null;
+
+    const totalWeight = scoredEntries.reduce(
+      (sum, entry) => sum + (entry.weight > 0 ? entry.weight : 0),
+      0,
+    );
+    if (totalWeight > 0) {
+      return scoredEntries.reduce(
+        (sum, entry) => sum + (entry.score ?? 0) * (entry.weight > 0 ? entry.weight : 0),
+        0,
+      ) / totalWeight;
+    }
+
+    return scoredEntries.reduce((sum, entry) => sum + (entry.score ?? 0), 0) / scoredEntries.length;
+  }, [isBasicScenario, missionFeedbackEntries]);
   const persistedMessages = item.actions ?? [];
   const kickoffPrompt = scenario?.kickoffPrompt?.trim();
   const hasKickoffPromptInLog = kickoffPrompt
@@ -488,12 +528,50 @@ export function HistoryDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/history"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8efe4]"
-      >
-        <span aria-hidden="true">←</span> 履歴一覧に戻る
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8efe4]"
+        >
+          <span aria-hidden="true">←</span> ロードマップに戻る
+        </Link>
+        {item.scenarioId ? (
+          <Link
+            to={`/scenario?scenarioId=${item.scenarioId}&restart=1`}
+            className="btn-secondary !px-3 !py-1.5 !text-xs"
+          >
+            再挑戦
+          </Link>
+        ) : null}
+      </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-orange-100/50 bg-gradient-to-r from-orange-50/80 to-amber-50/50 px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600">{item.scenarioDiscipline ?? "Scenario"}</p>
+                    <h1 className="mt-1 text-lg font-bold text-slate-900">{scenario && scenario.title}</h1>
+                    {missionList && missionList.length > 0 ? (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs font-medium text-slate-600 underline-offset-2 hover:underline">
+                          ミッション一覧を表示
+                        </summary>
+                        <ol className="mt-2 space-y-1.5 text-xs text-slate-700">
+                          {missionList.map((mission) => (
+                            <li key={mission.id} className="flex items-start gap-2">
+                              <span className="mt-0.5 text-[10px] font-semibold text-slate-500">{mission.order}.</span>
+                              <span className="leading-relaxed">{mission.title}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+      
 
       {evaluationError ? (
         <div className="card border border-rose-200/60 bg-rose-50/60 p-4 text-sm text-rose-700">
@@ -557,14 +635,15 @@ export function HistoryDetailPage() {
               ) : null}
             </div>
 
-            {!isBasicScenario ? (
-              <ScoreRing score={evaluation?.overallScore} size={130} />
-            ) : (
-              <div className="max-w-xs rounded-2xl border border-white/30 bg-white/10 px-5 py-4 text-center text-slate-100">
-                <p className="text-sm font-semibold text-white">ベーシックシナリオはコメント評価のみ</p>
-                <p className="mt-1 text-xs text-slate-200">スコアの代わりに各ミッションへのコメントをご確認ください。</p>
-              </div>
-            )}
+            <div className="flex flex-col items-center gap-2 text-center">
+              <ScoreRing
+                score={isBasicScenario ? (basicMissionScore ?? evaluation?.overallScore) : evaluation?.overallScore}
+                size={130}
+              />
+              {isBasicScenario ? (
+                <p className="text-xs text-slate-200">ミッション評価をもとに算出</p>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -574,19 +653,16 @@ export function HistoryDetailPage() {
               <>
                 <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Mission Feedback</p>
                 <div className="space-y-3">
-                  {(missionList && missionList.length > 0 ? missionList : categories).map((mission, idx) => {
-                    const category = categories[idx];
-                    const missionTitle = "title" in mission ? mission.title : mission.name ?? `コメント ${idx + 1}`;
-                    const key = "id" in mission ? mission.id : `${mission.name ?? "category"}-${idx}`;
-                    const feedback = category?.feedback ?? "評価コメントがまだありません。";
-
+                  {missionFeedbackEntries.map((entry) => {
                     return (
-                      <div key={key} className="rounded-2xl border border-slate-200/60 bg-white/90 p-4 shadow-sm">
+                      <div key={entry.key} className="rounded-2xl border border-slate-200/60 bg-white/90 p-4 shadow-sm">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-slate-900">{missionTitle}</p>
-                          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">comment only</span>
+                          <p className="text-sm font-semibold text-slate-900">{entry.title}</p>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 tabular-nums">
+                            {entry.score != null ? `${Math.round(entry.score)}点` : "未採点"}
+                          </span>
                         </div>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-700">{feedback}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-700">{entry.feedback}</p>
                       </div>
                     );
                   })}
@@ -663,77 +739,6 @@ export function HistoryDetailPage() {
             <p className="mt-4 text-sm text-slate-600">評価結果を待っています...</p>
           </div>
         )}
-      </div>
-
-      <div className="card overflow-hidden">
-        <div className="border-b border-orange-100/50 bg-gradient-to-r from-orange-50/80 to-amber-50/50 px-5 py-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600">{item.scenarioDiscipline ?? "Scenario"}</p>
-              <h1 className="mt-1 text-lg font-bold text-slate-900">セッション詳細</h1>
-              <p className="mt-0.5 font-mono text-xs text-slate-500">{sessionId}</p>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-600">
-              <span className="font-semibold">{item.metadata?.messageCount ?? item.actions.length}</span>
-              <span>メッセージ</span>
-            </div>
-          </div>
-        </div>
-
-        {scenario ? (
-          <div className="px-5 py-3">
-            <button
-              type="button"
-              aria-expanded={showScenarioInfo}
-              onClick={() => setShowScenarioInfo((v) => !v)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-orange-50/50"
-            >
-              <span className="text-sm font-semibold text-slate-800">シナリオ情報を見る</span>
-              <svg
-                className={`h-4 w-4 text-slate-400 transition-transform ${showScenarioInfo ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showScenarioInfo ? (
-              <div className="mt-2 space-y-3 rounded-xl bg-slate-50/80 px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-600">{scenario.description}</p>
-                </div>
-                {scenario.product?.goals?.length ? (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-600">ゴール</p>
-                    <ul className="mt-1 space-y-1">
-                      {scenario.product.goals.map((goal) => (
-                        <li key={goal} className="flex items-start gap-2 text-xs text-slate-700">
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400" />
-                          {goal}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {scenario.product?.problems?.length ? (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-rose-600">背景/課題</p>
-                    <ul className="mt-1 space-y-1">
-                      {scenario.product.problems.map((problem) => (
-                        <li key={problem} className="flex items-start gap-2 text-xs text-slate-700">
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-rose-400" />
-                          {problem}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       {isTestCaseScenario ? (

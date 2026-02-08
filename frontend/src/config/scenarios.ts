@@ -1105,20 +1105,20 @@ const userPerspectiveCriteria: RatingCriterion[] = [
 ];
 
 const sharedProduct: Scenario["product"] = {
-  name: "在庫最適化ダッシュボード",
-  summary:
-    "多店舗小売向けに、在庫・発注・売上を一画面で可視化し、欠品と過剰在庫を減らすSaaS。",
-  audience: "店舗マネージャー、在庫管理担当、エリア統括",
-  problems: ["欠品と過剰在庫が併発", "発注が属人化", "売上予測が粗い"],
-  goals: ["欠品率の低下", "在庫回転率の改善", "発注作業時間の削減"],
-  differentiators: ["需要予測ベースの発注提案", "店舗別の優先度表示", "モバイル棚卸対応"],
-  scope: ["在庫ダッシュボード", "発注提案", "低在庫アラート", "POS連携(読み取り)"],
-  constraints: ["既存POSとの連携が必須", "3か月でβリリース"],
-  timeline: "今四半期にβ、次四半期に正式版",
-  successCriteria: ["β導入5社", "欠品率10%削減", "発注作業時間を30%削減"],
-  uniqueEdge: "現場が5分で意思決定できるシンプルUIに特化",
-  techStack: ["Next.js", "Tailwind CSS", "Axum", "PostgreSQL", "Redis"],
-  coreFeatures: ["在庫ダッシュボード", "自動発注提案", "低在庫アラート", "POS連携"],
+  // Product/project details are managed in Prompt Settings (product_config).
+  name: "",
+  summary: "",
+  audience: "",
+  problems: [],
+  goals: [],
+  differentiators: [],
+  scope: [],
+  constraints: [],
+  timeline: "",
+  successCriteria: [],
+  uniqueEdge: "",
+  techStack: [],
+  coreFeatures: [],
 };
 
 const introBehavior: ScenarioBehavior = {
@@ -1441,12 +1441,12 @@ const scenarioList: Scenario[] = [
     title: "アジェンダ設定",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "ミーティングの目的とアジェンダを定義する。1回の回答でシナリオが終了します。",
+    description: "スプリントプランニングのアジェンダテンプレートを定義する。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "来週のスプリントプランニングのアジェンダを作成してください。目的と議題を教えてください。",
+      "スプリントプランニングという会議体の目的を理解した上で、アジェンダのテンプレを作成してください。",
     evaluationCriteria: simpleAgendaCriteria,
     passingScore: 60,
     missions: [
@@ -1474,21 +1474,21 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "basic-schedule-share",
-    title: "スケジュール調整",
+    title: "ミーティング調整",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "プロジェクトのスケジュール感を共有する。1回の回答でシナリオが終了します。",
+    description: "他のメンバーとミーティングを組む時に送るメッセージを作成してください。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "プロジェクトのスケジュール感を教えてください。主要なマイルストーンと見通しを共有してください。",
+      "プロダクトの機能の要件詰めのために、他のメンバーとミーティングを組みたいです。スケジュール調整のメッセージを作成してください。",
     evaluationCriteria: simpleScheduleCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-schedule-m1", title: "スケジュールを共有する", order: 1 },
+      { id: "basic-schedule-m1", title: "ミーティングを調整する", order: 1 },
     ],
-    supplementalInfo: "全体像とマイルストーンを簡潔に伝えてください。",
+    supplementalInfo: "ミーティングを調整してください。",
   },
   {
     id: "basic-docs-refine",

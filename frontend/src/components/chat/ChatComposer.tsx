@@ -28,7 +28,7 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
         name="message"
         autoComplete="off"
         onChange={(e) => setValue(e.target.value)}
-        placeholder="メッセージを入力… 例: 次のリスクは？"
+        placeholder="メッセージを入力…"
       />
       <div className="flex flex-wrap gap-2">
         {quickPrompts?.map((prompt) => (

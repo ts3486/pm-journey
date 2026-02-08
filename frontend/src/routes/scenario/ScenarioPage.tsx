@@ -6,7 +6,6 @@ import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
 import { useProductConfig } from "@/queries/productConfig";
-import ReactMarkdown from "react-markdown";
 import {
   createLocalMessage,
   resetSession,
@@ -76,67 +75,8 @@ export function ScenarioPage() {
   const canCompleteScenario = hasActive && hasUserResponse;
   const scenarioLocked = isBasicScenario && hasUserResponse;
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
-  const scenarioInfo = activeScenario.product;
-  const hasScenarioDetails =
-    !!activeScenario.supplementalInfo ||
-    !!scenarioInfo.summary ||
-    !!scenarioInfo.audience ||
-    (scenarioInfo.goals?.length ?? 0) > 0 ||
-    (scenarioInfo.problems?.length ?? 0) > 0 ||
-    (scenarioInfo.constraints?.length ?? 0) > 0 ||
-    (scenarioInfo.successCriteria?.length ?? 0) > 0 ||
-    !!scenarioInfo.timeline;
-  const hasScenarioInfo = !!productPrompt || hasScenarioDetails;
   const promptHighlights = useMemo(() => extractPromptHighlights(productPrompt, 3), [productPrompt]);
-  const quickFacts = useMemo(() => {
-    const facts: Array<{ label: string; value: string }> = [];
-    facts.push({ label: "プロダクト", value: scenarioInfo.name });
-    if (scenarioInfo.audience) {
-      facts.push({ label: "対象", value: truncateText(scenarioInfo.audience, 46) });
-    }
-    if (scenarioInfo.timeline) {
-      facts.push({ label: "タイムライン", value: truncateText(scenarioInfo.timeline, 46) });
-    }
-    return facts.slice(0, 3);
-  }, [scenarioInfo.audience, scenarioInfo.name, scenarioInfo.timeline]);
-  const briefingSections = useMemo(() => {
-    const contextEntries = takeUnique(
-      [
-        scenarioInfo.summary ? `背景: ${truncateText(scenarioInfo.summary, 96)}` : "",
-        activeScenario.supplementalInfo ? `補足: ${truncateText(activeScenario.supplementalInfo, 96)}` : "",
-      ],
-      2,
-    );
-    const targetAndGoalEntries = takeUnique(
-      [
-        scenarioInfo.audience ? `対象ユーザー: ${truncateText(scenarioInfo.audience, 72)}` : "",
-        ...(scenarioInfo.goals ?? []).slice(0, 2).map((goal) => `目標: ${truncateText(goal, 72)}`),
-      ],
-      3,
-    );
-    const riskEntries = takeUnique(
-      [
-        ...(scenarioInfo.problems ?? []).slice(0, 2).map((problem) => `課題: ${truncateText(problem, 72)}`),
-        ...(scenarioInfo.constraints ?? []).slice(0, 2).map((constraint) => `制約: ${truncateText(constraint, 72)}`),
-      ],
-      4,
-    );
-    const successEntries = takeUnique(
-      [
-        scenarioInfo.timeline ? `進行目安: ${truncateText(scenarioInfo.timeline, 72)}` : "",
-        ...(scenarioInfo.successCriteria ?? [])
-          .slice(0, 2)
-          .map((criterion) => `成功の目安: ${truncateText(criterion, 72)}`),
-      ],
-      3,
-    );
-    return [
-      { id: "context", title: "コンテキスト", entries: contextEntries },
-      { id: "goal", title: "対象とゴール", entries: targetAndGoalEntries },
-      { id: "risk", title: "課題と制約", entries: riskEntries },
-      { id: "success", title: "完了イメージ", entries: successEntries },
-    ].filter((section) => section.entries.length > 0);
-  }, [activeScenario.supplementalInfo, scenarioInfo]);
+  const hasScenarioInfo = promptHighlights.length > 0;
 
   const handleStart = async (scenario = activeScenario) => {
     const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
@@ -263,11 +203,6 @@ export function ScenarioPage() {
           <ChatComposer
             onSend={handleSend}
             disabled={!hasActive || scenarioLocked}
-            quickPrompts={[
-              "現状と課題を整理してください",
-              "前提を教えてください",
-              "制約条件を教えてください",
-            ]}
           />
           {scenarioLocked ? (
             <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
@@ -336,35 +271,14 @@ export function ScenarioPage() {
               <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
             ) : null}
           </div>
-
           {hasScenarioInfo ? (
             <div className="card space-y-3 p-4">
-              <div className="rounded-xl border border-slate-200/70 bg-gradient-to-b from-slate-50 to-white p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">プロジェクトブリーフ</p>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-                    要点のみ表示
-                  </span>
-                </div>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {quickFacts.map((fact) => (
-                    <div key={fact.label} className="rounded-lg border border-slate-200/70 bg-white px-2.5 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{fact.label}</p>
-                      <p className="mt-0.5 text-xs font-medium text-slate-800">{fact.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {promptHighlights.length > 0 ? (
                 <div className="rounded-xl border border-indigo-100/80 bg-indigo-50/70 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-                      プロジェクト共通メモ（要約）
+                      プロジェクト概要
                     </p>
-                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
-                      {promptHighlights.length} point
-                    </span>
                   </div>
                   <ul className="mt-2 space-y-1.5">
                     {promptHighlights.map((line) => (
@@ -374,35 +288,7 @@ export function ScenarioPage() {
                       </li>
                     ))}
                   </ul>
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-[11px] font-semibold text-indigo-700">
-                      元のメモを表示
-                    </summary>
-                    <ReactMarkdown className="markdown-preview mt-2 text-xs text-slate-700">
-                      {productPrompt ?? ""}
-                    </ReactMarkdown>
-                  </details>
-                </div>
-              ) : null}
-
-              {hasScenarioDetails ? (
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                    背景・補足情報（カテゴリ要約）
-                  </p>
-                  {briefingSections.map((section) => (
-                    <div key={section.id} className="rounded-xl border border-slate-200/70 bg-slate-50/70 p-3">
-                      <p className="text-xs font-semibold text-slate-800">{section.title}</p>
-                      <ul className="mt-1.5 space-y-1">
-                        {section.entries.map((entry) => (
-                          <li key={entry} className="flex items-start gap-2 text-xs text-slate-700">
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                            <span className="leading-relaxed">{entry}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+            
                 </div>
               ) : null}
             </div>

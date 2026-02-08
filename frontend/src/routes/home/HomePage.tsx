@@ -1,5 +1,6 @@
 import { comingSoonScenarios, homeScenarioCatalog } from "@/config";
 import type {
+  HistoryItem,
   ScenarioCatalogCategory,
   ScenarioCatalogSubcategory,
   ScenarioSummary,
@@ -192,6 +193,19 @@ const getMilestoneTone = (id: string): MilestoneTone => {
   return milestoneTones[0];
 };
 
+const resolveHistoryTimestamp = (item: HistoryItem): number => {
+  const candidates: number[] = [];
+  if (item.metadata?.startedAt) {
+    const startedAt = Date.parse(item.metadata.startedAt);
+    if (!Number.isNaN(startedAt)) candidates.push(startedAt);
+  }
+  (item.actions ?? []).forEach((action) => {
+    const actionTimestamp = Date.parse(action.createdAt);
+    if (!Number.isNaN(actionTimestamp)) candidates.push(actionTimestamp);
+  });
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
+};
+
 export function HomePage() {
   const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
@@ -214,15 +228,24 @@ export function HomePage() {
     void loadSavedSessions();
   }, [storage]);
 
-  const completedScenarioIds = useMemo(() => {
-    const ids = new Set<string>();
+  const completedSessionIdsByScenario = useMemo(() => {
+    const latestByScenario = new Map<string, { sessionId: string; timestamp: number }>();
     historyItems.forEach((item) => {
-      if (item.scenarioId && item.evaluation) {
-        ids.add(item.scenarioId);
+      if (!item.scenarioId || !item.evaluation) return;
+      const timestamp = resolveHistoryTimestamp(item);
+      const existing = latestByScenario.get(item.scenarioId);
+      if (!existing || timestamp > existing.timestamp) {
+        latestByScenario.set(item.scenarioId, { sessionId: item.sessionId, timestamp });
       }
     });
-    return ids;
+    return new Map(
+      Array.from(latestByScenario.entries()).map(([scenarioId, value]) => [scenarioId, value.sessionId])
+    );
   }, [historyItems]);
+  const completedScenarioIds = useMemo(
+    () => new Set<string>(completedSessionIdsByScenario.keys()),
+    [completedSessionIdsByScenario]
+  );
 
   const roadmap = useMemo(
     () =>
@@ -460,7 +483,8 @@ export function HomePage() {
                         <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
                         <ul className="space-y-2">
                           {subcategory.scenarios.map((scenario) => {
-                            const completed = completedScenarioIds.has(scenario.id);
+                            const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
+                            const completed = Boolean(completedSessionId);
                             const interrupted = savedByScenario[scenario.id] && !completed;
                             return (
                               <li
@@ -487,8 +511,15 @@ export function HomePage() {
                                         中断中
                                       </span>
                                     ) : null}
-                                    <Link className="btn-secondary !px-3 !py-1.5 !text-xs" to={`/scenario?scenarioId=${scenario.id}&restart=1`}>
-                                      {completed ? "再挑戦" : interrupted ? "再開" : "開始"}
+                                    <Link
+                                      className="btn-secondary !px-3 !py-1.5 !text-xs"
+                                      to={
+                                        completedSessionId
+                                          ? `/history/${completedSessionId}`
+                                          : `/scenario?scenarioId=${scenario.id}&restart=1`
+                                      }
+                                    >
+                                      {completed ? "詳細" : interrupted ? "再開" : "開始"}
                                     </Link>
                                   </div>
                                 </div>

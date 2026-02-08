@@ -127,11 +127,6 @@ export function TestCaseScenarioLayout({
           <ChatComposer
             onSend={onSend}
             disabled={!hasActive}
-            quickPrompts={[
-              "テスト観点を洗い出してください",
-              "境界値テストについて教えてください",
-              "異常系のテストケースを考えてください",
-            ]}
           />
           {hasActive && (
             <div className="flex justify-end">
