@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM product_config",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f97aee034ec183d03b7f3eac1f3d96397896d28e9ff42098e1ca51c7be3f6a84"
+}

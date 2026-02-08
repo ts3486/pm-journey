@@ -25,6 +25,7 @@ impl ProductConfigRepository {
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
+                product_prompt,
                 created_at, updated_at
             FROM product_config
             LIMIT 1
@@ -37,18 +38,30 @@ impl ProductConfigRepository {
         Ok(row.map(|r| {
             let problems: Vec<String> = serde_json::from_value(r.problems).unwrap_or_default();
             let goals: Vec<String> = serde_json::from_value(r.goals).unwrap_or_default();
-            let differentiators: Vec<String> =
-                r.differentiators.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let scope: Vec<String> =
-                r.scope.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let constraints: Vec<String> =
-                r.constraints.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let success_criteria: Vec<String> =
-                r.success_criteria.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let tech_stack: Vec<String> =
-                r.tech_stack.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-            let core_features: Vec<String> =
-                r.core_features.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
+            let differentiators: Vec<String> = r
+                .differentiators
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let scope: Vec<String> = r
+                .scope
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let constraints: Vec<String> = r
+                .constraints
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let success_criteria: Vec<String> = r
+                .success_criteria
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let tech_stack: Vec<String> = r
+                .tech_stack
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let core_features: Vec<String> = r
+                .core_features
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
 
             ProductConfig {
                 id: r.id,
@@ -65,6 +78,7 @@ impl ProductConfigRepository {
                 unique_edge: r.unique_edge,
                 tech_stack,
                 core_features,
+                product_prompt: r.product_prompt,
                 is_default: false,
                 created_at: Some(r.created_at.to_rfc3339()),
                 updated_at: Some(r.updated_at.to_rfc3339()),
@@ -82,6 +96,7 @@ impl ProductConfigRepository {
         let success_criteria = serde_json::to_value(&config.success_criteria)?;
         let tech_stack = serde_json::to_value(&config.tech_stack)?;
         let core_features = serde_json::to_value(&config.core_features)?;
+        let product_prompt = config.product_prompt.clone();
 
         // Use ON CONFLICT to upsert (the singleton index ensures only one row)
         let row = sqlx::query!(
@@ -90,9 +105,10 @@ impl ProductConfigRepository {
                 name, summary, audience,
                 problems, goals, differentiators,
                 scope, constraints, timeline,
-                success_criteria, unique_edge, tech_stack, core_features
+                success_criteria, unique_edge, tech_stack, core_features,
+                product_prompt
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT ((true))
             DO UPDATE SET
                 name = EXCLUDED.name,
@@ -108,6 +124,7 @@ impl ProductConfigRepository {
                 unique_edge = EXCLUDED.unique_edge,
                 tech_stack = EXCLUDED.tech_stack,
                 core_features = EXCLUDED.core_features,
+                product_prompt = EXCLUDED.product_prompt,
                 updated_at = NOW()
             RETURNING
                 id::text,
@@ -115,6 +132,7 @@ impl ProductConfigRepository {
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
+                product_prompt,
                 created_at, updated_at
             "#,
             config.name,
@@ -130,6 +148,7 @@ impl ProductConfigRepository {
             config.unique_edge,
             tech_stack,
             core_features,
+            product_prompt,
         )
         .fetch_one(&self.pool)
         .await
@@ -137,18 +156,30 @@ impl ProductConfigRepository {
 
         let problems: Vec<String> = serde_json::from_value(row.problems).unwrap_or_default();
         let goals: Vec<String> = serde_json::from_value(row.goals).unwrap_or_default();
-        let differentiators: Vec<String> =
-            row.differentiators.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let scope: Vec<String> =
-            row.scope.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let constraints: Vec<String> =
-            row.constraints.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let success_criteria: Vec<String> =
-            row.success_criteria.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let tech_stack: Vec<String> =
-            row.tech_stack.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
-        let core_features: Vec<String> =
-            row.core_features.and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
+        let differentiators: Vec<String> = row
+            .differentiators
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let scope: Vec<String> = row
+            .scope
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let constraints: Vec<String> = row
+            .constraints
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let success_criteria: Vec<String> = row
+            .success_criteria
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let tech_stack: Vec<String> = row
+            .tech_stack
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let core_features: Vec<String> = row
+            .core_features
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
 
         Ok(ProductConfig {
             id: row.id,
@@ -165,6 +196,7 @@ impl ProductConfigRepository {
             unique_edge: row.unique_edge,
             tech_stack,
             core_features,
+            product_prompt: row.product_prompt,
             is_default: false,
             created_at: Some(row.created_at.to_rfc3339()),
             updated_at: Some(row.updated_at.to_rfc3339()),

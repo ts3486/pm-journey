@@ -1,6 +1,5 @@
-import { resolveAgentProfile } from "@/config/agentProfiles";
+import { getScenarioById, resolveAgentProfile } from "@/config";
 import { api } from "@/services/api";
-import { getScenarioById } from "@/config/scenarios";
 import { storage } from "@/services/storage";
 import type {
   Evaluation,
@@ -10,9 +9,9 @@ import type {
   MessageTag,
   ProgressFlags,
   Scenario,
-  Session,
   ScenarioDiscipline,
-} from "@/types/session";
+  Session,
+} from "@/types";
 
 const randomId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -55,11 +54,58 @@ export type SessionState = SessionSnapshot & {
   loading: boolean;
 };
 
-const formatProductContext = (product: Scenario["product"]) => {
+let cachedProductPrompt: string | null | undefined;
+let productPromptFetchPromise: Promise<string | undefined> | null = null;
+
+async function getProductPrompt(): Promise<string | undefined> {
+  if (cachedProductPrompt !== undefined) {
+    return cachedProductPrompt ?? undefined;
+  }
+  if (productPromptFetchPromise) {
+    return productPromptFetchPromise;
+  }
+  productPromptFetchPromise = (async () => {
+    try {
+      const config = await api.getProductConfig();
+      const prompt = config.productPrompt?.trim();
+      cachedProductPrompt = prompt ?? null;
+      return prompt ?? undefined;
+    } catch {
+      cachedProductPrompt = null;
+      return undefined;
+    } finally {
+      productPromptFetchPromise = null;
+    }
+  })();
+  return productPromptFetchPromise;
+}
+
+export function invalidateProductPromptCache() {
+  cachedProductPrompt = undefined;
+}
+
+const renderPromptTemplate = (template: string, scenario: Scenario) => {
+  const product = scenario.product;
+  const variables: Record<string, string | undefined> = {
+    scenarioTitle: scenario.title,
+    scenarioDescription: scenario.description,
+    scenarioDiscipline: scenario.discipline,
+    scenarioType: scenario.scenarioType ?? "",
+    productName: product.name,
+    productSummary: product.summary,
+    productAudience: product.audience,
+    productTimeline: product.timeline,
+  };
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => variables[key] ?? "");
+};
+
+const formatProductContext = (scenario: Scenario, productPrompt?: string) => {
+  const product = scenario.product;
   const list = (label: string, items?: string[]) =>
     items && items.length > 0 ? `- ${label}: ${items.join("、")}` : "";
 
   const lines = [
+    ...(productPrompt ? ["## プロジェクトメモ", renderPromptTemplate(productPrompt, scenario)] : []),
     "## プロダクト情報",
     `- 名前: ${product.name}`,
     `- 概要: ${product.summary}`,
@@ -79,23 +125,18 @@ const formatProductContext = (product: Scenario["product"]) => {
   return lines.filter((line) => line.length > 0).join("\n");
 };
 
-
 export async function startSession(
   scenarioId: string,
   scenarioDiscipline?: ScenarioDiscipline,
   kickoffPrompt?: string,
 ): Promise<SessionState> {
-  let session: Session;
-  session = await api.createSession(scenarioId);
+  let session = await api.createSession(scenarioId);
   session = {
     ...session,
     scenarioDiscipline: session.scenarioDiscipline ?? scenarioDiscipline,
   };
   const messages = kickoffMessage(session.id, kickoffPrompt);
-
-  // Set the session pointer in localStorage
   storage.setLastSession(session.id, scenarioId);
-
   return { session, messages, evaluation: undefined, history: [], loading: false };
 }
 
@@ -104,9 +145,7 @@ export async function resumeSession(scenarioId?: string): Promise<SessionState |
   if (!lastId) return null;
 
   try {
-    // Fetch session data from API
     const historyItem = await api.getSession(lastId);
-    // Fetch all messages from API
     const messages = await api.listMessages(lastId);
 
     const session: Session = {
@@ -134,7 +173,6 @@ export async function resumeSession(scenarioId?: string): Promise<SessionState |
       loading: false,
     };
   } catch {
-    // Session not found in API, clear the pointer
     if (scenarioId) {
       await storage.clearLastSessionPointer(scenarioId, lastId);
     }
@@ -158,10 +196,10 @@ export async function sendMessage(
   const message = options?.existingMessage ?? createLocalMessage(session.id, role, content, tags);
   const hasMessage = state.messages.some((m) => m.id === message.id);
   const messages = hasMessage ? [...state.messages] : [...state.messages, message];
-  let reply: Message | null = null;
   const scenario = getScenarioById(session.scenarioId);
-
   const profile = resolveAgentProfile(session.scenarioId);
+  const productPrompt = scenario ? await getProductPrompt() : undefined;
+
   const agentContext =
     role === "user" && scenario
       ? {
@@ -170,10 +208,11 @@ export async function sendMessage(
           scenarioPrompt: scenario.kickoffPrompt,
           scenarioTitle: scenario.title,
           scenarioDescription: scenario.description,
-          productContext: formatProductContext(scenario.product),
+          productContext: formatProductContext(scenario, productPrompt),
           behavior: scenario.behavior,
         }
       : undefined;
+
   const apiMessage = await api.postMessage(
     session.id,
     role,
@@ -182,21 +221,20 @@ export async function sendMessage(
     session.missionStatus,
     agentContext,
   );
-  reply = apiMessage.reply;
+  const reply = apiMessage.reply;
   session.missionStatus = apiMessage.session.missionStatus;
 
   if (reply) {
     messages.push(reply);
   }
 
-  // Update session pointer
   storage.setLastSession(session.id, session.scenarioId);
-
   return { ...state, session, messages };
 }
 
 export async function evaluate(state: SessionState): Promise<SessionState> {
   const scenario = getScenarioById(state.session.scenarioId);
+  const productPrompt = scenario ? await getProductPrompt() : undefined;
   const payload = scenario
     ? {
         criteria: scenario.evaluationCriteria,
@@ -204,22 +242,18 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
         scenarioType: scenario.scenarioType,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        productContext: formatProductContext(scenario.product),
+        productContext: formatProductContext(scenario, productPrompt),
         scenarioPrompt: scenario.kickoffPrompt,
       }
     : undefined;
   const evaluation = await api.evaluate(state.session.id, payload);
-
   const session: Session = {
     ...state.session,
     status: "evaluated",
     evaluationRequested: true,
     lastActivityAt: new Date().toISOString(),
   };
-
-  // Clear session pointer since it's now evaluated
   await storage.clearLastSessionPointer(session.scenarioId, session.id);
-
   return { ...state, session, evaluation };
 }
 
@@ -229,13 +263,14 @@ export async function evaluateSessionById(
   testCasesContext?: string,
 ): Promise<Evaluation> {
   const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
+  const productPrompt = scenario ? await getProductPrompt() : undefined;
   const payload = scenario
     ? {
         criteria: scenario.evaluationCriteria,
         passingScore: scenario.passingScore,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        productContext: formatProductContext(scenario.product),
+        productContext: formatProductContext(scenario, productPrompt),
         scenarioPrompt: scenario.kickoffPrompt,
         scenarioType: scenario.scenarioType,
         testCasesContext,
@@ -256,7 +291,6 @@ export async function updateProgress(
     ...state.session,
     progressFlags: { ...state.session.progressFlags, ...progressFlags },
   };
-  // Progress flags are local state only; they're included in mission status when messages are sent
   return { ...state, session };
 }
 
@@ -266,7 +300,7 @@ export async function updateMissionStatus(
   completed: boolean,
 ): Promise<SessionState> {
   const missionStatus = [...(state.session.missionStatus ?? [])];
-  const existingIndex = missionStatus.findIndex((m) => m.missionId === missionId);
+  const existingIndex = missionStatus.findIndex((mission) => mission.missionId === missionId);
   if (completed) {
     const entry = { missionId, completedAt: new Date().toISOString() };
     if (existingIndex >= 0) missionStatus[existingIndex] = entry;
@@ -280,7 +314,6 @@ export async function updateMissionStatus(
     missionStatus,
     lastActivityAt: new Date().toISOString(),
   };
-  // Mission status is sent with next message; no need to save locally
   return { ...state, session };
 }
 

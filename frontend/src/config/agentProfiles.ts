@@ -1,5 +1,5 @@
-import { getScenarioById } from "@/config/scenarios";
-import type { Scenario } from "@/types/session";
+import { getScenarioById } from "./scenarios";
+import type { Scenario } from "@/types";
 
 type AgentProfileKey = "BASIC" | "CHALLENGE" | "DEFAULT";
 

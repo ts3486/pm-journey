@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 
 type FormMockupProps = {
@@ -41,8 +39,8 @@ export function FormMockup({ description }: FormMockupProps) {
     return newErrors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length === 0) {
@@ -51,24 +49,25 @@ export function FormMockup({ description }: FormMockupProps) {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value, type } = event.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]: type === "checkbox" ? (event.target as HTMLInputElement).checked : value,
     }));
   };
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md mx-auto text-center">
-        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-green-600 text-xl">✓</span>
+      <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-xl text-green-600">
+          ✓
         </div>
         <h3 className="text-lg font-semibold text-gray-900">送信完了</h3>
-        <p className="text-sm text-gray-500 mt-2">お問い合わせを受け付けました。</p>
+        <p className="mt-2 text-sm text-gray-500">お問い合わせを受け付けました。</p>
         <button
+          type="button"
           onClick={() => {
             setSubmitted(false);
             setFormData({
@@ -89,75 +88,75 @@ export function FormMockup({ description }: FormMockupProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md mx-auto">
+    <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900">お問い合わせフォーム</h2>
-        {description && <p className="text-sm text-gray-500 mt-2">{description}</p>}
+        {description && <p className="mt-2 text-sm text-gray-500">{description}</p>}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="form-name" className="mb-1 block text-sm font-medium text-gray-700">
             お名前 <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
-            id="name"
+            id="form-name"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm ${
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
               errors.name ? "border-red-500" : "border-gray-300"
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           />
-          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="form-email" className="mb-1 block text-sm font-medium text-gray-700">
             メールアドレス <span className="text-red-500">*</span>
           </label>
           <input
             type="email"
-            id="email"
+            id="form-email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm ${
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
               errors.email ? "border-red-500" : "border-gray-300"
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
         </div>
 
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="form-phone" className="mb-1 block text-sm font-medium text-gray-700">
             電話番号
           </label>
           <input
             type="tel"
-            id="phone"
+            id="form-phone"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
             placeholder="090-1234-5678"
-            className={`w-full px-3 py-2 border rounded-md text-sm ${
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
               errors.phone ? "border-red-500" : "border-gray-300"
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           />
-          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+          {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
         </div>
 
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="form-category" className="mb-1 block text-sm font-medium text-gray-700">
             カテゴリ <span className="text-red-500">*</span>
           </label>
           <select
-            id="category"
+            id="form-category"
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm ${
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
               errors.category ? "border-red-500" : "border-gray-300"
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           >
@@ -167,29 +166,25 @@ export function FormMockup({ description }: FormMockupProps) {
             <option value="billing">請求・お支払い</option>
             <option value="other">その他</option>
           </select>
-          {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+          {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category}</p>}
         </div>
 
         <div>
-          <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="form-message" className="mb-1 block text-sm font-medium text-gray-700">
             お問い合わせ内容 <span className="text-red-500">*</span>
           </label>
           <textarea
-            id="message"
+            id="form-message"
             name="message"
             value={formData.message}
             onChange={handleChange}
             rows={4}
-            className={`w-full px-3 py-2 border rounded-md text-sm resize-none ${
+            className={`w-full resize-none rounded-md border px-3 py-2 text-sm ${
               errors.message ? "border-red-500" : "border-gray-300"
             } focus:outline-none focus:ring-2 focus:ring-blue-500`}
           />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
-            {errors.message ? (
-              <p className="text-red-500">{errors.message}</p>
-            ) : (
-              <span>10〜1000文字</span>
-            )}
+          <div className="mt-1 flex justify-between text-xs text-gray-400">
+            {errors.message ? <p className="text-red-500">{errors.message}</p> : <span>10〜1000文字</span>}
             <span>{formData.message.length}/1000</span>
           </div>
         </div>
@@ -214,20 +209,20 @@ export function FormMockup({ description }: FormMockupProps) {
               に同意します <span className="text-red-500">*</span>
             </span>
           </label>
-          {errors.agreeTerms && <p className="text-red-500 text-xs mt-1">{errors.agreeTerms}</p>}
+          {errors.agreeTerms && <p className="mt-1 text-xs text-red-500">{errors.agreeTerms}</p>}
         </div>
 
         <button
           type="submit"
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           送信する
         </button>
       </form>
 
-      <div className="mt-4 p-3 bg-gray-50 rounded-md text-xs text-gray-500">
-        <p className="font-medium mb-1">仕様情報:</p>
-        <ul className="list-disc list-inside space-y-0.5">
+      <div className="mt-4 rounded-md bg-gray-50 p-3 text-xs text-gray-500">
+        <p className="mb-1 font-medium">仕様情報:</p>
+        <ul className="list-inside list-disc space-y-0.5">
           <li>必須項目: 名前、メール、カテゴリ、内容、同意</li>
           <li>メール: 有効な形式のみ</li>
           <li>電話: 任意、10〜13桁の数字とハイフン</li>

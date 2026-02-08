@@ -6,7 +6,7 @@ import type {
   ScenarioDiscipline,
   ScenarioBehavior,
   ScenarioSummary,
-} from "@/types/session";
+} from "@/types";
 
 // ============================================================================
 // Scenario-Specific Rating Criteria
@@ -2036,6 +2036,45 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
         ],
       },
     ],
+  },
+];
+
+export const comingSoonScenarios: ScenarioSummary[] = [
+  {
+    id: "coming-risk-management",
+    title: "リスク管理と対応計画",
+    description: "プロジェクトのリスクを洗い出し、優先度を判断して対応計画を策定するシナリオ",
+    discipline: "BASIC",
+  },
+  {
+    id: "coming-stakeholder-negotiation",
+    title: "ステークホルダー交渉",
+    description: "要件の優先度について意見が対立するステークホルダーとの合意形成を実践するシナリオ",
+    discipline: "BASIC",
+  },
+  {
+    id: "coming-sprint-retrospective",
+    title: "スプリント振り返り",
+    description: "チームのふりかえり会をファシリテートし、改善アクションを導き出すシナリオ",
+    discipline: "BASIC",
+  },
+  {
+    id: "coming-incident-response",
+    title: "障害対応と報告",
+    description: "本番障害発生時の初動対応、影響範囲の特定、ステークホルダーへの報告を実践するシナリオ",
+    discipline: "CHALLENGE",
+  },
+  {
+    id: "coming-requirement-definition",
+    title: "要件定義ドキュメント作成",
+    description: "ヒアリング内容をもとに要件定義書を作成し、レビューを受けるシナリオ",
+    discipline: "CHALLENGE",
+  },
+  {
+    id: "coming-cross-team-coordination",
+    title: "チーム間連携調整",
+    description: "複数チームにまたがる機能開発の依存関係を整理し、リリース計画を調整するシナリオ",
+    discipline: "CHALLENGE",
   },
 ];
 

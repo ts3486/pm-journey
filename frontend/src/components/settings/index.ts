@@ -1,1 +1,0 @@
-export { ProductConfigForm } from "./ProductConfigForm";

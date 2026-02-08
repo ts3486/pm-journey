@@ -1,4 +1,4 @@
-import type { ScenarioDiscipline } from "@/types/session";
+import type { ScenarioDiscipline } from "@/types";
 
 type SessionMeta = {
   sessionId: string;
@@ -16,7 +16,5 @@ export type TelemetryEvent =
   | ({ type: "history_export"; format: "json" | "markdown" } & SessionMeta);
 
 export function logEvent(event: TelemetryEvent) {
-  // Placeholder: send to console or hook into analytics endpoint.
-  // Designed to be swapped with real logging later.
   console.info("[telemetry]", event);
 }

@@ -15,6 +15,10 @@ pub async fn import_sessions(
     State(state): State<SharedState>,
     Json(body): Json<ImportRequest>,
 ) -> Result<Json<ImportResult>, AppError> {
-    let result = state.services().imports().import_sessions(body.sessions).await?;
+    let result = state
+        .services()
+        .imports()
+        .import_sessions(body.sessions)
+        .await?;
     Ok(Json(result))
 }

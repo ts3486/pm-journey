@@ -1,32 +1,21 @@
 # syntax=docker/dockerfile:1.7
-ARG NODE_VERSION=22.11.0
-ARG PNPM_VERSION=9.15.4
 
-FROM node:${NODE_VERSION}-alpine AS base
-WORKDIR /app
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1
-RUN apk add --no-cache libc6-compat && corepack enable
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable \
+    && corepack prepare pnpm@9.0.0 --activate
 
 FROM base AS deps
-ARG PNPM_VERSION
-RUN corepack prepare pnpm@${PNPM_VERSION} --activate
+WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
-FROM deps AS builder
-ARG NEXT_PUBLIC_API_BASE
-ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+FROM deps AS build
 COPY . .
-RUN pnpm run build
+RUN pnpm build
 
-FROM base AS runner
-ENV PORT=3000 \
-    HOSTNAME="0.0.0.0"
-RUN addgroup -S nextjs && adduser -S -G nextjs nextjs
-USER nextjs
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-EXPOSE 3000
-CMD ["node", "server.js"]
+FROM nginx:1.27-alpine AS runner
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

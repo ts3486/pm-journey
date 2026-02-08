@@ -1,0 +1,116 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id::text,\n                name, summary, audience,\n                problems, goals, differentiators,\n                scope, constraints, timeline,\n                success_criteria, unique_edge, tech_stack, core_features,\n                product_prompt,\n                created_at, updated_at\n            FROM product_config\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "summary",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "audience",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "problems",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 5,
+        "name": "goals",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "differentiators",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "scope",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "constraints",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "timeline",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "success_criteria",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "unique_edge",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "tech_stack",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 13,
+        "name": "core_features",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 14,
+        "name": "product_prompt",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 16,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "4e7016ef3121d8d3992785de19da662c4e635ce017ca6f03d73f5a7a10a39a0e"
+}

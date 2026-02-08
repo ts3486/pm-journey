@@ -1,22 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { queryKeys } from "@/queries/keys";
-import type { ProductConfig, UpdateProductConfigRequest } from "@/types/session";
+import type { ProductConfig, UpdateProductConfigRequest } from "@/types";
 
-/**
- * Hook to fetch the current product configuration
- */
 export const useProductConfig = () => {
   return useQuery({
     queryKey: queryKeys.productConfig.detail(),
     queryFn: () => api.getProductConfig(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 };
 
-/**
- * Hook to update the product configuration
- */
 export const useUpdateProductConfig = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -27,9 +21,6 @@ export const useUpdateProductConfig = () => {
   });
 };
 
-/**
- * Hook to reset product configuration to default
- */
 export const useResetProductConfig = () => {
   const queryClient = useQueryClient();
   return useMutation({

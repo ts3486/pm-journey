@@ -1,4 +1,7 @@
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -6,16 +9,20 @@ use crate::features::comments::handlers::{
     __path_create_comment, __path_list_comments, create_comment, list_comments,
 };
 use crate::features::evaluations::handlers::{__path_evaluate_session, evaluate_session};
+use crate::features::evaluations::models::{
+    EvaluationCriterion, EvaluationRequest, ScoringGuidelines,
+};
 use crate::features::health::handlers::{__path_health, health};
 use crate::features::imports::handlers::{__path_import_sessions, import_sessions};
+use crate::features::messages::handlers::{
+    __path_list_messages, __path_post_message, list_messages, post_message,
+};
+use crate::features::messages::models::AgentContext;
 use crate::features::product_config::handlers::{
     __path_get_product_config, __path_reset_product_config, __path_update_product_config,
     get_product_config, reset_product_config, update_product_config,
 };
 use crate::features::product_config::models::{ProductConfig, UpdateProductConfigRequest};
-use crate::features::messages::handlers::{
-    __path_list_messages, __path_post_message, list_messages, post_message,
-};
 use crate::features::scenarios::handlers::{
     __path_create_scenario, __path_get_scenario, __path_list_scenarios, create_scenario,
     get_scenario, list_scenarios,
@@ -28,8 +35,6 @@ use crate::features::test_cases::handlers::{
     __path_create_test_case, __path_delete_test_case, __path_list_test_cases, create_test_case,
     delete_test_case, list_test_cases,
 };
-use crate::features::evaluations::models::{EvaluationCriterion, EvaluationRequest, ScoringGuidelines};
-use crate::features::messages::models::AgentContext;
 use crate::features::test_cases::models::{CreateTestCaseRequest, TestCaseResponse};
 use crate::models::{
     Evaluation, FeatureMockup, HistoryItem, ManagerComment, Message, MessageRole, MessageTag,
@@ -104,7 +109,10 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route("/scenarios/:id", get(get_scenario))
         .route("/sessions", post(create_session).get(list_sessions))
         .route("/sessions/:id", get(get_session).delete(delete_session))
-        .route("/sessions/:id/messages", get(list_messages).post(post_message))
+        .route(
+            "/sessions/:id/messages",
+            get(list_messages).post(post_message),
+        )
         .route("/sessions/:id/evaluate", post(evaluate_session))
         .route(
             "/sessions/:id/comments",

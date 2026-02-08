@@ -1,7 +1,7 @@
-use sqlx::{PgPool, Postgres, Transaction};
 use crate::models::ManagerComment;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Clone)]
 pub struct CommentRepository {
@@ -18,7 +18,8 @@ impl CommentRepository {
         self.create_in_tx(&mut tx, comment).await?;
         tx.commit().await?;
 
-        self.get(&comment.id).await?
+        self.get(&comment.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created comment"))
     }
 
@@ -27,7 +28,9 @@ impl CommentRepository {
         tx: &mut Transaction<'_, Postgres>,
         comment: &ManagerComment,
     ) -> Result<()> {
-        let created_at: DateTime<Utc> = comment.created_at.parse()
+        let created_at: DateTime<Utc> = comment
+            .created_at
+            .parse()
             .context("Failed to parse created_at timestamp")?;
 
         sqlx::query!(
@@ -90,13 +93,16 @@ impl CommentRepository {
         .await
         .context("Failed to list comments")?;
 
-        Ok(rows.into_iter().map(|r| ManagerComment {
-            id: r.id,
-            session_id: r.session_id,
-            author_name: r.author_name,
-            content: r.content,
-            created_at: r.created_at.unwrap_or_default(),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|r| ManagerComment {
+                id: r.id,
+                session_id: r.session_id,
+                author_name: r.author_name,
+                content: r.content,
+                created_at: r.created_at.unwrap_or_default(),
+            })
+            .collect())
     }
 
     #[allow(dead_code)]

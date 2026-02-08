@@ -1,5 +1,5 @@
 import { env } from "@/config/env";
-import type { OutputSubmission, OutputSubmissionType } from "@/types/session";
+import type { OutputSubmission, OutputSubmissionType } from "@/types";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -40,12 +40,13 @@ export async function addOutput(
     note: note?.trim() || undefined,
     createdAt: new Date().toISOString(),
   };
+
   outputs.unshift(entry);
   saveAll(sessionId, outputs);
   return entry;
 }
 
 export async function deleteOutput(sessionId: string, outputId: string): Promise<void> {
-  const outputs = loadAll(sessionId).filter((o) => o.id !== outputId);
+  const outputs = loadAll(sessionId).filter((output) => output.id !== outputId);
   saveAll(sessionId, outputs);
 }

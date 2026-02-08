@@ -1,5 +1,5 @@
 import { api } from "@/services/api";
-import type { HistoryItem } from "@/types/session";
+import type { HistoryItem } from "@/types";
 
 export async function listHistory(): Promise<HistoryItem[]> {
   return api.listSessions();

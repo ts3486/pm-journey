@@ -1,7 +1,7 @@
-use sqlx::{PgPool, Postgres, Transaction};
-use crate::models::{Session, SessionStatus, ScenarioDiscipline, ProgressFlags, MissionStatus};
-use anyhow::{Result, Context};
+use crate::models::{MissionStatus, ProgressFlags, ScenarioDiscipline, Session, SessionStatus};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Clone)]
 pub struct SessionRepository {
@@ -18,7 +18,8 @@ impl SessionRepository {
         self.create_in_tx(&mut tx, session).await?;
         tx.commit().await?;
 
-        self.get(&session.id).await?
+        self.get(&session.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to retrieve created session"))
     }
 
@@ -41,13 +42,19 @@ impl SessionRepository {
         let progress_flags = serde_json::to_value(&session.progress_flags)?;
         let mission_status = serde_json::to_value(&session.mission_status)?;
 
-        let started_at: DateTime<Utc> = session.started_at.parse()
+        let started_at: DateTime<Utc> = session
+            .started_at
+            .parse()
             .context("Failed to parse started_at timestamp")?;
-        let ended_at: Option<DateTime<Utc>> = session.ended_at.as_ref()
+        let ended_at: Option<DateTime<Utc>> = session
+            .ended_at
+            .as_ref()
             .map(|s| s.parse())
             .transpose()
             .context("Failed to parse ended_at timestamp")?;
-        let last_activity_at: DateTime<Utc> = session.last_activity_at.parse()
+        let last_activity_at: DateTime<Utc> = session
+            .last_activity_at
+            .parse()
             .context("Failed to parse last_activity_at timestamp")?;
 
         sqlx::query!(
@@ -94,13 +101,19 @@ impl SessionRepository {
         let progress_flags = serde_json::to_value(&session.progress_flags)?;
         let mission_status = serde_json::to_value(&session.mission_status)?;
 
-        let started_at: DateTime<Utc> = session.started_at.parse()
+        let started_at: DateTime<Utc> = session
+            .started_at
+            .parse()
             .context("Failed to parse started_at timestamp")?;
-        let ended_at: Option<DateTime<Utc>> = session.ended_at.as_ref()
+        let ended_at: Option<DateTime<Utc>> = session
+            .ended_at
+            .as_ref()
             .map(|s| s.parse())
             .transpose()
             .context("Failed to parse ended_at timestamp")?;
-        let last_activity_at: DateTime<Utc> = session.last_activity_at.parse()
+        let last_activity_at: DateTime<Utc> = session
+            .last_activity_at
+            .parse()
             .context("Failed to parse last_activity_at timestamp")?;
 
         sqlx::query!(
@@ -134,7 +147,8 @@ impl SessionRepository {
         .await
         .context("Failed to update session")?;
 
-        self.get(&session.id).await?
+        self.get(&session.id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Session not found after update"))
     }
 
@@ -199,16 +213,16 @@ impl SessionRepository {
                 _ => ScenarioDiscipline::Basic,
             });
 
-            let progress_flags: ProgressFlags = serde_json::from_value(r.progress_flags)
-                .unwrap_or(ProgressFlags {
+            let progress_flags: ProgressFlags =
+                serde_json::from_value(r.progress_flags).unwrap_or(ProgressFlags {
                     requirements: false,
                     priorities: false,
                     risks: false,
                     acceptance: false,
                 });
 
-            let mission_status: Option<Vec<MissionStatus>> = serde_json::from_value(r.mission_status)
-                .ok();
+            let mission_status: Option<Vec<MissionStatus>> =
+                serde_json::from_value(r.mission_status).ok();
 
             Session {
                 id: r.id,
@@ -243,45 +257,48 @@ impl SessionRepository {
         .await
         .context("Failed to list sessions")?;
 
-        Ok(rows.into_iter().map(|r| {
-            let status = match r.status.as_str() {
-                "active" => SessionStatus::Active,
-                "completed" => SessionStatus::Completed,
-                "evaluated" => SessionStatus::Evaluated,
-                _ => SessionStatus::Active,
-            };
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let status = match r.status.as_str() {
+                    "active" => SessionStatus::Active,
+                    "completed" => SessionStatus::Completed,
+                    "evaluated" => SessionStatus::Evaluated,
+                    _ => SessionStatus::Active,
+                };
 
-            let scenario_discipline = r.scenario_discipline.map(|d| match d.as_str() {
-                "BASIC" => ScenarioDiscipline::Basic,
-                "CHALLENGE" => ScenarioDiscipline::Challenge,
-                _ => ScenarioDiscipline::Basic,
-            });
-
-            let progress_flags: ProgressFlags = serde_json::from_value(r.progress_flags)
-                .unwrap_or(ProgressFlags {
-                    requirements: false,
-                    priorities: false,
-                    risks: false,
-                    acceptance: false,
+                let scenario_discipline = r.scenario_discipline.map(|d| match d.as_str() {
+                    "BASIC" => ScenarioDiscipline::Basic,
+                    "CHALLENGE" => ScenarioDiscipline::Challenge,
+                    _ => ScenarioDiscipline::Basic,
                 });
 
-            let mission_status: Option<Vec<MissionStatus>> = serde_json::from_value(r.mission_status)
-                .ok();
+                let progress_flags: ProgressFlags = serde_json::from_value(r.progress_flags)
+                    .unwrap_or(ProgressFlags {
+                        requirements: false,
+                        priorities: false,
+                        risks: false,
+                        acceptance: false,
+                    });
 
-            Session {
-                id: r.id,
-                scenario_id: r.scenario_id,
-                scenario_discipline,
-                status,
-                started_at: r.started_at.unwrap_or_default(),
-                ended_at: r.ended_at,
-                last_activity_at: r.last_activity_at.unwrap_or_default(),
-                user_name: r.user_name,
-                progress_flags,
-                evaluation_requested: r.evaluation_requested,
-                mission_status,
-            }
-        }).collect())
+                let mission_status: Option<Vec<MissionStatus>> =
+                    serde_json::from_value(r.mission_status).ok();
+
+                Session {
+                    id: r.id,
+                    scenario_id: r.scenario_id,
+                    scenario_discipline,
+                    status,
+                    started_at: r.started_at.unwrap_or_default(),
+                    ended_at: r.ended_at,
+                    last_activity_at: r.last_activity_at.unwrap_or_default(),
+                    user_name: r.user_name,
+                    progress_flags,
+                    evaluation_requested: r.evaluation_requested,
+                    mission_status,
+                }
+            })
+            .collect())
     }
 
     pub async fn delete(&self, id: &str) -> Result<()> {

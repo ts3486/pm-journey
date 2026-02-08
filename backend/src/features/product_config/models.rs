@@ -28,6 +28,8 @@ pub struct ProductConfig {
     pub tech_stack: Vec<String>,
     #[serde(default, alias = "core_features")]
     pub core_features: Vec<String>,
+    #[serde(default, alias = "product_prompt")]
+    pub product_prompt: Option<String>,
     /// Whether this is the default product config (not user-customized)
     #[serde(default, alias = "is_default")]
     pub is_default: bool,
@@ -62,6 +64,8 @@ pub struct UpdateProductConfigRequest {
     pub tech_stack: Vec<String>,
     #[serde(default, alias = "core_features")]
     pub core_features: Vec<String>,
+    #[serde(default, alias = "product_prompt")]
+    pub product_prompt: Option<String>,
 }
 
 impl ProductConfig {
@@ -70,7 +74,9 @@ impl ProductConfig {
         Self {
             id: None,
             name: "在庫最適化ダッシュボード".to_string(),
-            summary: "多店舗小売向けに、在庫・発注・売上を一画面で可視化し、欠品と過剰在庫を減らすSaaS。".to_string(),
+            summary:
+                "多店舗小売向けに、在庫・発注・売上を一画面で可視化し、欠品と過剰在庫を減らすSaaS。"
+                    .to_string(),
             audience: "店舗マネージャー、在庫管理担当、エリア統括".to_string(),
             problems: vec![
                 "欠品と過剰在庫が併発".to_string(),
@@ -117,6 +123,7 @@ impl ProductConfig {
                 "低在庫アラート".to_string(),
                 "POS連携".to_string(),
             ],
+            product_prompt: None,
             is_default: true,
             created_at: None,
             updated_at: None,

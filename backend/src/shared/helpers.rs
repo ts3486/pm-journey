@@ -10,5 +10,8 @@ pub fn now_ts() -> String {
 }
 
 pub fn normalize_model_id(model_id: &str) -> String {
-    model_id.strip_prefix("models/").unwrap_or(model_id).to_string()
+    model_id
+        .strip_prefix("models/")
+        .unwrap_or(model_id)
+        .to_string()
 }

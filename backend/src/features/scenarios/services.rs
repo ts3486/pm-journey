@@ -52,7 +52,9 @@ impl ScenarioService {
         }
 
         if default_scenarios().iter().any(|s| s.id == scenario.id) {
-            return Err(client_error("このIDは組み込みシナリオで既に使用されています"));
+            return Err(client_error(
+                "このIDは組み込みシナリオで既に使用されています",
+            ));
         }
 
         if !scenario
@@ -74,7 +76,9 @@ impl ScenarioService {
             .sum();
 
         if (total_weight - 100.0).abs() > 0.01 {
-            return Err(client_error("評価基準の重みの合計は100%である必要があります"));
+            return Err(client_error(
+                "評価基準の重みの合計は100%である必要があります",
+            ));
         }
 
         Ok(())

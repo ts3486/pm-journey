@@ -17,7 +17,11 @@ use super::models::{ProductConfig, UpdateProductConfigRequest};
 pub async fn get_product_config(
     State(state): State<SharedState>,
 ) -> Result<Json<ProductConfig>, AppError> {
-    let config = state.services().product_config().get_product_config().await?;
+    let config = state
+        .services()
+        .product_config()
+        .get_product_config()
+        .await?;
     Ok(Json(config))
 }
 
@@ -56,6 +60,10 @@ pub async fn update_product_config(
 pub async fn reset_product_config(
     State(state): State<SharedState>,
 ) -> Result<Json<ProductConfig>, AppError> {
-    let config = state.services().product_config().reset_product_config().await?;
+    let config = state
+        .services()
+        .product_config()
+        .reset_product_config()
+        .await?;
     Ok(Json(config))
 }

@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 
 type FileUploadMockupProps = {
   description?: string;
@@ -21,11 +19,11 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_FILES = 5;
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       return `${file.name}: 許可されていないファイル形式です（JPEG, PNG, GIF, PDF のみ）`;
     }
@@ -35,23 +33,22 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
     return null;
   };
 
-  const addFiles = (newFiles: FileList) => {
+  const addFiles = (fileList: FileList) => {
     setError(null);
-
-    if (files.length + newFiles.length > MAX_FILES) {
+    if (files.length + fileList.length > MAX_FILES) {
       setError(`ファイルは最大${MAX_FILES}個までアップロードできます`);
       return;
     }
 
-    const validatedFiles: MockFile[] = [];
+    const pendingFiles: MockFile[] = [];
     const errors: string[] = [];
 
-    Array.from(newFiles).forEach((file) => {
+    Array.from(fileList).forEach((file) => {
       const validationError = validateFile(file);
       if (validationError) {
         errors.push(validationError);
       } else {
-        validatedFiles.push({
+        pendingFiles.push({
           name: file.name,
           size: file.size,
           type: file.type,
@@ -65,10 +62,9 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
       setError(errors.join("\n"));
     }
 
-    if (validatedFiles.length > 0) {
-      setFiles((prev) => [...prev, ...validatedFiles]);
-
-      validatedFiles.forEach((_, index) => {
+    if (pendingFiles.length > 0) {
+      setFiles((prev) => [...prev, ...pendingFiles]);
+      pendingFiles.forEach((_, index) => {
         simulateUpload(files.length + index);
       });
     }
@@ -76,7 +72,7 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
 
   const simulateUpload = (fileIndex: number) => {
     setFiles((prev) =>
-      prev.map((f, i) => (i === fileIndex ? { ...f, status: "uploading" as const } : f)),
+      prev.map((file, index) => (index === fileIndex ? { ...file, status: "uploading" } : file)),
     );
 
     let progress = 0;
@@ -86,27 +82,29 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
         clearInterval(interval);
         const success = Math.random() > 0.2;
         setFiles((prev) =>
-          prev.map((f, i) =>
-            i === fileIndex
+          prev.map((file, index) =>
+            index === fileIndex
               ? {
-                  ...f,
-                  status: success ? ("success" as const) : ("error" as const),
+                  ...file,
+                  status: success ? "success" : "error",
                   progress: 100,
                   error: success ? undefined : "アップロードに失敗しました",
                 }
-              : f,
+              : file,
           ),
         );
       } else {
         setFiles((prev) =>
-          prev.map((f, i) => (i === fileIndex ? { ...f, progress: Math.min(progress, 99) } : f)),
+          prev.map((file, index) =>
+            index === fileIndex ? { ...file, progress: Math.min(progress, 99) } : file,
+          ),
         );
       }
     }, 500);
   };
 
   const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, idx) => idx !== index));
     setError(null);
   };
 
@@ -116,34 +114,34 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+  const handleDrag = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === "dragenter" || event.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (event.type === "dragleave") {
       setDragActive(false);
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files);
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      addFiles(event.dataTransfer.files);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md mx-auto">
+    <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900">ファイルアップロード</h2>
-        {description && <p className="text-sm text-gray-500 mt-2">{description}</p>}
+        {description && <p className="mt-2 text-sm text-gray-500">{description}</p>}
       </div>
 
       <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
           dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
         }`}
         onDragEnter={handleDrag}
@@ -158,20 +156,20 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
           multiple
           accept={ALLOWED_TYPES.join(",")}
           className="hidden"
-          onChange={(e) => e.target.files && addFiles(e.target.files)}
+          onChange={(event) => event.target.files && addFiles(event.target.files)}
         />
-        <div className="text-4xl mb-2">📁</div>
+        <div className="mb-2 text-4xl">📁</div>
         <p className="text-sm text-gray-600">
           ファイルをドラッグ＆ドロップ
           <br />
           または<span className="text-blue-600">クリックして選択</span>
         </p>
-        <p className="text-xs text-gray-400 mt-2">JPEG, PNG, GIF, PDF / 最大10MB / 最大5ファイル</p>
+        <p className="mt-2 text-xs text-gray-400">JPEG, PNG, GIF, PDF / 最大10MB / 最大5ファイル</p>
       </div>
 
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600 whitespace-pre-line">{error}</p>
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3">
+          <p className="whitespace-pre-line text-sm text-red-600">{error}</p>
         </div>
       )}
 
@@ -181,15 +179,15 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
             アップロードファイル ({files.length}/{MAX_FILES})
           </h3>
           {files.map((file, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
-              <div className="w-8 h-8 flex items-center justify-center text-lg">
+            <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-md bg-gray-50 p-3">
+              <div className="flex h-8 w-8 items-center justify-center text-lg">
                 {file.type.startsWith("image/") ? "🖼️" : "📄"}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-gray-900">{file.name}</p>
                 <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                 {file.status === "uploading" && (
-                  <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
                     <div
                       className="h-full bg-blue-500 transition-all duration-300"
                       style={{ width: `${file.progress}%` }}
@@ -197,27 +195,21 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
                   </div>
                 )}
                 {file.status === "error" && (
-                  <p className="text-xs text-red-500 mt-1">{file.error}</p>
+                  <p className="mt-1 text-xs text-red-500">{file.error}</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {file.status === "uploading" && (
-                  <span className="text-xs text-gray-500">{Math.round(file.progress)}%</span>
-                )}
-                {file.status === "success" && (
-                  <span className="text-green-500 text-sm">✓</span>
-                )}
+                {file.status === "uploading" && <span className="text-xs text-gray-500">{Math.round(file.progress)}%</span>}
+                {file.status === "success" && <span className="text-sm text-green-500">✓</span>}
                 {file.status === "error" && (
-                  <button
-                    onClick={() => simulateUpload(index)}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
+                  <button type="button" onClick={() => simulateUpload(index)} className="text-xs text-blue-600 hover:underline">
                     再試行
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => removeFile(index)}
-                  className="text-gray-400 hover:text-gray-600 text-sm"
+                  className="text-sm text-gray-400 hover:text-gray-600"
                 >
                   ✕
                 </button>
@@ -227,9 +219,9 @@ export function FileUploadMockup({ description }: FileUploadMockupProps) {
         </div>
       )}
 
-      <div className="mt-4 p-3 bg-gray-50 rounded-md text-xs text-gray-500">
-        <p className="font-medium mb-1">仕様情報:</p>
-        <ul className="list-disc list-inside space-y-0.5">
+      <div className="mt-4 rounded-md bg-gray-50 p-3 text-xs text-gray-500">
+        <p className="mb-1 font-medium">仕様情報:</p>
+        <ul className="list-inside list-disc space-y-0.5">
           <li>対応形式: JPEG, PNG, GIF, PDF</li>
           <li>最大サイズ: 10MB/ファイル</li>
           <li>最大ファイル数: 5</li>

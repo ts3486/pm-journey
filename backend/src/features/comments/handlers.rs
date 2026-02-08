@@ -1,4 +1,7 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 
 use crate::error::AppError;
 use crate::state::SharedState;
@@ -29,6 +32,10 @@ pub async fn create_comment(
     Path(id): Path<String>,
     Json(body): Json<CreateCommentRequest>,
 ) -> Result<Json<ManagerComment>, AppError> {
-    let created = state.services().comments().create_comment(&id, body).await?;
+    let created = state
+        .services()
+        .comments()
+        .create_comment(&id, body)
+        .await?;
     Ok(Json(created))
 }
