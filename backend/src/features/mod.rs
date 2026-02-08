@@ -7,6 +7,7 @@ pub mod product_config;
 pub mod scenarios;
 pub mod sessions;
 pub mod test_cases;
+pub mod users;
 
 use sqlx::PgPool;
 
@@ -50,5 +51,10 @@ impl Services {
 
     pub fn product_config(&self) -> product_config::services::ProductConfigService {
         product_config::services::ProductConfigService::new(self.pool.clone())
+    }
+
+    #[allow(dead_code)]
+    pub fn users(&self) -> users::services::UserService {
+        users::services::UserService::new(self.pool.clone())
     }
 }

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use super::models::{ProductConfig, UpdateProductConfigRequest};
 
@@ -15,9 +15,9 @@ impl ProductConfigRepository {
         Self { pool }
     }
 
-    /// Get the product configuration (there's only one row due to singleton constraint)
-    pub async fn get(&self) -> Result<Option<ProductConfig>> {
-        let row = sqlx::query!(
+    /// Get the product configuration for the authenticated user.
+    pub async fn get(&self, user_id: &str) -> Result<Option<ProductConfig>> {
+        let row = sqlx::query(
             r#"
             SELECT
                 id::text,
@@ -28,66 +28,101 @@ impl ProductConfigRepository {
                 product_prompt,
                 created_at, updated_at
             FROM product_config
+            WHERE user_id = $1
             LIMIT 1
-            "#
+            "#,
         )
+        .bind(user_id)
         .fetch_optional(&self.pool)
         .await
         .context("Failed to fetch product config")?;
 
         Ok(row.map(|r| {
-            let problems: Vec<String> = serde_json::from_value(r.problems).unwrap_or_default();
-            let goals: Vec<String> = serde_json::from_value(r.goals).unwrap_or_default();
+            let problems: Vec<String> = r
+                .try_get::<serde_json::Value, _>("problems")
+                .ok()
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
+            let goals: Vec<String> = r
+                .try_get::<serde_json::Value, _>("goals")
+                .ok()
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_default();
             let differentiators: Vec<String> = r
-                .differentiators
+                .try_get::<Option<serde_json::Value>, _>("differentiators")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
             let scope: Vec<String> = r
-                .scope
+                .try_get::<Option<serde_json::Value>, _>("scope")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
             let constraints: Vec<String> = r
-                .constraints
+                .try_get::<Option<serde_json::Value>, _>("constraints")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
             let success_criteria: Vec<String> = r
-                .success_criteria
+                .try_get::<Option<serde_json::Value>, _>("success_criteria")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
             let tech_stack: Vec<String> = r
-                .tech_stack
+                .try_get::<Option<serde_json::Value>, _>("tech_stack")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
             let core_features: Vec<String> = r
-                .core_features
+                .try_get::<Option<serde_json::Value>, _>("core_features")
+                .ok()
+                .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
 
             ProductConfig {
-                id: r.id,
-                name: r.name,
-                summary: r.summary,
-                audience: r.audience,
+                id: Some(r.get("id")),
+                name: r.get("name"),
+                summary: r.get("summary"),
+                audience: r.get("audience"),
                 problems,
                 goals,
                 differentiators,
                 scope,
                 constraints,
-                timeline: r.timeline,
+                timeline: r.try_get::<Option<String>, _>("timeline").ok().flatten(),
                 success_criteria,
-                unique_edge: r.unique_edge,
+                unique_edge: r.try_get::<Option<String>, _>("unique_edge").ok().flatten(),
                 tech_stack,
                 core_features,
-                product_prompt: r.product_prompt,
+                product_prompt: r
+                    .try_get::<Option<String>, _>("product_prompt")
+                    .ok()
+                    .flatten(),
                 is_default: false,
-                created_at: Some(r.created_at.to_rfc3339()),
-                updated_at: Some(r.updated_at.to_rfc3339()),
+                created_at: r
+                    .try_get::<chrono::DateTime<chrono::Utc>, _>("created_at")
+                    .ok()
+                    .map(|v| v.to_rfc3339()),
+                updated_at: r
+                    .try_get::<chrono::DateTime<chrono::Utc>, _>("updated_at")
+                    .ok()
+                    .map(|v| v.to_rfc3339()),
             }
         }))
     }
 
-    /// Create or update the product configuration (upsert)
-    pub async fn upsert(&self, config: &UpdateProductConfigRequest) -> Result<ProductConfig> {
+    /// Create or update the product configuration for a single user.
+    pub async fn upsert(
+        &self,
+        user_id: &str,
+        config: &UpdateProductConfigRequest,
+    ) -> Result<ProductConfig> {
         let problems = serde_json::to_value(&config.problems)?;
         let goals = serde_json::to_value(&config.goals)?;
         let differentiators = serde_json::to_value(&config.differentiators)?;
@@ -98,18 +133,18 @@ impl ProductConfigRepository {
         let core_features = serde_json::to_value(&config.core_features)?;
         let product_prompt = config.product_prompt.clone();
 
-        // Use ON CONFLICT to upsert (the singleton index ensures only one row)
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             INSERT INTO product_config (
+                user_id,
                 name, summary, audience,
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
                 product_prompt
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            ON CONFLICT ((true))
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            ON CONFLICT (user_id)
             DO UPDATE SET
                 name = EXCLUDED.name,
                 summary = EXCLUDED.summary,
@@ -135,77 +170,111 @@ impl ProductConfigRepository {
                 product_prompt,
                 created_at, updated_at
             "#,
-            config.name,
-            config.summary,
-            config.audience,
-            problems,
-            goals,
-            differentiators,
-            scope,
-            constraints,
-            config.timeline,
-            success_criteria,
-            config.unique_edge,
-            tech_stack,
-            core_features,
-            product_prompt,
         )
+        .bind(user_id)
+        .bind(&config.name)
+        .bind(&config.summary)
+        .bind(&config.audience)
+        .bind(problems)
+        .bind(goals)
+        .bind(differentiators)
+        .bind(scope)
+        .bind(constraints)
+        .bind(&config.timeline)
+        .bind(success_criteria)
+        .bind(&config.unique_edge)
+        .bind(tech_stack)
+        .bind(core_features)
+        .bind(product_prompt)
         .fetch_one(&self.pool)
         .await
         .context("Failed to upsert product config")?;
 
-        let problems: Vec<String> = serde_json::from_value(row.problems).unwrap_or_default();
-        let goals: Vec<String> = serde_json::from_value(row.goals).unwrap_or_default();
+        let problems: Vec<String> = row
+            .try_get::<serde_json::Value, _>("problems")
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
+        let goals: Vec<String> = row
+            .try_get::<serde_json::Value, _>("goals")
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default();
         let differentiators: Vec<String> = row
-            .differentiators
+            .try_get::<Option<serde_json::Value>, _>("differentiators")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
         let scope: Vec<String> = row
-            .scope
+            .try_get::<Option<serde_json::Value>, _>("scope")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
         let constraints: Vec<String> = row
-            .constraints
+            .try_get::<Option<serde_json::Value>, _>("constraints")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
         let success_criteria: Vec<String> = row
-            .success_criteria
+            .try_get::<Option<serde_json::Value>, _>("success_criteria")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
         let tech_stack: Vec<String> = row
-            .tech_stack
+            .try_get::<Option<serde_json::Value>, _>("tech_stack")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
         let core_features: Vec<String> = row
-            .core_features
+            .try_get::<Option<serde_json::Value>, _>("core_features")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
 
         Ok(ProductConfig {
-            id: row.id,
-            name: row.name,
-            summary: row.summary,
-            audience: row.audience,
+            id: Some(row.get("id")),
+            name: row.get("name"),
+            summary: row.get("summary"),
+            audience: row.get("audience"),
             problems,
             goals,
             differentiators,
             scope,
             constraints,
-            timeline: row.timeline,
+            timeline: row.try_get::<Option<String>, _>("timeline").ok().flatten(),
             success_criteria,
-            unique_edge: row.unique_edge,
+            unique_edge: row
+                .try_get::<Option<String>, _>("unique_edge")
+                .ok()
+                .flatten(),
             tech_stack,
             core_features,
-            product_prompt: row.product_prompt,
+            product_prompt: row
+                .try_get::<Option<String>, _>("product_prompt")
+                .ok()
+                .flatten(),
             is_default: false,
-            created_at: Some(row.created_at.to_rfc3339()),
-            updated_at: Some(row.updated_at.to_rfc3339()),
+            created_at: row
+                .try_get::<chrono::DateTime<chrono::Utc>, _>("created_at")
+                .ok()
+                .map(|v| v.to_rfc3339()),
+            updated_at: row
+                .try_get::<chrono::DateTime<chrono::Utc>, _>("updated_at")
+                .ok()
+                .map(|v| v.to_rfc3339()),
         })
     }
 
-    /// Delete the product configuration (resets to default)
-    pub async fn delete(&self) -> Result<()> {
-        sqlx::query!("DELETE FROM product_config")
+    /// Delete the product configuration (resets to default) for one user.
+    pub async fn delete(&self, user_id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM product_config WHERE user_id = $1")
+            .bind(user_id)
             .execute(&self.pool)
             .await
             .context("Failed to delete product config")?;

@@ -4,6 +4,7 @@ use axum::{
 };
 
 use crate::error::AppError;
+use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{CreateSessionRequest, HistoryItem, Session};
@@ -16,12 +17,13 @@ use super::models::{CreateSessionRequest, HistoryItem, Session};
 )]
 pub async fn create_session(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Json(body): Json<CreateSessionRequest>,
 ) -> Result<Json<Session>, AppError> {
     let created = state
         .services()
         .sessions()
-        .create_session(body.scenario_id)
+        .create_session(body.scenario_id, &auth.user_id)
         .await?;
 
     Ok(Json(created))
@@ -34,8 +36,13 @@ pub async fn create_session(
 )]
 pub async fn list_sessions(
     State(state): State<SharedState>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<HistoryItem>>, AppError> {
-    let items = state.services().sessions().list_sessions().await?;
+    let items = state
+        .services()
+        .sessions()
+        .list_sessions(&auth.user_id)
+        .await?;
     Ok(Json(items))
 }
 
@@ -46,9 +53,14 @@ pub async fn list_sessions(
 )]
 pub async fn get_session(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<HistoryItem>, AppError> {
-    let item = state.services().sessions().get_session(&id).await?;
+    let item = state
+        .services()
+        .sessions()
+        .get_session(&id, &auth.user_id)
+        .await?;
     Ok(Json(item))
 }
 
@@ -59,8 +71,13 @@ pub async fn get_session(
 )]
 pub async fn delete_session(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<&'static str>, AppError> {
-    state.services().sessions().delete_session(&id).await?;
+    state
+        .services()
+        .sessions()
+        .delete_session(&id, &auth.user_id)
+        .await?;
     Ok(Json("deleted"))
 }

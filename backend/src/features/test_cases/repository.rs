@@ -113,12 +113,21 @@ impl TestCaseRepository {
             .collect())
     }
 
-    pub async fn delete(&self, id: &str) -> Result<bool> {
-        let result = sqlx::query("DELETE FROM test_cases WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
-            .await
-            .context("Failed to delete test case")?;
+    pub async fn delete_for_user(&self, id: &str, user_id: &str) -> Result<bool> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM test_cases tc
+            USING sessions s
+            WHERE tc.id = $1
+              AND tc.session_id = s.id
+              AND s.user_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await
+        .context("Failed to delete test case")?;
 
         Ok(result.rows_affected() > 0)
     }

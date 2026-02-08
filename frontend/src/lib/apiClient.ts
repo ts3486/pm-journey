@@ -21,16 +21,34 @@ type FetchOptions = {
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 
-export function createApiClient(baseUrl: string) {
+type ApiClientOptions = {
+  getAccessToken?: () => Promise<string>;
+};
+
+export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions = {}) {
   async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
     if (!baseUrl) {
       throw new Error("API base not configured");
     }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (clientOptions.getAccessToken) {
+      try {
+        const token = await clientOptions.getAccessToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error("Failed to get access token:", error);
+      }
+    }
+
     const res = await fetch(`${baseUrl}${path}`, {
       method: options.method ?? "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
     if (!res.ok) {

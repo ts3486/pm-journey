@@ -20,12 +20,13 @@ impl ImportService {
     pub async fn import_sessions(
         &self,
         snapshots: Vec<SessionSnapshot>,
+        user_id: &str,
     ) -> Result<ImportResult, AppError> {
         let mut imported = 0;
         let mut failed = Vec::new();
 
         for snapshot in snapshots {
-            match import_snapshot(&self.pool, &snapshot).await {
+            match import_snapshot(&self.pool, &snapshot, user_id).await {
                 Ok(_) => imported += 1,
                 Err(e) => failed.push(format!("{}: {}", snapshot.session.id, e)),
             }
@@ -35,13 +36,17 @@ impl ImportService {
     }
 }
 
-async fn import_snapshot(pool: &PgPool, snapshot: &SessionSnapshot) -> anyhow::Result<()> {
+async fn import_snapshot(
+    pool: &PgPool,
+    snapshot: &SessionSnapshot,
+    user_id: &str,
+) -> anyhow::Result<()> {
     let mut tx = pool.begin().await?;
 
     // Insert session
     let session_repo = SessionRepository::new(pool.clone());
     session_repo
-        .create_in_tx(&mut tx, &snapshot.session)
+        .create_in_tx(&mut tx, &snapshot.session, user_id)
         .await?;
 
     // Insert messages

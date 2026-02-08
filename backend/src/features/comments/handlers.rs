@@ -4,6 +4,7 @@ use axum::{
 };
 
 use crate::error::AppError;
+use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{CreateCommentRequest, ManagerComment};
@@ -15,9 +16,14 @@ use super::models::{CreateCommentRequest, ManagerComment};
 )]
 pub async fn list_comments(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<Vec<ManagerComment>>, AppError> {
-    let comments = state.services().comments().list_comments(&id).await?;
+    let comments = state
+        .services()
+        .comments()
+        .list_comments(&id, &auth.user_id)
+        .await?;
     Ok(Json(comments))
 }
 
@@ -29,13 +35,14 @@ pub async fn list_comments(
 )]
 pub async fn create_comment(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<CreateCommentRequest>,
 ) -> Result<Json<ManagerComment>, AppError> {
     let created = state
         .services()
         .comments()
-        .create_comment(&id, body)
+        .create_comment(&id, &auth.user_id, body)
         .await?;
     Ok(Json(created))
 }
