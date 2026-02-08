@@ -4,6 +4,7 @@ use axum::{
 };
 
 use crate::error::AppError;
+use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{CreateMessageRequest, Message, MessageResponse};
@@ -15,9 +16,14 @@ use super::models::{CreateMessageRequest, Message, MessageResponse};
 )]
 pub async fn list_messages(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<Vec<Message>>, AppError> {
-    let messages = state.services().messages().list_messages(&id).await?;
+    let messages = state
+        .services()
+        .messages()
+        .list_messages(&id, &auth.user_id)
+        .await?;
     Ok(Json(messages))
 }
 
@@ -29,9 +35,14 @@ pub async fn list_messages(
 )]
 pub async fn post_message(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<CreateMessageRequest>,
 ) -> Result<Json<MessageResponse>, AppError> {
-    let response = state.services().messages().post_message(&id, body).await?;
+    let response = state
+        .services()
+        .messages()
+        .post_message(&id, &auth.user_id, body)
+        .await?;
     Ok(Json(response))
 }

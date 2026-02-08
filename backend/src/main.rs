@@ -45,7 +45,17 @@ async fn main() {
         .expect("failed to run migrations");
     tracing::info!("Migrations completed successfully");
 
-    let state = state_with_pool(pool);
+    // Load Auth0 configuration
+    let auth0_domain = env::var("AUTH0_DOMAIN").expect("AUTH0_DOMAIN must be set");
+    let _auth0_audience = env::var("AUTH0_AUDIENCE").expect("AUTH0_AUDIENCE must be set");
+
+    // Fetch JWKS keys
+    tracing::info!("Fetching JWKS from Auth0...");
+    let jwks = middleware::auth::fetch_jwks(&auth0_domain)
+        .await
+        .expect("Failed to fetch JWKS");
+
+    let state = state_with_pool(pool, jwks);
     let cors = CorsLayer::new()
         .allow_origin([
             "http://localhost:3000".parse().unwrap(),

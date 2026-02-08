@@ -10,6 +10,7 @@ use crate::models::{
     SessionStatus,
 };
 use crate::shared::helpers::{next_id, now_ts};
+use axum::http::StatusCode;
 
 #[derive(Clone)]
 pub struct SessionService {
@@ -21,7 +22,11 @@ impl SessionService {
         Self { pool }
     }
 
-    pub async fn create_session(&self, scenario_id: String) -> Result<Session, AppError> {
+    pub async fn create_session(
+        &self,
+        scenario_id: String,
+        user_id: &str,
+    ) -> Result<Session, AppError> {
         let scenario = default_scenarios()
             .into_iter()
             .find(|s| s.id == scenario_id);
@@ -47,21 +52,21 @@ impl SessionService {
 
         let repo = SessionRepository::new(self.pool.clone());
         let created = repo
-            .create(&session)
+            .create(&session, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to create session: {}", e)))?;
 
         Ok(created)
     }
 
-    pub async fn list_sessions(&self) -> Result<Vec<HistoryItem>, AppError> {
+    pub async fn list_sessions(&self, user_id: &str) -> Result<Vec<HistoryItem>, AppError> {
         let session_repo = SessionRepository::new(self.pool.clone());
         let message_repo = MessageRepository::new(self.pool.clone());
         let eval_repo = EvaluationRepository::new(self.pool.clone());
         let comment_repo = CommentRepository::new(self.pool.clone());
 
         let sessions = session_repo
-            .list()
+            .list_for_user(user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to list sessions: {}", e)))?;
 
@@ -101,17 +106,19 @@ impl SessionService {
         Ok(items)
     }
 
-    pub async fn get_session(&self, id: &str) -> Result<HistoryItem, AppError> {
+    pub async fn get_session(&self, id: &str, user_id: &str) -> Result<HistoryItem, AppError> {
         let session_repo = SessionRepository::new(self.pool.clone());
         let message_repo = MessageRepository::new(self.pool.clone());
         let eval_repo = EvaluationRepository::new(self.pool.clone());
         let comment_repo = CommentRepository::new(self.pool.clone());
 
         let session = session_repo
-            .get(id)
+            .get_for_user(id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
-            .ok_or_else(|| anyhow_error("session not found"))?;
+            .ok_or_else(|| {
+                AppError::new(StatusCode::NOT_FOUND, anyhow::anyhow!("session not found"))
+            })?;
 
         let messages = message_repo
             .list_by_session(id)
@@ -147,11 +154,18 @@ impl SessionService {
         Ok(item)
     }
 
-    pub async fn delete_session(&self, id: &str) -> Result<(), AppError> {
+    pub async fn delete_session(&self, id: &str, user_id: &str) -> Result<(), AppError> {
         let repo = SessionRepository::new(self.pool.clone());
-        repo.delete(id)
+        let deleted = repo
+            .delete_for_user(id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to delete session: {}", e)))?;
+        if !deleted {
+            return Err(AppError::new(
+                StatusCode::NOT_FOUND,
+                anyhow::anyhow!("session not found"),
+            ));
+        }
         Ok(())
     }
 }

@@ -5,6 +5,7 @@ use axum::{
 };
 
 use crate::error::AppError;
+use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{CreateTestCaseRequest, TestCaseResponse};
@@ -16,9 +17,14 @@ use super::models::{CreateTestCaseRequest, TestCaseResponse};
 )]
 pub async fn list_test_cases(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<Vec<TestCaseResponse>>, AppError> {
-    let test_cases = state.services().test_cases().list_test_cases(&id).await?;
+    let test_cases = state
+        .services()
+        .test_cases()
+        .list_test_cases(&id, &auth.user_id)
+        .await?;
     let responses: Vec<TestCaseResponse> = test_cases.into_iter().map(Into::into).collect();
     Ok(Json(responses))
 }
@@ -31,13 +37,14 @@ pub async fn list_test_cases(
 )]
 pub async fn create_test_case(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<CreateTestCaseRequest>,
 ) -> Result<(StatusCode, Json<TestCaseResponse>), AppError> {
     let created = state
         .services()
         .test_cases()
-        .create_test_case(&id, body)
+        .create_test_case(&id, &auth.user_id, body)
         .await?;
     Ok((StatusCode::CREATED, Json(created.into())))
 }
@@ -49,9 +56,14 @@ pub async fn create_test_case(
 )]
 pub async fn delete_test_case(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    let deleted = state.services().test_cases().delete_test_case(&id).await?;
+    let deleted = state
+        .services()
+        .test_cases()
+        .delete_test_case(&id, &auth.user_id)
+        .await?;
     if deleted {
         Ok(StatusCode::NO_CONTENT)
     } else {

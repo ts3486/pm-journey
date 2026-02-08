@@ -2,7 +2,7 @@ use sqlx::PgPool;
 
 use crate::error::{anyhow_error, AppError};
 use crate::models::TestCase;
-use crate::shared::helpers::{next_id, now_ts};
+use crate::shared::helpers::{next_id, now_ts, verify_session_ownership};
 
 use super::models::CreateTestCaseRequest;
 use super::repository::TestCaseRepository;
@@ -17,7 +17,13 @@ impl TestCaseService {
         Self { pool }
     }
 
-    pub async fn list_test_cases(&self, session_id: &str) -> Result<Vec<TestCase>, AppError> {
+    pub async fn list_test_cases(
+        &self,
+        session_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<TestCase>, AppError> {
+        verify_session_ownership(&self.pool, session_id, user_id).await?;
+
         let repo = TestCaseRepository::new(self.pool.clone());
         let test_cases = repo
             .list_by_session(session_id)
@@ -29,8 +35,11 @@ impl TestCaseService {
     pub async fn create_test_case(
         &self,
         session_id: &str,
+        user_id: &str,
         body: CreateTestCaseRequest,
     ) -> Result<TestCase, AppError> {
+        verify_session_ownership(&self.pool, session_id, user_id).await?;
+
         let repo = TestCaseRepository::new(self.pool.clone());
 
         let test_case = TestCase {
@@ -51,10 +60,10 @@ impl TestCaseService {
         Ok(created)
     }
 
-    pub async fn delete_test_case(&self, id: &str) -> Result<bool, AppError> {
+    pub async fn delete_test_case(&self, id: &str, user_id: &str) -> Result<bool, AppError> {
         let repo = TestCaseRepository::new(self.pool.clone());
         let deleted = repo
-            .delete(id)
+            .delete_for_user(id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to delete test case: {}", e)))?;
         Ok(deleted)

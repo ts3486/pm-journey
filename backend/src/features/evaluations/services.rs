@@ -28,6 +28,7 @@ impl EvaluationService {
     pub async fn evaluate_session(
         &self,
         session_id: &str,
+        user_id: &str,
         request: EvaluationRequest,
     ) -> Result<Evaluation, AppError> {
         let session_repo = SessionRepository::new(self.pool.clone());
@@ -43,7 +44,7 @@ impl EvaluationService {
 
         // Get session
         let mut session = session_repo
-            .get(session_id)
+            .get_for_user(session_id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
             .ok_or_else(|| anyhow_error("session not found"))?;

@@ -1,7 +1,8 @@
 use sqlx::PgPool;
 
-use crate::error::{anyhow_error, client_error, AppError};
+use crate::error::{client_error, AppError};
 use crate::models::{default_scenarios, Scenario};
+use axum::http::StatusCode;
 
 use super::repository::ScenarioRepository;
 
@@ -15,14 +16,18 @@ impl ScenarioService {
         Self { pool }
     }
 
-    pub async fn create_scenario(&self, scenario: &Scenario) -> Result<Scenario, AppError> {
+    pub async fn create_scenario(
+        &self,
+        user_id: &str,
+        scenario: &Scenario,
+    ) -> Result<Scenario, AppError> {
         Self::validate_id(scenario)?;
         Self::validate_weights(scenario)?;
 
         let repo = ScenarioRepository::new(self.pool.clone());
 
         if repo
-            .get(&scenario.id)
+            .get_for_user(&scenario.id, user_id)
             .await
             .map_err(AppError::from)?
             .is_some()
@@ -30,18 +35,29 @@ impl ScenarioService {
             return Err(client_error("このIDのカスタムシナリオは既に存在します"));
         }
 
-        repo.create(scenario).await.map_err(AppError::from)
+        repo.create(scenario, user_id).await.map_err(AppError::from)
     }
 
-    pub fn list_scenarios(&self) -> Vec<Scenario> {
-        default_scenarios()
+    pub async fn list_scenarios(&self, user_id: &str) -> Result<Vec<Scenario>, AppError> {
+        let repo = ScenarioRepository::new(self.pool.clone());
+        let mut scenarios = default_scenarios();
+        let custom = repo.list_for_user(user_id).await.map_err(AppError::from)?;
+        scenarios.extend(custom);
+        Ok(scenarios)
     }
 
-    pub fn get_scenario(&self, id: &str) -> Result<Scenario, AppError> {
-        default_scenarios()
-            .into_iter()
-            .find(|s| s.id == id)
-            .ok_or_else(|| anyhow_error("scenario not found"))
+    pub async fn get_scenario(&self, id: &str, user_id: &str) -> Result<Scenario, AppError> {
+        if let Some(scenario) = default_scenarios().into_iter().find(|s| s.id == id) {
+            return Ok(scenario);
+        }
+
+        let repo = ScenarioRepository::new(self.pool.clone());
+        repo.get_for_user(id, user_id)
+            .await
+            .map_err(AppError::from)?
+            .ok_or_else(|| {
+                AppError::new(StatusCode::NOT_FOUND, anyhow::anyhow!("scenario not found"))
+            })
     }
 }
 

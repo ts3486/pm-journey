@@ -1,6 +1,7 @@
 use axum::{extract::State, Json};
 
 use crate::error::AppError;
+use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{ProductConfig, UpdateProductConfigRequest};
@@ -16,11 +17,12 @@ use super::models::{ProductConfig, UpdateProductConfigRequest};
 )]
 pub async fn get_product_config(
     State(state): State<SharedState>,
+    auth: AuthUser,
 ) -> Result<Json<ProductConfig>, AppError> {
     let config = state
         .services()
         .product_config()
-        .get_product_config()
+        .get_product_config(&auth.user_id)
         .await?;
     Ok(Json(config))
 }
@@ -38,12 +40,13 @@ pub async fn get_product_config(
 )]
 pub async fn update_product_config(
     State(state): State<SharedState>,
+    auth: AuthUser,
     Json(request): Json<UpdateProductConfigRequest>,
 ) -> Result<Json<ProductConfig>, AppError> {
     let config = state
         .services()
         .product_config()
-        .update_product_config(&request)
+        .update_product_config(&auth.user_id, &request)
         .await?;
     Ok(Json(config))
 }
@@ -59,11 +62,12 @@ pub async fn update_product_config(
 )]
 pub async fn reset_product_config(
     State(state): State<SharedState>,
+    auth: AuthUser,
 ) -> Result<Json<ProductConfig>, AppError> {
     let config = state
         .services()
         .product_config()
-        .reset_product_config()
+        .reset_product_config(&auth.user_id)
         .await?;
     Ok(Json(config))
 }

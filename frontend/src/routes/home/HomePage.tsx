@@ -1,153 +1,208 @@
-import { comingSoonScenarios, defaultScenario, homeScenarioCatalog } from "@/config";
+import { comingSoonScenarios, homeScenarioCatalog } from "@/config";
 import type {
   ScenarioCatalogCategory,
   ScenarioCatalogSubcategory,
   ScenarioSummary,
 } from "@/types";
-import { storage } from "@/services/storage";
+import { useStorage } from "@/hooks/useStorage";
 import { Link } from "react-router-dom";
-import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listHistory } from "@/services/history";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
+
 const homeScenarioIds = homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
   category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
     subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
   )
 );
-const totalScenarioCount = homeScenarioIds.length;
 
-type ScenarioCarouselProps = {
-  title: string;
-  scenarios: ScenarioSummary[];
-  savedByScenario: Record<string, boolean>;
-  baseDelay: number;
+type JourneyStage = {
+  role: string;
+  goal: string;
 };
 
-function ScenarioCarousel({ title, scenarios, savedByScenario, baseDelay }: ScenarioCarouselProps) {
-  const scrollerRef = useRef<HTMLDivElement>(null);
+type RoadmapMilestone = {
+  id: string;
+  title: string;
+  categoryId?: string;
+};
 
-  const scrollByAmount = (direction: -1 | 1) => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const amount = Math.max(240, Math.min(scroller.clientWidth * 0.9, 520));
-    scroller.scrollBy({ left: direction * amount, behavior: "smooth" });
-  };
+type CategoryPalette = {
+  timeline: string;
+  stepBadge: string;
+  cardSurface: string;
+  stageLabel: string;
+  metricPill: string;
+  progressTrack: string;
+  progressFill: string;
+  subcategoryLabel: string;
+  incompleteScenario: string;
+  interruptedBadge: string;
+};
 
-  return (
-    <div className="space-y-4">
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => scrollByAmount(-1)}
-          aria-label={`${title} を左へスクロール`}
-          className="absolute left-0 top-1/2 z-10 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-200/70 bg-white/90 text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-700 sm:flex sm:items-center sm:justify-center"
-        >
-          ◀
-        </button>
-        <div
-          ref={scrollerRef}
-          className="no-scrollbar flex gap-4 overflow-x-auto pb-2 px-6 snap-x snap-mandatory scroll-px-6 sm:px-10"
-        >
-          {scenarios.map((scenario, index) => (
-            <div
-              key={scenario.id}
-              className="card flex w-65 shrink-0 flex-col justify-between p-5 reveal snap-start sm:w-[280px] lg:w-[300px]"
-              style={revealDelay(baseDelay + index * 60)}
-            >
-              <div className="space-y-3">
-                <h4 className="text-lg font-semibold text-slate-900">{scenario.title}</h4>
-                <p className="text-sm text-slate-600">{scenario.description}</p>
-              </div>
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <Link className="btn-primary" to={`/scenario?scenarioId=${scenario.id}&restart=1`}>
-                  このシナリオを始める
-                </Link>
-                {savedByScenario[scenario.id] && (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    中断中
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => scrollByAmount(1)}
-          aria-label={`${title} を右へスクロール`}
-          className="absolute right-0 top-1/2 z-10 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-200/70 bg-white/90 text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-700 sm:flex sm:items-center sm:justify-center"
-        >
-          ▶
-        </button>
-      </div>
-    </div>
-  );
-}
+type MilestoneTone = {
+  dotIdle: string;
+  dotActive: string;
+  dotReached: string;
+  chipIdle: string;
+  chipActive: string;
+  chipReached: string;
+};
 
-function ComingSoonCarousel({ baseDelay }: { baseDelay: number }) {
-  const scrollerRef = useRef<HTMLDivElement>(null);
+const journeyStages: JourneyStage[] = [
+  {
+    role: "Novice PM",
+    goal: "対話と段取りの基礎を固める",
+  },
+  {
+    role: "Developing PM",
+    goal: "品質視点で仕様を検証できるようになる",
+  },
+  {
+    role: "Trained PM",
+    goal: "複雑な調整を主導して価値に繋げる",
+  },
+];
 
-  const scrollByAmount = (direction: -1 | 1) => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const amount = Math.max(240, Math.min(scroller.clientWidth * 0.9, 520));
-    scroller.scrollBy({ left: direction * amount, behavior: "smooth" });
-  };
+const roadmapMilestones: RoadmapMilestone[] = [
+  { id: "milestone-1", title: "期待値合わせと対話基礎", categoryId: "soft-skills" },
+  { id: "milestone-2", title: "品質思考とテスト設計", categoryId: "test-cases" },
+  { id: "milestone-3", title: "要件定義と価値整理" },
+  { id: "milestone-4", title: "計画立案とリスク管理" },
+  { id: "milestone-5", title: "合意形成とチーム推進" },
+  { id: "milestone-6", title: "事業視点のPM実践" },
+];
 
-  return (
-    <div className="space-y-4">
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => scrollByAmount(-1)}
-          aria-label="Coming Soon を左へスクロール"
-          className="absolute left-0 top-1/2 z-10 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm transition hover:border-slate-300 hover:text-slate-600 sm:flex sm:items-center sm:justify-center"
-        >
-          ◀
-        </button>
-        <div
-          ref={scrollerRef}
-          className="no-scrollbar flex gap-4 overflow-x-auto pb-2 px-6 snap-x snap-mandatory scroll-px-6 sm:px-10"
-        >
-          {comingSoonScenarios.map((scenario, index) => (
-            <div
-              key={scenario.id}
-              className="card flex w-65 shrink-0 flex-col justify-between p-5 reveal snap-start sm:w-[280px] lg:w-[300px] opacity-60 grayscale-[30%]"
-              style={revealDelay(baseDelay + index * 60)}
-            >
-              <div className="space-y-3">
-                <h4 className="text-lg font-semibold text-slate-900">{scenario.title}</h4>
-                <p className="text-sm text-slate-600">{scenario.description}</p>
-              </div>
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400 cursor-default select-none">
-                  🔒 Coming Soon
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => scrollByAmount(1)}
-          aria-label="Coming Soon を右へスクロール"
-          className="absolute right-0 top-1/2 z-10 hidden h-10 w-10 translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm transition hover:border-slate-300 hover:text-slate-600 sm:flex sm:items-center sm:justify-center"
-        >
-          ▶
-        </button>
-      </div>
-    </div>
-  );
-}
+const categoryPalettes: CategoryPalette[] = [
+  {
+    timeline: "bg-gradient-to-b from-orange-300/90 via-amber-300/65 to-orange-200/15",
+    stepBadge:
+      "border-orange-300/80 bg-orange-100 text-orange-700 shadow-[0_8px_16px_rgba(176,95,35,0.18)]",
+    cardSurface: "border-orange-200/70 bg-gradient-to-br from-orange-50/70 via-white/90 to-amber-50/70",
+    stageLabel: "text-orange-700/85",
+    metricPill: "border-orange-200/70 bg-orange-50/80",
+    progressTrack: "bg-orange-100/70",
+    progressFill: "bg-gradient-to-r from-orange-500 to-amber-400",
+    subcategoryLabel: "text-orange-700/80",
+    incompleteScenario: "border-orange-200/70 bg-white/75",
+    interruptedBadge: "bg-orange-100 text-orange-700",
+  },
+  {
+    timeline: "bg-gradient-to-b from-sky-300/90 via-cyan-300/65 to-sky-200/15",
+    stepBadge:
+      "border-sky-300/80 bg-sky-100 text-sky-700 shadow-[0_8px_16px_rgba(22,94,179,0.16)]",
+    cardSurface: "border-sky-200/70 bg-gradient-to-br from-sky-50/70 via-white/90 to-cyan-50/70",
+    stageLabel: "text-sky-700/85",
+    metricPill: "border-sky-200/70 bg-sky-50/80",
+    progressTrack: "bg-sky-100/70",
+    progressFill: "bg-gradient-to-r from-sky-500 to-cyan-400",
+    subcategoryLabel: "text-sky-700/80",
+    incompleteScenario: "border-sky-200/70 bg-white/75",
+    interruptedBadge: "bg-sky-100 text-sky-700",
+  },
+  {
+    timeline: "bg-gradient-to-b from-rose-300/90 via-pink-300/65 to-rose-200/15",
+    stepBadge:
+      "border-rose-300/80 bg-rose-100 text-rose-700 shadow-[0_8px_16px_rgba(190,24,93,0.15)]",
+    cardSurface: "border-rose-200/70 bg-gradient-to-br from-rose-50/70 via-white/90 to-pink-50/70",
+    stageLabel: "text-rose-700/85",
+    metricPill: "border-rose-200/70 bg-rose-50/80",
+    progressTrack: "bg-rose-100/70",
+    progressFill: "bg-gradient-to-r from-rose-500 to-pink-400",
+    subcategoryLabel: "text-rose-700/80",
+    incompleteScenario: "border-rose-200/70 bg-white/75",
+    interruptedBadge: "bg-rose-100 text-rose-700",
+  },
+];
+
+const milestoneTones: MilestoneTone[] = [
+  {
+    dotIdle: "bg-orange-200",
+    dotActive: "bg-orange-500",
+    dotReached: "bg-orange-600",
+    chipIdle: "bg-orange-50 text-orange-700",
+    chipActive: "bg-orange-100 text-orange-800",
+    chipReached: "bg-orange-600 text-white",
+  },
+  {
+    dotIdle: "bg-sky-200",
+    dotActive: "bg-sky-500",
+    dotReached: "bg-sky-600",
+    chipIdle: "bg-sky-50 text-sky-700",
+    chipActive: "bg-sky-100 text-sky-800",
+    chipReached: "bg-sky-600 text-white",
+  },
+  {
+    dotIdle: "bg-rose-200",
+    dotActive: "bg-rose-500",
+    dotReached: "bg-rose-600",
+    chipIdle: "bg-rose-50 text-rose-700",
+    chipActive: "bg-rose-100 text-rose-800",
+    chipReached: "bg-rose-600 text-white",
+  },
+  {
+    dotIdle: "bg-emerald-200",
+    dotActive: "bg-emerald-500",
+    dotReached: "bg-emerald-600",
+    chipIdle: "bg-emerald-50 text-emerald-700",
+    chipActive: "bg-emerald-100 text-emerald-800",
+    chipReached: "bg-emerald-600 text-white",
+  },
+  {
+    dotIdle: "bg-indigo-200",
+    dotActive: "bg-indigo-500",
+    dotReached: "bg-indigo-600",
+    chipIdle: "bg-indigo-50 text-indigo-700",
+    chipActive: "bg-indigo-100 text-indigo-800",
+    chipReached: "bg-indigo-600 text-white",
+  },
+  {
+    dotIdle: "bg-amber-200",
+    dotActive: "bg-amber-500",
+    dotReached: "bg-amber-600",
+    chipIdle: "bg-amber-50 text-amber-700",
+    chipActive: "bg-amber-100 text-amber-800",
+    chipReached: "bg-amber-600 text-white",
+  },
+];
+
+const getCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
+  const uniqueById = new Map<string, ScenarioSummary>();
+  category.subcategories.forEach((subcategory) => {
+    subcategory.scenarios.forEach((scenario) => {
+      uniqueById.set(scenario.id, scenario);
+    });
+  });
+  return Array.from(uniqueById.values());
+};
+
+const getCategoryTitle = (category: ScenarioCatalogCategory, index: number): string => {
+  if (category.title.trim().length > 0) return category.title;
+  if (category.subcategories.length === 1) return category.subcategories[0].title;
+  return `ステージ ${index + 1}`;
+};
+
+const getMilestoneTone = (id: string): MilestoneTone => {
+  const numericIndex = Number(id.replace("milestone-", "")) - 1;
+  if (Number.isFinite(numericIndex) && numericIndex >= 0) {
+    return milestoneTones[numericIndex % milestoneTones.length];
+  }
+  return milestoneTones[0];
+};
 
 export function HomePage() {
+  const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
-  const [lastScenarioId, setLastScenarioId] = useState<string | null>(null);
+
+  const { data: historyItems = [], isLoading: isHistoryLoading, isError, error } = useQuery({
+    queryKey: ["history", "list"],
+    queryFn: listHistory,
+  });
 
   useEffect(() => {
     async function loadSavedSessions() {
-      const lastScenario = await storage.loadLastScenarioId();
-      setLastScenarioId(lastScenario);
       const entries = await Promise.all(
         homeScenarioIds.map(async (scenarioId) => {
           const lastSessionId = await storage.loadLastSessionId(scenarioId);
@@ -157,142 +212,322 @@ export function HomePage() {
       setSavedByScenario(Object.fromEntries(entries));
     }
     void loadSavedSessions();
-  }, []);
+  }, [storage]);
 
-  const defaultStartHref = `/scenario?scenarioId=${defaultScenario.id}&restart=1`;
-  const resumeHref = lastScenarioId ? `/scenario?scenarioId=${lastScenarioId}` : defaultStartHref;
-  const totalScenarios = totalScenarioCount;
+  const completedScenarioIds = useMemo(() => {
+    const ids = new Set<string>();
+    historyItems.forEach((item) => {
+      if (item.scenarioId && item.evaluation) {
+        ids.add(item.scenarioId);
+      }
+    });
+    return ids;
+  }, [historyItems]);
+
+  const roadmap = useMemo(
+    () =>
+      homeScenarioCatalog.map((category, index) => {
+        const scenarios = getCategoryScenarios(category);
+        const completedCount = scenarios.filter((scenario) => completedScenarioIds.has(scenario.id)).length;
+        const totalCount = scenarios.length;
+        return {
+          ...category,
+          stepNumber: index + 1,
+          stage: journeyStages[index] ?? journeyStages[journeyStages.length - 1],
+          title: getCategoryTitle(category, index),
+          completedCount,
+          totalCount,
+          progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
+        };
+      }),
+    [completedScenarioIds]
+  );
+
+  const totalScenarios = useMemo(
+    () =>
+      roadmap.reduce((sum, category) => {
+        return sum + category.totalCount;
+      }, 0),
+    [roadmap]
+  );
+
+  const completedScenarios = useMemo(
+    () =>
+      roadmap.reduce((sum, category) => {
+        return sum + category.completedCount;
+      }, 0),
+    [roadmap]
+  );
+
+  const categoryById = useMemo(() => new Map(roadmap.map((category) => [category.id, category])), [roadmap]);
+  const milestoneProgress = useMemo(() => {
+    return roadmapMilestones.map((milestone, index) => {
+      const linkedCategory = milestone.categoryId ? categoryById.get(milestone.categoryId) : undefined;
+      const totalCount = linkedCategory?.totalCount ?? 0;
+      const completedCount = linkedCategory?.completedCount ?? 0;
+      const ratio = totalCount > 0 ? completedCount / totalCount : 0;
+      const hasScenarios = totalCount > 0;
+
+      return {
+        id: milestone.id,
+        title: milestone.title,
+        hasScenarios,
+        ratio,
+        reached: ratio >= 1,
+        thresholdPercent: roadmapMilestones.length <= 1 ? 100 : (index / (roadmapMilestones.length - 1)) * 100,
+      };
+    });
+  }, [categoryById]);
+
+  const overallProgress = useMemo(() => {
+    if (milestoneProgress.length === 0) return 0;
+    const totalRatio = milestoneProgress.reduce((sum, milestone) => sum + milestone.ratio, 0);
+    return Math.round((totalRatio / milestoneProgress.length) * 100);
+  }, [milestoneProgress]);
+
+  const currentMilestone = useMemo(
+    () =>
+      milestoneProgress.find((milestone) => milestone.hasScenarios && milestone.ratio > 0 && milestone.ratio < 1) ??
+      milestoneProgress.find((milestone) => milestone.hasScenarios && milestone.ratio === 0) ??
+      milestoneProgress.find((milestone) => !milestone.reached) ??
+      milestoneProgress[milestoneProgress.length - 1],
+    [milestoneProgress]
+  );
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       <section
-        className="hero relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] -mt-8 py-16 reveal lg:-mt-12 lg:py-20"
-        style={revealDelay(0)}
+        className="card relative overflow-hidden border-orange-200/70 bg-gradient-to-br from-orange-50/80 via-white/92 to-sky-50/70 p-6 reveal sm:p-8"
+        style={revealDelay(120)}
       >
-        <div className="pointer-events-none absolute -left-10 top-10 h-28 w-28 rounded-full border border-white/70 bg-white/40 blur-[1px]" aria-hidden="true" />
-        <div className="pointer-events-none absolute bottom-8 right-8 h-44 w-44 rounded-full border border-white/60 bg-white/30 blur-[2px]" aria-hidden="true" />
-        <div className="relative mx-auto max-w-6xl px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center">
-            <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.38em] text-orange-700 shadow-[0_10px_24px_rgba(176,95,35,0.22)]">
-                PM Journey
-              </span>
-              <h1 className="font-display text-3xl text-[#3b2314] md:text-4xl lg:text-5xl">
-                AIと一緒にPM体験を積む
-              </h1>
-              <p className="max-w-xl text-sm text-[#5f4b3c] md:text-base">
-                シナリオを選んで仮想プロジェクトに参画。エージェントと対話しながら、意思決定・リスク整理・合意形成を実践できます。
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Link className="btn-primary" to={resumeHref}>
-                  シナリオを開始する
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-                <span className="badge-accent">全{totalScenarios}シナリオ</span>
-                <span className="badge">対話ベース</span>
-                <span className="badge">15分から</span>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="hero-panel p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-700/80">Scenario</p>
-                    <h2 className="mt-2 text-lg font-semibold text-[#3b2314]">エージェントとPMシナリオを体験</h2>
-                  </div>
-                  <span className="badge-accent">Demo</span>
-                </div>
-                <div className="relative mt-4 space-y-3 overflow-hidden rounded-2xl border border-orange-200/70 bg-white/80 p-4 shadow-[0_16px_30px_rgba(120,71,34,0.12)]">
-                  <div
-                    className="pointer-events-none absolute -right-8 top-8 h-28 w-28 rounded-full bg-orange-200/60 blur-2xl"
-                    aria-hidden="true"
-                  />
-                  <div
-                    className="pointer-events-none absolute -left-10 bottom-0 h-24 w-24 rounded-full bg-white/60 blur-2xl"
-                    aria-hidden="true"
-                  />
-                  <div className="flex justify-start">
-                    <div
-                      className="max-w-[80%] rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm reveal"
-                      style={revealDelay(220)}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
-                        Agent
-                      </span>
-                      <p className="text-xs text-slate-800">山田さんよろしくお願いします！自己紹介お願いできますか？</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div
-                      className="max-w-[75%] rounded-2xl border border-orange-200/70 bg-white px-4 pb-3 pt-1.5 shadow-sm reveal"
-                      style={revealDelay(340)}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        You
-                      </span>
-                      <p className="text-xs  text-slate-800">よろしくお願いします！今回PMとして参画させて頂く山田です。</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-start">
-                    <div
-                      className="max-w-[85%] rounded-2xl border border-orange-100/70 bg-[#fff7ec] px-4 pb-3 pt-1.5 shadow-sm reveal"
-                      style={revealDelay(460)}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-700/70">
-                        Agent
-                      </span>
-                      <p className="text-xs  text-slate-800">ありがとうございます！では早速、このプロジェクトのPMとしてタスクを依頼させてください。</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-[11px] font-semibold text-slate-600">
-                  <span className="uppercase tracking-[0.3em] text-orange-700/70">Flow</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-orange-500" />
-                    <span className="h-2 w-2 rounded-full bg-orange-400" />
-                    <span className="h-2 w-2 rounded-full bg-orange-200" />
-                    <span className="h-2 w-2 rounded-full bg-orange-200" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        <div
+          className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-orange-200/50 blur-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-amber-200/40 blur-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute -right-12 bottom-8 h-44 w-44 rounded-full bg-sky-200/40 blur-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute left-1/3 top-8 h-32 w-32 rounded-full bg-rose-200/30 blur-3xl"
+          aria-hidden="true"
+        />
 
-      <section className="space-y-10 reveal" style={revealDelay(120)}>
-        {homeScenarioCatalog.map((category: ScenarioCatalogCategory, categoryIndex) => (
-          <div key={category.id} className="space-y-6">
-            {category.subcategories.map((subcategory: ScenarioCatalogSubcategory, subIndex) => (
-              <div key={subcategory.id} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{subcategory.title}</h3>
-                    <p className="text-sm text-slate-500">シナリオ {subcategory.scenarios.length} 件</p>
-                  </div>
-                </div>
-                <ScenarioCarousel
-                  title={subcategory.title}
-                  scenarios={subcategory.scenarios}
-                  savedByScenario={savedByScenario}
-                  baseDelay={220 + subIndex * 160}
+        <div className="relative space-y-5">
+          <div className="space-y-2">
+            <p className="bg-gradient-to-r from-orange-700 via-sky-700 to-emerald-700 bg-clip-text text-xs font-semibold uppercase tracking-[0.28em] text-transparent">
+              PM Roadmap
+            </p>
+            <h1 className="font-display text-2xl text-slate-900 sm:text-3xl">学習ロードマップ</h1>
+            <p className="max-w-3xl text-sm text-slate-600">
+              カテゴリ順に進めることで、基礎スキルから実践力まで段階的に伸ばせます。各カテゴリの完了状況を見ながら次の一歩を選んでください。
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-orange-200/70 bg-white/80 px-4 py-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Progress</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">{overallProgress}%</p>
+              </div>
+              <p className="text-xs text-slate-600">
+                現在地: {currentMilestone ? currentMilestone.title : "未開始"}
+              </p>
+            </div>
+
+            <div className="relative mt-3">
+              <div className="h-3 overflow-hidden rounded-full bg-orange-100/80">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 transition-all duration-500"
+                  style={{ width: `${overallProgress}%` }}
                 />
               </div>
-            ))}
-          </div>
-        ))}
-      </section>
+              <div className="pointer-events-none absolute inset-0">
+                {milestoneProgress.map((milestone) => {
+                  const tone = getMilestoneTone(milestone.id);
+                  const dotClass = milestone.reached
+                    ? tone.dotReached
+                    : currentMilestone?.id === milestone.id
+                      ? tone.dotActive
+                      : tone.dotIdle;
+                  return (
+                  <span
+                    key={milestone.id}
+                    className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white shadow-sm ${dotClass}`}
+                    style={{
+                      left: `calc(${milestone.thresholdPercent}% - 7px)`,
+                    }}
+                  />
+                  );
+                })}
+              </div>
+            </div>
 
-      <section className="space-y-6 reveal" style={revealDelay(500)}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Upcoming</p>
-            <h2 className="font-display text-xl text-slate-900">Coming Soon</h2>
-            <p className="text-sm text-slate-500">今後追加予定のシナリオです</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {milestoneProgress.map((milestone) => {
+                const tone = getMilestoneTone(milestone.id);
+                const chipClass = milestone.reached
+                  ? tone.chipReached
+                  : currentMilestone?.id === milestone.id
+                    ? tone.chipActive
+                    : tone.chipIdle;
+                return (
+                <span
+                  key={`${milestone.id}-label`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${chipClass}`}
+                >
+                  {milestone.title}
+                  {!milestone.hasScenarios ? " (準備中)" : ""}
+                </span>
+                );
+              })}
+            </div>
           </div>
         </div>
-        <ComingSoonCarousel baseDelay={560} />
+      </section>
+
+      {isError ? (
+        <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 p-4 text-sm text-rose-700 reveal" style={revealDelay(180)}>
+          履歴の読み込みに失敗したため、完了件数は最新ではない可能性があります。{error instanceof Error ? ` ${error.message}` : ""}
+        </div>
+      ) : null}
+
+      <section className="space-y-6 reveal" style={revealDelay(220)}>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Learning Journey</p>
+            <h2 className="font-display text-xl text-slate-900 sm:text-2xl">シナリオ学習ロードマップ</h2>
+          </div>
+          {isHistoryLoading ? (
+            <span className="text-xs text-slate-500">進捗を集計中...</span>
+          ) : (
+            <span className="text-xs text-slate-500">カテゴリ {roadmap.length} ステップ</span>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          {roadmap.map((category, categoryIndex) => {
+            const hasNext = categoryIndex < roadmap.length - 1;
+            const palette = categoryPalettes[categoryIndex % categoryPalettes.length];
+            return (
+              <article key={category.id} className="relative pl-12">
+                {hasNext ? (
+                  <div
+                    aria-hidden="true"
+                    className={`absolute left-[1.05rem] top-10 h-[calc(100%+1.5rem)] w-px ${palette.timeline}`}
+                  />
+                ) : null}
+
+                <div className={`absolute left-0 top-5 flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${palette.stepBadge}`}>
+                  {category.stepNumber}
+                </div>
+
+                <div className={`card space-y-4 border p-5 sm:p-6 ${palette.cardSurface}`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${palette.stageLabel}`}>{category.stage.role}</p>
+                      <h3 className="font-display text-xl text-slate-900">{category.title}</h3>
+                      <p className="text-sm text-slate-600">{category.stage.goal}</p>
+                    </div>
+                    <div className={`rounded-xl border px-3 py-2 text-right ${palette.metricPill}`}>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">完了数</p>
+                      <p className="text-lg font-semibold text-slate-900 tabular-nums">
+                        {category.completedCount} / {category.totalCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-600">
+                      <span>カテゴリ進捗</span>
+                      <span>{category.progress}%</span>
+                    </div>
+                    <div className={`h-2 overflow-hidden rounded-full ${palette.progressTrack}`}>
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${palette.progressFill}`}
+                        style={{ width: `${category.progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {category.subcategories.map((subcategory) => (
+                      <div key={subcategory.id} className="space-y-2">
+                        <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
+                        <ul className="space-y-2">
+                          {subcategory.scenarios.map((scenario) => {
+                            const completed = completedScenarioIds.has(scenario.id);
+                            const interrupted = savedByScenario[scenario.id] && !completed;
+                            return (
+                              <li
+                                key={scenario.id}
+                                className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
+                                  completed
+                                    ? "border-emerald-200/80 bg-emerald-50/60"
+                                    : palette.incompleteScenario
+                                }`}
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
+                                    <p className="text-xs text-slate-600">{scenario.description}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {completed ? (
+                                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                        完了
+                                      </span>
+                                    ) : null}
+                                    {interrupted ? (
+                                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
+                                        中断中
+                                      </span>
+                                    ) : null}
+                                    <Link className="btn-secondary !px-3 !py-1.5 !text-xs" to={`/scenario?scenarioId=${scenario.id}&restart=1`}>
+                                      {completed ? "再挑戦" : interrupted ? "再開" : "開始"}
+                                    </Link>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-4 reveal" style={revealDelay(360)}>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Next Milestones</p>
+          <h2 className="font-display text-lg text-slate-900">Coming Soon</h2>
+          <p className="text-sm text-slate-600">今後ロードマップに追加予定のシナリオ</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {comingSoonScenarios.map((scenario, index) => {
+            const tone = milestoneTones[index % milestoneTones.length];
+            return (
+              <article key={scenario.id} className="card-muted space-y-2 p-4 opacity-90">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-slate-900">{scenario.title}</h3>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.chipIdle}`}>
+                    Soon
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">{scenario.description}</p>
+              </article>
+            );
+          })}
+        </div>
       </section>
     </div>
   );

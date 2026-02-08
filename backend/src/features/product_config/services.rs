@@ -16,10 +16,10 @@ impl ProductConfigService {
     }
 
     /// Get the current product configuration (custom or default)
-    pub async fn get_product_config(&self) -> Result<ProductConfig, AppError> {
+    pub async fn get_product_config(&self, user_id: &str) -> Result<ProductConfig, AppError> {
         let repo = ProductConfigRepository::new(self.pool.clone());
 
-        match repo.get().await? {
+        match repo.get(user_id).await? {
             Some(config) => Ok(config),
             None => Ok(ProductConfig::default_product()),
         }
@@ -28,6 +28,7 @@ impl ProductConfigService {
     /// Update the product configuration
     pub async fn update_product_config(
         &self,
+        user_id: &str,
         request: &UpdateProductConfigRequest,
     ) -> Result<ProductConfig, AppError> {
         // Validate required fields
@@ -56,14 +57,14 @@ impl ProductConfigService {
         }
 
         let repo = ProductConfigRepository::new(self.pool.clone());
-        let config = repo.upsert(&payload).await?;
+        let config = repo.upsert(user_id, &payload).await?;
         Ok(config)
     }
 
     /// Reset to default product configuration
-    pub async fn reset_product_config(&self) -> Result<ProductConfig, AppError> {
+    pub async fn reset_product_config(&self, user_id: &str) -> Result<ProductConfig, AppError> {
         let repo = ProductConfigRepository::new(self.pool.clone());
-        repo.delete().await?;
+        repo.delete(user_id).await?;
         Ok(ProductConfig::default_product())
     }
 }

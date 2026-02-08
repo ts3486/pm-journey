@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use crate::error::{anyhow_error, AppError};
 use crate::features::sessions::repository::SessionRepository;
 use crate::models::{default_scenarios, Message, MessageRole, MessageTag, ScenarioType};
-use crate::shared::helpers::{next_id, normalize_model_id, now_ts};
+use crate::shared::helpers::{next_id, normalize_model_id, now_ts, verify_session_ownership};
 
 use super::models::{AgentContext, CreateMessageRequest, MessageResponse};
 use super::repository::MessageRepository;
@@ -31,7 +31,13 @@ impl MessageService {
         Self { pool }
     }
 
-    pub async fn list_messages(&self, session_id: &str) -> Result<Vec<Message>, AppError> {
+    pub async fn list_messages(
+        &self,
+        session_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<Message>, AppError> {
+        verify_session_ownership(&self.pool, session_id, user_id).await?;
+
         let message_repo = MessageRepository::new(self.pool.clone());
         let messages = message_repo
             .list_by_session(session_id)
@@ -43,6 +49,7 @@ impl MessageService {
     pub async fn post_message(
         &self,
         session_id: &str,
+        user_id: &str,
         body: CreateMessageRequest,
     ) -> Result<MessageResponse, AppError> {
         let session_repo = SessionRepository::new(self.pool.clone());
@@ -57,7 +64,7 @@ impl MessageService {
 
         // Get session
         let mut session = session_repo
-            .get(session_id)
+            .get_for_user(session_id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
             .ok_or_else(|| anyhow_error("session not found"))?;
@@ -185,7 +192,7 @@ impl MessageService {
 
         // Fetch updated session
         let updated_session = session_repo
-            .get(session_id)
+            .get_for_user(session_id, user_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to get updated session: {}", e)))?
             .ok_or_else(|| anyhow_error("session not found"))?;

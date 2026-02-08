@@ -2,7 +2,7 @@ use sqlx::PgPool;
 
 use crate::error::{anyhow_error, AppError};
 use crate::models::ManagerComment;
-use crate::shared::helpers::{next_id, now_ts};
+use crate::shared::helpers::{next_id, now_ts, verify_session_ownership};
 
 use super::models::CreateCommentRequest;
 use super::repository::CommentRepository;
@@ -17,7 +17,13 @@ impl CommentService {
         Self { pool }
     }
 
-    pub async fn list_comments(&self, session_id: &str) -> Result<Vec<ManagerComment>, AppError> {
+    pub async fn list_comments(
+        &self,
+        session_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<ManagerComment>, AppError> {
+        verify_session_ownership(&self.pool, session_id, user_id).await?;
+
         let comment_repo = CommentRepository::new(self.pool.clone());
         let comments = comment_repo
             .list_by_session(session_id)
@@ -29,8 +35,11 @@ impl CommentService {
     pub async fn create_comment(
         &self,
         session_id: &str,
+        user_id: &str,
         body: CreateCommentRequest,
     ) -> Result<ManagerComment, AppError> {
+        verify_session_ownership(&self.pool, session_id, user_id).await?;
+
         let comment_repo = CommentRepository::new(self.pool.clone());
 
         let comment = ManagerComment {

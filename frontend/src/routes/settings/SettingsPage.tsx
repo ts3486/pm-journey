@@ -33,22 +33,171 @@ const buildUpdatePayload = (
   ...overrides,
 });
 
+type PromptSectionKey =
+  | "context"
+  | "usersAndProblems"
+  | "goalsAndSuccess"
+  | "scopeAndFeatures"
+  | "constraintsAndTimeline"
+  | "differentiation";
+
+type PromptSections = Record<PromptSectionKey, string>;
+
+type PromptSectionConfig = {
+  key: PromptSectionKey;
+  heading: string;
+  label: string;
+  hint: string;
+  placeholder: string;
+  aliases: string[];
+};
+
+const promptSectionConfigs: PromptSectionConfig[] = [
+  {
+    key: "context",
+    heading: "プロジェクト背景",
+    label: "1. プロジェクト背景",
+    hint: "product.name / product.summary / product.audience の前提をここにまとめます。",
+    placeholder: "- このプロダクトが解く領域\n- 主な対象ユーザー\n- 今回の文脈",
+    aliases: ["プロジェクトコンテキスト", "背景", "Project Context"],
+  },
+  {
+    key: "usersAndProblems",
+    heading: "対象ユーザーと課題",
+    label: "2. 対象ユーザーと課題",
+    hint: "product.audience / product.problems に対応する内容を書きます。",
+    placeholder: "- 誰のどの課題が中心か\n- いま困っている業務や状況",
+    aliases: ["ターゲットと課題", "Users & Problems"],
+  },
+  {
+    key: "goalsAndSuccess",
+    heading: "目標と成功条件",
+    label: "3. 目標と成功条件",
+    hint: "product.goals / product.successCriteria を中心に記載します。",
+    placeholder: "- 何を達成したいか\n- 成功をどう判断するか",
+    aliases: ["ゴールと成功条件", "Goals & Success"],
+  },
+  {
+    key: "scopeAndFeatures",
+    heading: "スコープと主要機能",
+    label: "4. スコープと主要機能",
+    hint: "product.scope / product.coreFeatures をざっくり整理します。",
+    placeholder: "- 今回扱う範囲\n- 重要な機能や観点",
+    aliases: ["範囲と機能", "Scope & Features"],
+  },
+  {
+    key: "constraintsAndTimeline",
+    heading: "制約とタイムライン",
+    label: "5. 制約とタイムライン",
+    hint: "product.constraints / product.timeline を簡潔に書きます。",
+    placeholder: "- 守るべき制約\n- 期限やマイルストーン",
+    aliases: ["制約とスケジュール", "Constraints & Timeline"],
+  },
+  {
+    key: "differentiation",
+    heading: "差別化ポイントと補足",
+    label: "6. 差別化ポイントと補足",
+    hint: "product.differentiators / product.uniqueEdge + 追加メモを記載します。",
+    placeholder: "- 競合との差別化\n- 議論で重視したい追加情報",
+    aliases: ["差別化要素", "補足", "Differentiation & Notes", "追加メモ"],
+  },
+];
+
+const createEmptyPromptSections = (): PromptSections => ({
+  context: "",
+  usersAndProblems: "",
+  goalsAndSuccess: "",
+  scopeAndFeatures: "",
+  constraintsAndTimeline: "",
+  differentiation: "",
+});
+
+const normalizePrompt = (value?: string) => (value ?? "").trim();
+
+const resolveSectionKey = (heading: string): PromptSectionKey | undefined => {
+  const normalizedHeading = heading.trim().toLowerCase();
+  return promptSectionConfigs.find(
+    (section) =>
+      section.heading.toLowerCase() === normalizedHeading ||
+      section.aliases.some((alias) => alias.toLowerCase() === normalizedHeading)
+  )?.key;
+};
+
+const parsePromptSections = (prompt: string): PromptSections => {
+  const sections = createEmptyPromptSections();
+  const buckets: Record<PromptSectionKey, string[]> = {
+    context: [],
+    usersAndProblems: [],
+    goalsAndSuccess: [],
+    scopeAndFeatures: [],
+    constraintsAndTimeline: [],
+    differentiation: [],
+  };
+  const fallbackLines: string[] = [];
+  let currentSection: PromptSectionKey | null = null;
+
+  for (const line of prompt.split(/\r?\n/)) {
+    const headingMatch = line.match(/^##\s+(.+?)\s*$/);
+    if (headingMatch) {
+      const nextSection = resolveSectionKey(headingMatch[1]);
+      if (nextSection) {
+        currentSection = nextSection;
+        continue;
+      }
+      currentSection = null;
+      fallbackLines.push(line);
+      continue;
+    }
+
+    if (currentSection) {
+      buckets[currentSection].push(line);
+      continue;
+    }
+    fallbackLines.push(line);
+  }
+
+  for (const section of promptSectionConfigs) {
+    sections[section.key] = buckets[section.key].join("\n").trim();
+  }
+
+  const fallback = fallbackLines.join("\n").trim();
+  if (fallback) {
+    sections.differentiation = sections.differentiation
+      ? `${sections.differentiation}\n\n${fallback}`.trim()
+      : fallback;
+  }
+
+  return sections;
+};
+
+const buildPromptFromSections = (sections: PromptSections): string =>
+  promptSectionConfigs
+    .map((section) => {
+      const body = sections[section.key].trim();
+      if (!body) return null;
+      return `## ${section.heading}\n${body}`;
+    })
+    .filter((section): section is string => Boolean(section))
+    .join("\n\n");
+
 export function SettingsPage() {
   const { data, isLoading, isError, error } = useProductConfig();
   const updateMutation = useUpdateProductConfig();
   const resetMutation = useResetProductConfig();
-  const [prompt, setPrompt] = useState("");
+  const [sections, setSections] = useState<PromptSections>(createEmptyPromptSections);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
-      setPrompt(data.productPrompt ?? "");
+      setSections(parsePromptSections(data.productPrompt ?? ""));
     }
   }, [data]);
 
+  const prompt = useMemo(() => buildPromptFromSections(sections), [sections]);
+
   const isDirty = useMemo(() => {
-    return (data?.productPrompt ?? "") !== prompt;
+    return normalizePrompt(data?.productPrompt) !== normalizePrompt(prompt);
   }, [data?.productPrompt, prompt]);
 
   const handleSave = async () => {
@@ -74,20 +223,25 @@ export function SettingsPage() {
     try {
       const next = await resetMutation.mutateAsync();
       invalidateProductPromptCache();
-      setPrompt(next.productPrompt ?? "");
+      setSections(parsePromptSections(next.productPrompt ?? ""));
       setSuccessMessage("デフォルトのプロンプトに戻しました");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "リセットに失敗しました");
     }
   };
 
+  const updateSection = (key: PromptSectionKey, value: string) => {
+    setSections((prev) => ({ ...prev, [key]: value }));
+    setSuccessMessage(null);
+  };
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Settings</p>
-        <h1 className="font-display text-2xl text-slate-900">プロジェクトプロンプト</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Prompt Settings</p>
+        <h1 className="font-display text-2xl text-slate-900">Prompt Settings</h1>
         <p className="text-sm text-slate-600">
-          すべてのシナリオが共通で参照するプロジェクトメモをMarkdownで管理できます。変数を使ってシナリオ固有の情報を差し込めます。
+          プロダクト設定スキーマに沿って入力欄を分け、全シナリオで共通利用するプロンプトを作成できます。各欄はMarkdown対応です。
         </p>
       </header>
 
@@ -112,20 +266,8 @@ export function SettingsPage() {
             <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>
           ) : null}
 
-          <div className="space-y-2">
-            <label htmlFor="productPrompt" className="text-sm font-semibold text-slate-800">
-              プロジェクトメモ（Markdown / 変数対応）
-            </label>
-            <Textarea
-              id="productPrompt"
-              value={prompt}
-              onChange={(e) => {
-                setPrompt(e.target.value);
-                setSuccessMessage(null);
-              }}
-              placeholder={"### 例\n- このプロジェクトの目的は...\n- 直近のリスクは..."}
-              disabled={updateMutation.isPending || resetMutation.isPending}
-            />
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-800">Prompt Builder（Markdown / 変数対応）</p>
             <p className="text-xs text-slate-500">
               Markdownと以下の変数が利用できます。例: <code className="rounded bg-slate-100 px-1">顧客: {"{{productAudience}}"}</code>
             </p>
@@ -140,8 +282,27 @@ export function SettingsPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
+            {promptSectionConfigs.map((section) => (
+              <div key={section.key} className="space-y-2">
+                <label htmlFor={section.key} className="text-sm font-semibold text-slate-800">
+                  {section.label}
+                </label>
+                <p className="text-xs text-slate-500">{section.hint}</p>
+                <Textarea
+                  id={section.key}
+                  value={sections[section.key]}
+                  onChange={(event) => updateSection(section.key, event.target.value)}
+                  placeholder={section.placeholder}
+                  className="min-h-[120px]"
+                  disabled={updateMutation.isPending || resetMutation.isPending}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live Preview</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Generated Prompt Preview</p>
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4">
                 <ReactMarkdown className="markdown-preview text-sm text-slate-800">
                   {prompt.trim() ? prompt : "_プロンプトが未設定です_"}
