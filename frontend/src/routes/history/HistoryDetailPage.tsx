@@ -423,10 +423,10 @@ export function HistoryDetailPage() {
     return (
       <div className="space-y-4">
         <Link
-          to="/history"
+          to="/"
           className="inline-flex items-center gap-2 text-sm font-semibold text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8efe4]"
         >
-          <span aria-hidden="true">←</span> 履歴一覧に戻る
+          <span aria-hidden="true">←</span> ロードマップに戻る
         </Link>
         <div className="rounded-2xl border border-red-200/60 bg-red-50/80 p-6 text-sm text-red-700">
           <p className="font-semibold">読み込みエラー</p>
@@ -468,6 +468,23 @@ export function HistoryDetailPage() {
   const evaluation = item.evaluation;
   const categories = evaluation?.categories ?? [];
   const primaryCategories = categories.slice(0, 4);
+  const persistedMessages = item.actions ?? [];
+  const kickoffPrompt = scenario?.kickoffPrompt?.trim();
+  const hasKickoffPromptInLog = kickoffPrompt
+    ? persistedMessages.some((message) => message.role === "system" && message.content.trim() === kickoffPrompt)
+    : false;
+  const kickoffMessage: Message | null =
+    kickoffPrompt && !hasKickoffPromptInLog
+      ? {
+          id: `kickoff-${item.sessionId}`,
+          sessionId: item.sessionId,
+          role: "system",
+          content: kickoffPrompt,
+          createdAt: persistedMessages[0]?.createdAt ?? new Date().toISOString(),
+          tags: ["summary"],
+        }
+      : null;
+  const chatLogMessages = kickoffMessage ? [kickoffMessage, ...persistedMessages] : persistedMessages;
 
   return (
     <div className="space-y-6">
@@ -808,13 +825,13 @@ export function HistoryDetailPage() {
           <h2 className="text-sm font-bold text-slate-900">チャットログ</h2>
         </div>
         <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-xl bg-slate-50/80 p-3">
-          {item.actions?.length ? (
-            item.actions.map((message: Message, idx: number) => (
+          {chatLogMessages.length ? (
+            chatLogMessages.map((message: Message, idx: number) => (
               <div
                 key={message.id}
                 className={`rounded-lg border px-3 py-2 text-sm ${
                   message.role === "user"
-                    ? "ml-8 border-orange-100/50 bg-gradient-to-br from-orange-50 to-amber-50"
+                    ? "ml-8 border-orange-100/50 bg-linear-to-br from-orange-50 to-amber-50"
                     : "mr-8 border-slate-100 bg-white"
                 }`}
                 style={{ animationDelay: `${idx * 50}ms` }}

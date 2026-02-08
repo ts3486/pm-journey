@@ -118,6 +118,7 @@ export type Message = {
 export type HistoryMetadata = {
   duration?: number;
   messageCount?: number;
+  startedAt?: string;
 };
 
 export type HistoryItem = {

@@ -18,6 +18,36 @@ import {
 } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
 
+const truncateText = (value: string, maxLength: number) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}…`;
+};
+
+const takeUnique = (values: string[], limit: number) => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values.forEach((value) => {
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized) || result.length >= limit) return;
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  return result;
+};
+
+const extractPromptHighlights = (prompt?: string, limit = 3) => {
+  if (!prompt) return [];
+  const lines = prompt
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .map((line) => line.replace(/^[-*+]\s+/, "").replace(/^\d+[.)]\s+/, "").replace(/^>\s*/, ""))
+    .filter((line) => line.length > 8)
+    .map((line) => truncateText(line, 84));
+  return takeUnique(lines, limit);
+};
+
 export function ScenarioPage() {
   const [state, setState] = useState<SessionState | null>(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
@@ -43,6 +73,7 @@ export function ScenarioPage() {
   }, [state?.session?.missionStatus]);
   const isBasicScenario = activeScenario.scenarioType === "basic";
   const hasUserResponse = (state?.messages ?? []).some((message) => message.role === "user");
+  const canCompleteScenario = hasActive && hasUserResponse;
   const scenarioLocked = isBasicScenario && hasUserResponse;
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
   const scenarioInfo = activeScenario.product;
@@ -56,6 +87,56 @@ export function ScenarioPage() {
     (scenarioInfo.successCriteria?.length ?? 0) > 0 ||
     !!scenarioInfo.timeline;
   const hasScenarioInfo = !!productPrompt || hasScenarioDetails;
+  const promptHighlights = useMemo(() => extractPromptHighlights(productPrompt, 3), [productPrompt]);
+  const quickFacts = useMemo(() => {
+    const facts: Array<{ label: string; value: string }> = [];
+    facts.push({ label: "プロダクト", value: scenarioInfo.name });
+    if (scenarioInfo.audience) {
+      facts.push({ label: "対象", value: truncateText(scenarioInfo.audience, 46) });
+    }
+    if (scenarioInfo.timeline) {
+      facts.push({ label: "タイムライン", value: truncateText(scenarioInfo.timeline, 46) });
+    }
+    return facts.slice(0, 3);
+  }, [scenarioInfo.audience, scenarioInfo.name, scenarioInfo.timeline]);
+  const briefingSections = useMemo(() => {
+    const contextEntries = takeUnique(
+      [
+        scenarioInfo.summary ? `背景: ${truncateText(scenarioInfo.summary, 96)}` : "",
+        activeScenario.supplementalInfo ? `補足: ${truncateText(activeScenario.supplementalInfo, 96)}` : "",
+      ],
+      2,
+    );
+    const targetAndGoalEntries = takeUnique(
+      [
+        scenarioInfo.audience ? `対象ユーザー: ${truncateText(scenarioInfo.audience, 72)}` : "",
+        ...(scenarioInfo.goals ?? []).slice(0, 2).map((goal) => `目標: ${truncateText(goal, 72)}`),
+      ],
+      3,
+    );
+    const riskEntries = takeUnique(
+      [
+        ...(scenarioInfo.problems ?? []).slice(0, 2).map((problem) => `課題: ${truncateText(problem, 72)}`),
+        ...(scenarioInfo.constraints ?? []).slice(0, 2).map((constraint) => `制約: ${truncateText(constraint, 72)}`),
+      ],
+      4,
+    );
+    const successEntries = takeUnique(
+      [
+        scenarioInfo.timeline ? `進行目安: ${truncateText(scenarioInfo.timeline, 72)}` : "",
+        ...(scenarioInfo.successCriteria ?? [])
+          .slice(0, 2)
+          .map((criterion) => `成功の目安: ${truncateText(criterion, 72)}`),
+      ],
+      3,
+    );
+    return [
+      { id: "context", title: "コンテキスト", entries: contextEntries },
+      { id: "goal", title: "対象とゴール", entries: targetAndGoalEntries },
+      { id: "risk", title: "課題と制約", entries: riskEntries },
+      { id: "success", title: "完了イメージ", entries: successEntries },
+    ].filter((section) => section.entries.length > 0);
+  }, [activeScenario.supplementalInfo, scenarioInfo]);
 
   const handleStart = async (scenario = activeScenario) => {
     const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
@@ -235,144 +316,94 @@ export function ScenarioPage() {
             </ul>
           </div>
 
-          {allMissionsComplete ? (
-            <div className="card-muted px-4 py-4 text-sm text-slate-700">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">ミッション達成</p>
-                </div>
-                <button type="button" className="btn-primary" onClick={handleCompleteScenario}>
-                  シナリオを完了する
-                </button>
+          <div className="card-muted px-4 py-4 text-sm text-slate-700">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {allMissionsComplete ? "ミッション達成" : "評価を実行"}
+                </p>
               </div>
+              <button
+                type="button"
+                className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleCompleteScenario}
+                disabled={!canCompleteScenario}
+              >
+                シナリオを完了する
+              </button>
             </div>
-          ) : null}
+            {!canCompleteScenario ? (
+              <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
+            ) : null}
+          </div>
 
           {hasScenarioInfo ? (
             <div className="card space-y-3 p-4">
-              {productPrompt ? (
-                <div className="rounded-lg border border-indigo-100 bg-indigo-50/80 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">プロジェクト共通メモ</p>
-                  <ReactMarkdown className="markdown-preview text-xs text-slate-800">
-                    {productPrompt}
-                  </ReactMarkdown>
+              <div className="rounded-xl border border-slate-200/70 bg-gradient-to-b from-slate-50 to-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">プロジェクトブリーフ</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    要点のみ表示
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {quickFacts.map((fact) => (
+                    <div key={fact.label} className="rounded-lg border border-slate-200/70 bg-white px-2.5 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{fact.label}</p>
+                      <p className="mt-0.5 text-xs font-medium text-slate-800">{fact.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {promptHighlights.length > 0 ? (
+                <div className="rounded-xl border border-indigo-100/80 bg-indigo-50/70 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+                      プロジェクト共通メモ（要約）
+                    </p>
+                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                      {promptHighlights.length} point
+                    </span>
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {promptHighlights.map((line) => (
+                      <li key={line} className="flex items-start gap-2 text-xs text-indigo-950/90">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                        <span className="leading-relaxed">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-[11px] font-semibold text-indigo-700">
+                      元のメモを表示
+                    </summary>
+                    <ReactMarkdown className="markdown-preview mt-2 text-xs text-slate-700">
+                      {productPrompt ?? ""}
+                    </ReactMarkdown>
+                  </details>
                 </div>
               ) : null}
+
               {hasScenarioDetails ? (
-                <>
-                  <p className="text-sm font-semibold text-slate-900">背景・補足情報</p>
-                  <div className="space-y-3">
-                    {scenarioInfo.summary ? (
-                      <div className="rounded-lg bg-slate-50/80 p-3">
-                        <div className="mb-1.5 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-200 text-[10px]">📋</span>
-                          <span className="text-xs font-semibold text-slate-700">背景</span>
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.summary}</p>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.audience ? (
-                      <div className="rounded-lg bg-blue-50/60 p-3">
-                        <div className="mb-1.5 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[10px]">👥</span>
-                          <span className="text-xs font-semibold text-blue-800">対象ユーザー</span>
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.audience}</p>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.goals?.length ? (
-                      <div className="rounded-lg bg-emerald-50/60 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-100 text-[10px]">🎯</span>
-                          <span className="text-xs font-semibold text-emerald-800">ゴール</span>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {scenarioInfo.goals.map((goal) => (
-                            <li key={goal} className="flex items-start gap-2 text-xs text-slate-600">
-                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                              <span className="leading-relaxed">{goal}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.problems?.length ? (
-                      <div className="rounded-lg bg-amber-50/60 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-[10px]">⚠️</span>
-                          <span className="text-xs font-semibold text-amber-800">課題</span>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {scenarioInfo.problems.map((problem) => (
-                            <li key={problem} className="flex items-start gap-2 text-xs text-slate-600">
-                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                              <span className="leading-relaxed">{problem}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.constraints?.length ? (
-                      <div className="rounded-lg bg-rose-50/60 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-rose-100 text-[10px]">🚧</span>
-                          <span className="text-xs font-semibold text-rose-800">制約条件</span>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {scenarioInfo.constraints.map((constraint) => (
-                            <li key={constraint} className="flex items-start gap-2 text-xs text-slate-600">
-                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
-                              <span className="leading-relaxed">{constraint}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.timeline ? (
-                      <div className="rounded-lg bg-violet-50/60 p-3">
-                        <div className="mb-1.5 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100 text-[10px]">📅</span>
-                          <span className="text-xs font-semibold text-violet-800">タイムライン</span>
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">{scenarioInfo.timeline}</p>
-                      </div>
-                    ) : null}
-
-                    {scenarioInfo.successCriteria?.length ? (
-                      <div className="rounded-lg bg-teal-50/60 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-teal-100 text-[10px]">✅</span>
-                          <span className="text-xs font-semibold text-teal-800">成功条件</span>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {scenarioInfo.successCriteria.map((criterion) => (
-                            <li key={criterion} className="flex items-start gap-2 text-xs text-slate-600">
-                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" />
-                              <span className="leading-relaxed">{criterion}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-
-                    {activeScenario.supplementalInfo ? (
-                      <div className="rounded-lg bg-slate-100/80 p-3">
-                        <div className="mb-1.5 flex items-center gap-2">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-200 text-[10px]">💡</span>
-                          <span className="text-xs font-semibold text-slate-700">補足情報</span>
-                        </div>
-                        <p className="whitespace-pre-wrap text-xs text-slate-600 leading-relaxed">
-                          {activeScenario.supplementalInfo}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    背景・補足情報（カテゴリ要約）
+                  </p>
+                  {briefingSections.map((section) => (
+                    <div key={section.id} className="rounded-xl border border-slate-200/70 bg-slate-50/70 p-3">
+                      <p className="text-xs font-semibold text-slate-800">{section.title}</p>
+                      <ul className="mt-1.5 space-y-1">
+                        {section.entries.map((entry) => (
+                          <li key={entry} className="flex items-start gap-2 text-xs text-slate-700">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                            <span className="leading-relaxed">{entry}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               ) : null}
             </div>
           ) : null}

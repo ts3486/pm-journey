@@ -1,12 +1,36 @@
 import { useQuery } from "@tanstack/react-query";
 import { listHistory } from "@/services/history";
 import { getScenarioById } from "@/config";
-import type { ScenarioDiscipline } from "@/types";
+import type { HistoryItem, ScenarioDiscipline } from "@/types";
 import { Link } from "react-router-dom";
 
 const disciplineBadge = (discipline?: ScenarioDiscipline) => {
   if (discipline === "CHALLENGE") return "bg-amber-50 text-amber-700";
   return "bg-orange-50 text-orange-700";
+};
+
+const formatStartedAt = (value?: string) => {
+  if (!value) return "開始日不明";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "開始日不明";
+  return date.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+  });
+};
+
+const resolveStartedAt = (item: HistoryItem) => {
+  if (item.metadata?.startedAt) return item.metadata.startedAt;
+  const actionTimes = (item.actions ?? [])
+    .map((action) => action.createdAt)
+    .filter((value) => Boolean(value))
+    .map((value) => new Date(value))
+    .filter((value) => !Number.isNaN(value.getTime()))
+    .map((value) => value.getTime());
+  if (actionTimes.length === 0) return undefined;
+  return new Date(Math.min(...actionTimes)).toISOString();
 };
 
 export function HistoryPage() {
@@ -50,6 +74,7 @@ export function HistoryPage() {
           {items.map((item) => {
             const scenarioTitle =
               getScenarioById(item.scenarioId ?? "")?.title ?? item.scenarioId ?? "Scenario";
+            const startedAt = formatStartedAt(resolveStartedAt(item));
             return (
               <Link
                 key={item.sessionId}
@@ -58,9 +83,8 @@ export function HistoryPage() {
               >
                 <div className="flex items-start justify-between gap-3 p-5">
                   <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{scenarioTitle}</p>
-                    <div className="text-base font-semibold text-slate-900">Session {item.sessionId.slice(0, 8)}</div>
-                    <div className="text-xs text-slate-500">{item.evaluation?.passing ? "Passing" : "Pending"}</div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{startedAt}</p>
+                    <div className="text-base font-semibold text-slate-900">{scenarioTitle}</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span

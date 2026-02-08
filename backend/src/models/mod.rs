@@ -202,8 +202,10 @@ pub struct HistoryItem {
 #[serde(rename_all = "camelCase")]
 pub struct HistoryMetadata {
     pub duration: Option<f32>,
-    #[serde(alias = "message_count")]
+    #[serde(rename = "messageCount", alias = "message_count")]
     pub message_count: Option<u64>,
+    #[serde(rename = "startedAt", alias = "started_at")]
+    pub started_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]

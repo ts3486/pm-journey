@@ -92,6 +92,7 @@ impl SessionService {
                 metadata: HistoryMetadata {
                     duration: None,
                     message_count: Some(messages.len() as u64),
+                    started_at: Some(session.started_at.clone()),
                 },
                 actions: messages
                     .iter()
@@ -140,12 +141,9 @@ impl SessionService {
             metadata: HistoryMetadata {
                 duration: None,
                 message_count: Some(messages.len() as u64),
+                started_at: Some(session.started_at.clone()),
             },
-            actions: messages
-                .iter()
-                .filter(|m| m.role != MessageRole::System)
-                .cloned()
-                .collect(),
+            actions: messages.iter().cloned().collect(),
             evaluation,
             storage_location: Some("api".to_string()),
             comments: Some(comments),

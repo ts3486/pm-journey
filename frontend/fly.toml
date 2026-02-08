@@ -1,0 +1,23 @@
+app = "pm-journey-frontend"
+primary_region = "nrt"
+
+[build]
+  [build.args]
+    VITE_API_BASE_URL = "https://pm-journey-backend.fly.dev"
+    VITE_STORAGE_PREFIX = "olivia_pm"
+    VITE_AUTH0_DOMAIN = "dev-m3g03cgnow5x3x1i.jp.auth0.com"
+    VITE_AUTH0_CLIENT_ID = "PbB5O4ByNWowR8AEUUxIEYESF5O7pyTg"
+    VITE_AUTH0_AUDIENCE = "https://api.pm-journey.com"
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
