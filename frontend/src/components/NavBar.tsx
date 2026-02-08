@@ -86,7 +86,7 @@ export function NavBar() {
             to="/"
             className="rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]"
           >
-            シナリオ一覧
+            ロードマップ
           </Link>
           <Link
             to="/scenario"
@@ -133,7 +133,7 @@ export function NavBar() {
                     onClick={() => setIsProfileMenuOpen(false)}
                     className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
                   >
-                    プロジェクト設定
+                    プロンプト設定
                   </Link>
                   <button
                     type="button"

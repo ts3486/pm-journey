@@ -5,6 +5,7 @@ import { HistoryPage } from "@/routes/history/HistoryPage";
 import { HistoryDetailPage } from "@/routes/history/HistoryDetailPage";
 import { SettingsPage } from "@/routes/settings/SettingsPage";
 import { ScenarioPage } from "@/routes/scenario/ScenarioPage";
+import { AchievementsPage } from "@/routes/achievements/AchievementsPage";
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ export const router = createBrowserRouter([
       {
         path: "history/:sessionId",
         element: <HistoryDetailPage />,
+      },
+      {
+        path: "achievements",
+        element: <AchievementsPage />,
       },
       {
         path: "scenario",
