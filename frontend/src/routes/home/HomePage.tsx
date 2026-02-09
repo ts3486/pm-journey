@@ -69,12 +69,12 @@ const journeyStages: JourneyStage[] = [
 ];
 
 const roadmapMilestones: RoadmapMilestone[] = [
-  { id: "milestone-1", title: "期待値合わせと対話基礎", categoryId: "soft-skills" },
-  { id: "milestone-2", title: "品質思考とテスト設計", categoryId: "test-cases" },
-  { id: "milestone-3", title: "要件定義と価値整理" },
-  { id: "milestone-4", title: "計画立案とリスク管理" },
-  { id: "milestone-5", title: "合意形成とチーム推進" },
-  { id: "milestone-6", title: "事業視点のPM実践" },
+  { id: "milestone-1", title: "基礎ソフトスキル", categoryId: "soft-skills" },
+  { id: "milestone-2", title: "テスト設計", categoryId: "test-cases" },
+  { id: "milestone-3", title: "要件定義" },
+  { id: "milestone-4", title: "計画立案" },
+  { id: "milestone-5", title: "合意形成" },
+  { id: "milestone-6", title: "事業推進" },
 ];
 
 const categoryPalettes: CategoryPalette[] = [
@@ -285,7 +285,7 @@ export function HomePage() {
 
   const categoryById = useMemo(() => new Map(roadmap.map((category) => [category.id, category])), [roadmap]);
   const milestoneProgress = useMemo(() => {
-    return roadmapMilestones.map((milestone, index) => {
+    return roadmapMilestones.map((milestone) => {
       const linkedCategory = milestone.categoryId ? categoryById.get(milestone.categoryId) : undefined;
       const totalCount = linkedCategory?.totalCount ?? 0;
       const completedCount = linkedCategory?.completedCount ?? 0;
@@ -298,7 +298,6 @@ export function HomePage() {
         hasScenarios,
         ratio,
         reached: ratio >= 1,
-        thresholdPercent: roadmapMilestones.length <= 1 ? 100 : (index / (roadmapMilestones.length - 1)) * 100,
       };
     });
   }, [categoryById]);
@@ -363,52 +362,43 @@ export function HomePage() {
               </p>
             </div>
 
-            <div className="relative mt-3">
-              <div className="h-3 overflow-hidden rounded-full bg-orange-100/80">
+            <div className="mt-4 overflow-x-auto pb-1">
+              <div className="relative min-w-[38rem] sm:min-w-full">
+                <div className="pointer-events-none absolute left-0 right-0 top-2 h-2 rounded-full bg-orange-100/80" />
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 transition-all duration-500"
+                  className="pointer-events-none absolute left-0 top-2 h-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 transition-all duration-500"
                   style={{ width: `${overallProgress}%` }}
                 />
-              </div>
-              <div className="pointer-events-none absolute inset-0">
-                {milestoneProgress.map((milestone) => {
-                  const tone = getMilestoneTone(milestone.id);
-                  const dotClass = milestone.reached
-                    ? tone.dotReached
-                    : currentMilestone?.id === milestone.id
-                      ? tone.dotActive
-                      : tone.dotIdle;
-                  return (
-                  <span
-                    key={milestone.id}
-                    className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white shadow-sm ${dotClass}`}
-                    style={{
-                      left: `calc(${milestone.thresholdPercent}% - 7px)`,
-                    }}
-                  />
-                  );
-                })}
-              </div>
-            </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {milestoneProgress.map((milestone) => {
-                const tone = getMilestoneTone(milestone.id);
-                const chipClass = milestone.reached
-                  ? tone.chipReached
-                  : currentMilestone?.id === milestone.id
-                    ? tone.chipActive
-                    : tone.chipIdle;
-                return (
-                <span
-                  key={`${milestone.id}-label`}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${chipClass}`}
+                <div
+                  className="grid gap-2"
+                  style={{ gridTemplateColumns: `repeat(${Math.max(milestoneProgress.length, 1)}, minmax(0, 1fr))` }}
                 >
-                  {milestone.title}
-                  {!milestone.hasScenarios ? " (準備中)" : ""}
-                </span>
-                );
-              })}
+                  {milestoneProgress.map((milestone) => {
+                    const tone = getMilestoneTone(milestone.id);
+                    const dotClass = milestone.reached
+                      ? tone.dotReached
+                      : currentMilestone?.id === milestone.id
+                        ? tone.dotActive
+                        : tone.dotIdle;
+                    const chipClass = milestone.reached
+                      ? tone.chipReached
+                      : currentMilestone?.id === milestone.id
+                        ? tone.chipActive
+                        : tone.chipIdle;
+                    return (
+                      <div key={milestone.id} className="relative flex flex-col items-center gap-2 text-center">
+                        <span className={`z-10 h-4 w-4 rounded-full border-2 border-white shadow-sm ${dotClass}`} />
+                        <span
+                          className={`rounded-xl px-2.5 py-1.5 text-[11px] font-semibold leading-snug ${chipClass}`}
+                        >
+                          {milestone.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
