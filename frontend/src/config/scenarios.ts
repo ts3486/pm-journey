@@ -2367,44 +2367,96 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
   },
 ];
 
-export const comingSoonScenarios: ScenarioSummary[] = [
+export const comingSoonScenarioCatalog: ScenarioCatalogCategory[] = [
   {
-    id: "coming-risk-management",
-    title: "リスク管理と対応計画",
-    description: "プロジェクトのリスクを洗い出し、優先度を判断して対応計画を策定するシナリオ",
-    discipline: "BASIC",
+    id: "requirement-definition",
+    title: "要件定義",
+    subcategories: [
+      {
+        id: "requirement-definition-foundation",
+        title: "要件定義",
+        scenarios: [
+          {
+            id: "coming-requirement-definition",
+            title: "要件定義ドキュメント作成",
+            description: "ヒアリング内容をもとに要件定義書を作成し、レビューを受けるシナリオ",
+            discipline: "CHALLENGE",
+          },
+        ],
+      },
+    ],
   },
   {
-    id: "coming-stakeholder-negotiation",
-    title: "ステークホルダー交渉",
-    description: "要件の優先度について意見が対立するステークホルダーとの合意形成を実践するシナリオ",
-    discipline: "BASIC",
+    id: "planning",
+    title: "計画立案",
+    subcategories: [
+      {
+        id: "planning-execution",
+        title: "計画立案",
+        scenarios: [
+          {
+            id: "coming-risk-management",
+            title: "リスク管理と対応計画",
+            description: "プロジェクトのリスクを洗い出し、優先度を判断して対応計画を策定するシナリオ",
+            discipline: "BASIC",
+          },
+          {
+            id: "coming-cross-team-coordination",
+            title: "チーム間連携調整",
+            description: "複数チームにまたがる機能開発の依存関係を整理し、リリース計画を調整するシナリオ",
+            discipline: "CHALLENGE",
+          },
+        ],
+      },
+    ],
   },
   {
-    id: "coming-sprint-retrospective",
-    title: "スプリント振り返り",
-    description: "チームのふりかえり会をファシリテートし、改善アクションを導き出すシナリオ",
-    discipline: "BASIC",
+    id: "consensus-building",
+    title: "合意形成",
+    subcategories: [
+      {
+        id: "consensus-building-negotiation",
+        title: "合意形成",
+        scenarios: [
+          {
+            id: "coming-stakeholder-negotiation",
+            title: "ステークホルダー交渉",
+            description: "要件の優先度について意見が対立するステークホルダーとの合意形成を実践するシナリオ",
+            discipline: "BASIC",
+          },
+        ],
+      },
+    ],
   },
   {
-    id: "coming-incident-response",
-    title: "障害対応と報告",
-    description: "本番障害発生時の初動対応、影響範囲の特定、ステークホルダーへの報告を実践するシナリオ",
-    discipline: "CHALLENGE",
-  },
-  {
-    id: "coming-requirement-definition",
-    title: "要件定義ドキュメント作成",
-    description: "ヒアリング内容をもとに要件定義書を作成し、レビューを受けるシナリオ",
-    discipline: "CHALLENGE",
-  },
-  {
-    id: "coming-cross-team-coordination",
-    title: "チーム間連携調整",
-    description: "複数チームにまたがる機能開発の依存関係を整理し、リリース計画を調整するシナリオ",
-    discipline: "CHALLENGE",
+    id: "business-execution",
+    title: "事業推進",
+    subcategories: [
+      {
+        id: "business-execution-delivery",
+        title: "事業推進",
+        scenarios: [
+          {
+            id: "coming-sprint-retrospective",
+            title: "スプリント振り返り",
+            description: "チームのふりかえり会をファシリテートし、改善アクションを導き出すシナリオ",
+            discipline: "BASIC",
+          },
+          {
+            id: "coming-incident-response",
+            title: "障害対応と報告",
+            description: "本番障害発生時の初動対応、影響範囲の特定、ステークホルダーへの報告を実践するシナリオ",
+            discipline: "CHALLENGE",
+          },
+        ],
+      },
+    ],
   },
 ];
+
+export const comingSoonScenarios: ScenarioSummary[] = comingSoonScenarioCatalog.flatMap((category) =>
+  category.subcategories.flatMap((subcategory) => subcategory.scenarios)
+);
 
 export const defaultScenario = scenarioList[0];
 

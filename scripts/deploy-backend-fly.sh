@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 APP_NAME="${FLY_BACKEND_APP:-pm-journey-backend}"
 CONFIG_FILE="${BACKEND_FLY_CONFIG:-${REPO_ROOT}/backend/fly.toml}"
+DOCKERFILE_PATH="${BACKEND_DOCKERFILE:-${REPO_ROOT}/backend/Dockerfile}"
 ENV_FILE="${BACKEND_ENV_FILE:-${REPO_ROOT}/backend/.env}"
 SKIP_SECRETS="${BACKEND_SKIP_SECRETS:-0}"
 INCLUDE_DATABASE_URL="${BACKEND_INCLUDE_DATABASE_URL:-0}"
@@ -116,6 +117,11 @@ if [[ "${SKIP_SECRETS}" != "1" ]]; then
   fi
 fi
 
+if [[ ! -f "${DOCKERFILE_PATH}" ]]; then
+  echo "Dockerfile not found: ${DOCKERFILE_PATH}" >&2
+  exit 1
+fi
+
 echo "Deploying backend app ${APP_NAME} using ${CONFIG_FILE}"
-"${FLY_BIN}" deploy --app "${APP_NAME}" --config "${CONFIG_FILE}"
+"${FLY_BIN}" deploy --app "${APP_NAME}" --config "${CONFIG_FILE}" --dockerfile "${DOCKERFILE_PATH}"
 

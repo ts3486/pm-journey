@@ -1,4 +1,4 @@
-import { comingSoonScenarios, homeScenarioCatalog } from "@/config";
+import { comingSoonScenarioCatalog, homeScenarioCatalog } from "@/config";
 import type {
   HistoryItem,
   ScenarioCatalogCategory,
@@ -265,6 +265,22 @@ export function HomePage() {
         };
       }),
     [completedScenarioIds]
+  );
+
+  const comingSoonRoadmap = useMemo(
+    () =>
+      comingSoonScenarioCatalog.map((category, index) => {
+        const scenarios = getCategoryScenarios(category);
+        const absoluteIndex = roadmap.length + index;
+        return {
+          ...category,
+          stepNumber: absoluteIndex + 1,
+          stage: journeyStages[absoluteIndex] ?? journeyStages[journeyStages.length - 1],
+          title: getCategoryTitle(category, absoluteIndex),
+          totalCount: scenarios.length,
+        };
+      }),
+    [roadmap.length]
   );
 
   const totalScenarios = useMemo(
@@ -538,24 +554,78 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-4 reveal" style={revealDelay(360)}>
+      <section className="space-y-6 reveal" style={revealDelay(360)}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Next Milestones</p>
-          <h2 className="font-display text-lg text-slate-900">Coming Soon</h2>
+          <h2 className="font-display text-xl text-slate-900 sm:text-2xl">Coming Soon</h2>
           <p className="text-sm text-slate-600">今後ロードマップに追加予定のシナリオ</p>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {comingSoonScenarios.map((scenario, index) => {
-            const tone = milestoneTones[index % milestoneTones.length];
+
+        <div className="space-y-6">
+          {comingSoonRoadmap.map((category, categoryIndex) => {
+            const hasNext = categoryIndex < comingSoonRoadmap.length - 1;
+            const palette = categoryPalettes[(roadmap.length + categoryIndex) % categoryPalettes.length];
+
             return (
-              <article key={scenario.id} className="card-muted space-y-2 p-4 opacity-90">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-slate-900">{scenario.title}</h3>
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.chipIdle}`}>
-                    Soon
-                  </span>
+              <article key={category.id} className="relative pl-12">
+                {hasNext ? (
+                  <div
+                    aria-hidden="true"
+                    className={`absolute left-[1.05rem] top-10 h-[calc(100%+1.5rem)] w-px ${palette.timeline}`}
+                  />
+                ) : null}
+
+                <div
+                  className={`absolute left-0 top-5 flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${palette.stepBadge}`}
+                >
+                  {category.stepNumber}
                 </div>
-                <p className="text-xs text-slate-600">{scenario.description}</p>
+
+                <div className={`card space-y-4 border p-5 sm:p-6 ${palette.cardSurface}`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${palette.stageLabel}`}>
+                        {category.stage.role}
+                      </p>
+                      <h3 className="font-display text-xl text-slate-900">{category.title}</h3>
+                      <p className="text-sm text-slate-600">{category.stage.goal}</p>
+                    </div>
+                    <div className={`rounded-xl border px-3 py-2 text-right ${palette.metricPill}`}>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">公開予定</p>
+                      <p className="text-lg font-semibold text-slate-900 tabular-nums">{category.totalCount} 件</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {category.subcategories.map((subcategory, subcategoryIndex) => {
+                      const tone = milestoneTones[(roadmap.length + categoryIndex + subcategoryIndex) % milestoneTones.length];
+                      return (
+                        <div key={subcategory.id} className="space-y-2">
+                          <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>
+                            {subcategory.title}
+                          </p>
+                          <ul className="space-y-2">
+                            {subcategory.scenarios.map((scenario) => (
+                              <li key={scenario.id} className={`rounded-xl border px-3 py-3 transition sm:px-4 ${palette.incompleteScenario}`}>
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
+                                    <p className="text-xs text-slate-600">{scenario.description}</p>
+                                  </div>
+                                  <span
+                                    className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.chipIdle}`}
+                                  >
+                                    Soon
+                                  </span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </article>
             );
           })}
