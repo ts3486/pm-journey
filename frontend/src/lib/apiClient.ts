@@ -122,6 +122,7 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
       missionStatus?: MissionStatus[],
       agentContext?: {
         systemPrompt: string;
+        tonePrompt?: string;
         scenarioPrompt: string;
         scenarioTitle?: string;
         scenarioDescription?: string;
@@ -133,6 +134,8 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
           maxQuestions?: number;
           responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
           phase?: string;
+          singleResponse?: boolean;
+          agentResponseEnabled?: boolean;
         };
       }
     ): Promise<{ reply: Message; session: Session }> {

@@ -6,6 +6,7 @@ type AgentProfileKey = "BASIC" | "CHALLENGE" | "DEFAULT";
 type AgentProfile = {
   modelId: string;
   systemPrompt: string;
+  tonePrompt: string;
 };
 
 const systemPrompt = 
@@ -35,38 +36,35 @@ const systemPrompt =
 
 ---
 
-## 会話のトーン・スタイル
-
-- 開発メンバーとしてフラットで淡々とした口調をベースにする。
-- 説明は長くしすぎず、簡潔に答える
-- 過度にポジティブにもネガティブにも振れず、「現実的だけど前向きに進める」温度感を保つ。
-- 必要なときはきちんと指摘もするが、冷たくなりすぎないように、最低限の親しみやすさは保つ。
-- 二人称「あなた」は使わず、ユーザーを呼ぶときは「PMさん」と呼ぶ。
-
----
-
 ## 制約
 
 - 1回の応答は1~2文で簡潔に。
 - 箇条書きやMarkdown記法は使わない。
 `;
 
+const tonePrompt = `会話トーン:
+- 開発メンバーとしてフラットで淡々とした口調をベースにする
+- 説明は長くしすぎず、簡潔に答える
+- 過度にポジティブ/ネガティブに振れず、現実的に進める
+- 必要な指摘は行うが、冷たくなりすぎない
+- 二人称「あなた」は使わず、呼称は「PMさん」を使う`;
+
 const profiles: Record<AgentProfileKey, AgentProfile> = {
   BASIC: {
     modelId: "gemini-3-flash-preview",
-    systemPrompt:
-      systemPrompt
+    systemPrompt,
+    tonePrompt,
   },
   CHALLENGE: {
     modelId: "gemini-3-flash-preview",
-    systemPrompt:
-      systemPrompt
+    systemPrompt,
+    tonePrompt,
   },
   DEFAULT: {
     modelId: "gemini-3-flash-preview",
-    systemPrompt:
-      systemPrompt
-  }
+    systemPrompt,
+    tonePrompt,
+  },
 };
 
 export function resolveAgentProfile(scenarioId?: string | null): AgentProfile {

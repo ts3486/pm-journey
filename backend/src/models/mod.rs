@@ -293,43 +293,6 @@ pub fn default_scenarios() -> Vec<Scenario> {
             supplemental_info: Some("時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。".to_string()),
         },
         Scenario {
-            id: "basic-agenda-facilitation".to_string(),
-            title: "アジェンダを設定してミーティングを進行".to_string(),
-            discipline: ScenarioDiscipline::Basic,
-            description: "目的に沿った会議を進行し、合意と次アクションを作る。".to_string(),
-            scenario_type: None,
-            feature_mockup: None,
-            product: ProductInfo {
-                name: "ミーティング進行テンプレ".to_string(),
-                summary: "目的とアジェンダを明確にし、短時間で合意を得る進行メモ。".to_string(),
-                audience: "開発リード、デザイナー、QA".to_string(),
-                problems: vec!["目的が曖昧".to_string(), "議論が脱線".to_string(), "アクションが決まらない".to_string()],
-                goals: vec!["目的の明確化".to_string(), "時間内に合意".to_string(), "次アクションの明文化".to_string()],
-                differentiators: vec!["アジェンダテンプレ".to_string(), "タイムボックス設計".to_string()],
-                scope: vec!["目的定義".to_string(), "アジェンダ設定".to_string(), "合意形成".to_string()],
-                constraints: vec!["30分以内".to_string(), "参加者5名以内".to_string()],
-                timeline: "次回定例ミーティング".to_string(),
-                success_criteria: vec!["アジェンダ通りに進行".to_string(), "次アクションが決定".to_string()],
-                unique_edge: Some("短時間会議の進行に特化".to_string()),
-                tech_stack: Some(vec!["Next.js".to_string(), "Axum".to_string()]),
-                core_features: Some(vec!["アジェンダ表".to_string(), "タイムボックス".to_string()]),
-            },
-            mode: "guided".to_string(),
-            behavior: ScenarioBehavior::default(),
-            kickoff_prompt: "あなたはPMとしてミーティングを進行します。目的を一文で定義し、アジェンダと時間配分を設定し、次のアクションを合意してください。".to_string(),
-            evaluation_criteria: vec![
-                EvaluationCategory { name: "方針提示とリード力".to_string(), weight: 25.0, score: None, feedback: None },
-                EvaluationCategory { name: "計画と実行可能性".to_string(), weight: 25.0, score: None, feedback: None },
-                EvaluationCategory { name: "コラボレーションとフィードバック".to_string(), weight: 25.0, score: None, feedback: None },
-                EvaluationCategory { name: "リスク/前提管理と改善姿勢".to_string(), weight: 25.0, score: None, feedback: None },
-            ],
-            passing_score: Some(70.0),
-            missions: Some(vec![
-                Mission { id: "basic-agenda-m1".to_string(), title: "ミーティングのアジェンダを作成する".to_string(), description: None, order: 1 },
-            ]),
-            supplemental_info: Some("目的の一文定義と時間配分の明確化を意識してください。".to_string()),
-        },
-        Scenario {
             id: "basic-meeting-minutes".to_string(),
             title: "議事メモの作成と共有".to_string(),
             discipline: ScenarioDiscipline::Basic,
@@ -1244,6 +1207,7 @@ pub struct ScenarioBehavior {
     pub response_style: Option<String>,
     pub phase: Option<String>,
     pub single_response: Option<bool>,
+    pub agent_response_enabled: Option<bool>,
 }
 
 impl Default for ScenarioBehavior {
@@ -1255,6 +1219,7 @@ impl Default for ScenarioBehavior {
             response_style: None,
             phase: None,
             single_response: None,
+            agent_response_enabled: None,
         }
     }
 }

@@ -18,6 +18,8 @@ pub struct CreateMessageRequest {
 pub struct AgentContext {
     #[serde(rename = "systemPrompt")]
     pub system_prompt: String,
+    #[serde(rename = "tonePrompt")]
+    pub tone_prompt: Option<String>,
     #[serde(rename = "scenarioPrompt")]
     pub scenario_prompt: String,
     #[serde(rename = "scenarioTitle")]
@@ -41,6 +43,7 @@ pub struct AgentBehavior {
     pub response_style: Option<String>,
     pub phase: Option<String>,
     pub single_response: Option<bool>,
+    pub agent_response_enabled: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]

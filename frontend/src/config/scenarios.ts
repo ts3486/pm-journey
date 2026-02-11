@@ -532,58 +532,6 @@ const testProfileEditCriteria: RatingCriterion[] = [
   },
 ];
 
-// 3b. basic-agenda-facilitation: アジェンダ設定と進行
-const agendaFacilitationCriteria: RatingCriterion[] = [
-  {
-    id: "agenda-goal",
-    name: "目的の明確化",
-    weight: 25,
-    description: "ミーティングの目的とゴールを一文で定義できているか",
-    scoringGuidelines: {
-      excellent: "目的・ゴール・期待アウトプットを簡潔に定義し、参加者と合意",
-      good: "目的を定義。アウトプットの合意が一部不足",
-      needsImprovement: "目的に触れたが曖昧",
-      poor: "目的が定義されていない",
-    },
-  },
-  {
-    id: "agenda-structure",
-    name: "アジェンダと時間設計",
-    weight: 25,
-    description: "議題と時間配分を設計できているか",
-    scoringGuidelines: {
-      excellent: "議題ごとに時間配分を設定し、議論の流れが明確",
-      good: "議題と時間配分を提示。一部の粒度が粗い",
-      needsImprovement: "議題はあるが時間設計が不足",
-      poor: "アジェンダが設定されていない",
-    },
-  },
-  {
-    id: "agenda-facilitation",
-    name: "進行と巻き込み",
-    weight: 25,
-    description: "脱線を防ぎつつ参加者の発言を引き出せているか",
-    scoringGuidelines: {
-      excellent: "論点を整理し、参加者の意見を引き出しながら進行",
-      good: "進行はできているが、巻き込みが一部不足",
-      needsImprovement: "進行に言及したが具体性が弱い",
-      poor: "進行の意識がない",
-    },
-  },
-  {
-    id: "agenda-next-action",
-    name: "次アクションの合意",
-    weight: 25,
-    description: "決定事項と次アクションを合意できているか",
-    scoringGuidelines: {
-      excellent: "決定事項と担当・期日付きアクションを合意",
-      good: "決定事項と次アクションを整理。一部の詳細が不足",
-      needsImprovement: "次アクションに触れたが具体性が不足",
-      poor: "次アクションが合意されていない",
-    },
-  },
-];
-
 // 3c. basic-meeting-minutes: 議事メモ作成
 const meetingMinutesCriteria: RatingCriterion[] = [
   {
@@ -1399,33 +1347,6 @@ const simpleIntroCriteria: RatingCriterion[] = [
   },
 ];
 
-const simpleAgendaCriteria: RatingCriterion[] = [
-  {
-    id: "agenda-purpose",
-    name: "目的の明確さ",
-    weight: 50,
-    description: "ミーティングの目的を明確に定義できているか",
-    scoringGuidelines: {
-      excellent: "目的が具体的で明確",
-      good: "概ね伝わるが一部曖昧",
-      needsImprovement: "目的に触れたが不十分",
-      poor: "目的が不明確",
-    },
-  },
-  {
-    id: "agenda-structure",
-    name: "構成の適切さ",
-    weight: 50,
-    description: "アジェンダや進め方が整理されているか",
-    scoringGuidelines: {
-      excellent: "論理的に構成されている",
-      good: "概ね整理されている",
-      needsImprovement: "構成が弱い",
-      poor: "構成がない",
-    },
-  },
-];
-
 const simpleMinutesCriteria: RatingCriterion[] = [
   {
     id: "minutes-decisions",
@@ -1588,6 +1509,67 @@ const simpleTestCriteria: RatingCriterion[] = [
   },
 ];
 
+const featureRequirementCriteria: RatingCriterion[] = [
+  {
+    id: "requirement-story-clarity",
+    name: "ユーザーストーリーの明確性",
+    weight: 25,
+    description: "対象ユーザー、実現したい行動、得られる価値が一貫して定義されているか",
+    scoringGuidelines: {
+      excellent: "As a / I want / So that が具体的で、ユーザー価値と課題が明確",
+      good: "ストーリーは成立しているが、一部の要素が抽象的",
+      needsImprovement: "形式はあるが、ユーザーや価値の記述が曖昧",
+      poor: "ユーザーストーリーとして成立していない",
+    },
+  },
+  {
+    id: "requirement-acceptance-testability",
+    name: "受入条件の検証可能性",
+    weight: 25,
+    description: "受入条件が観測可能かつ検証可能な形式で定義されているか",
+    scoringGuidelines: {
+      excellent: "Given/When/Then または同等の明確さで、判定基準が具体的",
+      good: "受入条件はあるが、一部で判定方法が曖昧",
+      needsImprovement: "受入条件に言及しているが、検証観点が不足",
+      poor: "受入条件が定義されていない",
+    },
+  },
+  {
+    id: "requirement-scope-boundary",
+    name: "スコープ境界の整理",
+    weight: 25,
+    description: "対象範囲と非対象、主要制約が整理されているか",
+    scoringGuidelines: {
+      excellent: "対象・非対象・制約を明確に分離し、優先度や判断理由も示している",
+      good: "対象と非対象は整理されているが、制約や理由が一部不足",
+      needsImprovement: "スコープに触れているが境界が曖昧",
+      poor: "スコープ境界が整理されていない",
+    },
+  },
+  {
+    id: "requirement-risk-unknowns",
+    name: "不明点・リスクの明示",
+    weight: 25,
+    description: "未確定事項やリスクを挙げ、確認計画につなげられているか",
+    scoringGuidelines: {
+      excellent: "不明点とリスクを具体化し、確認先・確認方法・次アクションまで明示",
+      good: "不明点やリスクを列挙しているが、確認計画が一部不足",
+      needsImprovement: "不明点やリスクはあるが抽象的で優先度が不明",
+      poor: "不明点やリスクへの言及がない",
+    },
+  },
+];
+
+const structuredCriteriaScenarioIds = new Set([
+  "basic-requirement-definition-doc",
+  "basic-requirement-hearing-plan",
+  "basic-requirement-user-story",
+  "basic-requirement-nfr",
+  "basic-requirement-priority-matrix",
+  "basic-requirement-risk-check",
+  "basic-requirement-consensus",
+]);
+
 const relaxedCommentGuidelines: RatingCriterion["scoringGuidelines"] = {
   excellent: "ミッションの狙いがはっきり伝わり、必要な背景や意図も補足されている",
   good: "主要なポイントには触れられており、実務で十分参考になる",
@@ -1614,6 +1596,7 @@ const applyRelaxedCriteriaToBasicScenarios = (list: Scenario[]) => {
     if (scenario.scenarioType !== "basic" || !scenario.missions || scenario.missions.length === 0) {
       return;
     }
+    if (structuredCriteriaScenarioIds.has(scenario.id)) return;
     const missions = [...scenario.missions].sort((a, b) => a.order - b.order);
     const weights = distributeWeights(missions.length);
     scenario.evaluationCriteria = missions.map((mission, index) => ({
@@ -1626,13 +1609,43 @@ const applyRelaxedCriteriaToBasicScenarios = (list: Scenario[]) => {
   });
 };
 
+const buildBasicKickoffPrompt = (scenario: Scenario) => {
+  const supplementalInstruction = scenario.supplementalInfo?.trim();
+  const primaryMission = scenario.missions
+    ?.slice()
+    .sort((a, b) => a.order - b.order)[0];
+  const callToAction = supplementalInstruction
+    ? supplementalInstruction
+    : primaryMission
+      ? `「${primaryMission.title}」を実施してください。`
+      : "このシナリオに回答してください。";
+  const normalizedCallToAction = callToAction.replace(/。?$/, "。");
+  return `シナリオ「${scenario.title}」を開始します。${normalizedCallToAction}`;
+};
+
+const applyBasicPromptRoles = (list: Scenario[]) => {
+  list.forEach((scenario) => {
+    if (scenario.scenarioType !== "basic") return;
+    const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
+
+    const existingKickoff = scenario.kickoffPrompt?.trim();
+    if (agentResponseEnabled && existingKickoff && !scenario.agentOpeningMessage) {
+      scenario.agentOpeningMessage = existingKickoff;
+    }
+    if (!agentResponseEnabled) {
+      scenario.agentOpeningMessage = undefined;
+    }
+    scenario.kickoffPrompt = buildBasicKickoffPrompt(scenario);
+  });
+};
+
 const scenarioList: Scenario[] = [
   {
     id: "basic-intro-alignment",
-    title: "自己紹介＆期待値合わせ",
+    title: "自己紹介",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "新規プロジェクトに合流し、役割と期待値を擦り合わせる。1回の回答でシナリオが終了します。",
+    description: "あなたは新しくプロジェクトに参加したPMです。チームの信頼を得るためにまずは自己紹介をしてみましょう。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
@@ -1640,34 +1653,16 @@ const scenarioList: Scenario[] = [
     evaluationCriteria: simpleIntroCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-intro-m1", title: "自己紹介と期待値を伝える", order: 1 },
+      { id: "basic-intro-m1", title: "自己紹介をする", order: 1 },
     ],
-    supplementalInfo: "自分の役割と期待値を1回の回答で伝えてください。",
-  },
-  {
-    id: "basic-agenda-facilitation",
-    title: "アジェンダ設定",
-    discipline: "BASIC",
-    scenarioType: "basic",
-    description: "スプリントプランニングのアジェンダテンプレートを定義する。1回の回答でシナリオが終了します。",
-    behavior: singleResponseBehavior,
-    product: sharedProduct,
-    mode: "guided",
-    kickoffPrompt:
-      "スプリントプランニングという会議体の目的を理解した上で、アジェンダのテンプレを作成してください。",
-    evaluationCriteria: simpleAgendaCriteria,
-    passingScore: 60,
-    missions: [
-      { id: "basic-agenda-m1", title: "アジェンダを作成する", order: 1 },
-    ],
-    supplementalInfo: "目的を一文で定義し、アジェンダを整理してください。",
+    supplementalInfo: "あなたは新しくプロジェクトに参加したPMです。自己紹介をしてください。",
   },
   {
     id: "basic-meeting-minutes",
     title: "議事メモの作成と共有",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "会議の決定事項とアクションを整理する。1回の回答でシナリオが終了します。",
+    description: "会議の決定事項とアクションを整理する。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
@@ -1685,25 +1680,25 @@ const scenarioList: Scenario[] = [
     title: "ミーティング調整",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "他のメンバーとミーティングを組む時に送るメッセージを作成してください。1回の回答でシナリオが終了します。",
-    behavior: singleResponseBehavior,
+    description: "他のメンバーとミーティングを組む時に送るメッセージを作成してください。",
+    behavior: { ...singleResponseBehavior, agentResponseEnabled: false },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "プロダクトの機能の要件詰めのために、他のメンバーとミーティングを組みたいです。スケジュール調整のメッセージを作成してください。",
+      "",
     evaluationCriteria: simpleScheduleCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-schedule-m1", title: "ミーティングを調整する", order: 1 },
+      { id: "basic-schedule-m1", title: "ミーティング調整メッセージを作成する", order: 1 },
     ],
-    supplementalInfo: "ミーティングを調整してください。",
+    supplementalInfo: "要件詰めのミーティングを開催予定です。関係者のスケジュール調整をする時に送るメッセージを作成してください。",
   },
   {
     id: "basic-docs-refine",
     title: "既存資料の軽微な修正",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "資料の目的を整理し改善点を提案する。1回の回答でシナリオが終了します。",
+    description: "資料の目的を整理し改善点を提案する。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
@@ -1721,7 +1716,7 @@ const scenarioList: Scenario[] = [
     title: "チケット要件整理",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "チケットの目的と受入条件を整理する。1回の回答でシナリオが終了します。",
+    description: "チケットの目的と受入条件を整理する。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
@@ -1738,7 +1733,7 @@ const scenarioList: Scenario[] = [
     title: "チケット分割と優先度付け",
     discipline: "BASIC",
     scenarioType: "basic",
-    description: "大きなチケットを分割し優先度を付ける。1回の回答でシナリオが終了します。",
+    description: "大きなチケットを分割し優先度を付ける。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
     mode: "guided",
@@ -1791,6 +1786,7 @@ const scenarioList: Scenario[] = [
     id: "basic-testcase-design",
     title: "テストケース作成",
     discipline: "BASIC",
+    scenarioType: "basic",
     description: "テストケースを洗い出す。1回の回答でシナリオが終了します。",
     behavior: singleResponseBehavior,
     product: sharedProduct,
@@ -2062,6 +2058,308 @@ const scenarioList: Scenario[] = [
     supplementalInfo: "必須フローと優先度を簡潔に整理してください。",
   },
   {
+    id: "basic-requirement-definition-doc",
+    title: "ログイン機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "ログイン機能のユーザーストーリーと受入条件を定義する。",
+    behavior: {...singleResponseBehavior, agentResponseEnabled: false},
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "ログイン機能の要件定義を行います。ユーザーストーリーと受入条件を定義してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqdoc-m1", title: "ログイン機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "ログイン機能のユーザーストーリの定義を作成してください。",
+  },
+  {
+    id: "basic-requirement-hearing-plan",
+    title: "問い合わせフォーム機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "問い合わせフォーム機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "問い合わせフォーム機能の要件定義を行います。入力・送信・エラー時の期待挙動を含めて整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqhear-m1", title: "問い合わせフォーム機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には入力バリデーションと送信失敗時の扱いを含めてください。",
+  },
+  {
+    id: "basic-requirement-user-story",
+    title: "ファイルアップロード機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "ファイルアップロード機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "ファイルアップロード機能の要件定義を行います。許可形式、サイズ制限、失敗時の扱いを含めて整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqstory-m1", title: "ファイルアップロード機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には形式・サイズ・エラー時の期待挙動を含めてください。",
+  },
+  {
+    id: "basic-requirement-nfr",
+    title: "パスワード再設定機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "パスワード再設定機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "パスワード再設定機能の要件定義を行います。本人確認、期限、再設定完了までの流れを整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqnfr-m1", title: "パスワード再設定機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件にはトークン有効期限と不正利用防止を含めてください。",
+  },
+  {
+    id: "basic-requirement-priority-matrix",
+    title: "検索・絞り込み機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "検索・絞り込み機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "検索・絞り込み機能の要件定義を行います。検索条件、ソート、0件時の挙動を含めて整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqprio-m1", title: "検索・絞り込み機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には複合条件と0件表示を含めてください。",
+  },
+  {
+    id: "basic-requirement-risk-check",
+    title: "通知設定機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "通知設定機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "通知設定機能の要件定義を行います。通知チャネル、通知頻度、保存反映を整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqrisk-m1", title: "通知設定機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には保存後の反映と権限拒否時の挙動を含めてください。",
+  },
+  {
+    id: "basic-requirement-consensus",
+    title: "プロフィール編集機能",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "プロフィール編集機能のユーザーストーリーと受入条件を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "プロフィール編集機能の要件定義を行います。入力制約、保存、同時編集時の扱いを整理してください。",
+    evaluationCriteria: featureRequirementCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "basic-reqconsensus-m1", title: "プロフィール編集機能のユーザーストーリーを定義する", order: 1 },
+    ],
+    supplementalInfo:
+      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には保存失敗時と競合時の扱いを含めてください。",
+  },
+  {
+    id: "coming-stakeholder-negotiation",
+    title: "ステークホルダー優先度交渉",
+    discipline: "BASIC",
+    description: "営業の早期リリース要求と開発の品質要求が対立する状況で、優先度の合意形成を進める。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "営業は『今月中に新機能を出したい』、開発は『品質基準を満たさない限りリリースできない』と主張しています。対立点を整理し、合意形成に向けた交渉を進めてください。",
+    evaluationCriteria: scopeNegotiationCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-stakeholder-m1", title: "対立点と共通目的を明確化する", order: 1 },
+      { id: "coming-stakeholder-m2", title: "譲歩案と判断基準を提示する", order: 2 },
+      { id: "coming-stakeholder-m3", title: "合意事項・保留事項・次アクションを確定する", order: 3 },
+    ],
+    supplementalInfo: "会話の最後に、合意事項・保留事項・次アクション（担当/期限）を明文化してください。",
+  },
+  {
+    id: "coming-priority-tradeoff-workshop",
+    title: "優先度トレードオフ",
+    discipline: "BASIC",
+    description: "複数要望を価値/工数/リスクで比較し、段階リリース方針を合意する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "次リリース候補として『高速検索』『通知改善』『管理画面改修』の3案があります。価値・工数・リスクを比較し、段階リリースの合意案を作ってください。",
+    evaluationCriteria: scopeNegotiationCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-tradeoff-m1", title: "比較軸を定義して各案を評価する", order: 1 },
+      { id: "coming-tradeoff-m2", title: "採用案と却下案を整理する", order: 2 },
+      { id: "coming-tradeoff-m3", title: "段階リリース計画と判断理由を合意する", order: 3 },
+    ],
+    supplementalInfo: "会話の最後に、採用案・却下案・判断理由を明文化してください。",
+  },
+
+  {
+    id: "coming-decision-log-alignment",
+    title: "意思決定ログ共有と認識合わせ",
+    discipline: "BASIC",
+    description: "既存の意思決定ログをもとに、関係者間の認識ズレを解消する。",
+    behavior: guidedBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "先週決めた『段階リリース方針』について、営業と開発で認識にズレが出ています。意思決定ログを整理し、共有メッセージと確認ポイントを作成してください。",
+    evaluationCriteria: stakeholderAlignmentCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-decisionlog-m1", title: "ズレている認識ポイントを特定する", order: 1 },
+      { id: "coming-decisionlog-m2", title: "意思決定の背景と根拠を再整理する", order: 2 },
+      { id: "coming-decisionlog-m3", title: "共有文面と確認ポイントを確定する", order: 3 },
+    ],
+    supplementalInfo: "会話の最後に、共有文面（要点）と確認ポイント（3項目）を提示してください。",
+  },
+  {
+    id: "coming-incident-response",
+    title: "P1障害: ログイン不能バグの緊急対応",
+    discipline: "CHALLENGE",
+    description: "全ユーザーがログインできない致命的不具合に対し、初動対応と報告方針を会話で確定する。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "本番環境で『ログインAPIが500エラーを返し続け、全ユーザーがログイン不能』というP1障害が発生しました。初動対応、影響範囲、社内外への初回報告を会話で整理してください。",
+    evaluationCriteria: projectRescueCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-incident-m1", title: "影響範囲と緊急度を確定する", order: 1 },
+      { id: "coming-incident-m2", title: "初動対応と暫定復旧方針を決める", order: 2 },
+      { id: "coming-incident-m3", title: "初回報告とエスカレーションを実行する", order: 3 },
+    ],
+    supplementalInfo: "終了条件: 影響範囲、初動アクション、連絡先、初回報告文が確定していること。",
+  },
+  {
+    id: "coming-incident-triage-escalation",
+    title: "P2障害: 決済遅延バグのトリアージ",
+    discipline: "CHALLENGE",
+    description: "一部ユーザーで決済完了通知が遅延する重大不具合について、トリアージとエスカレーション判断を行う。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "本番環境で『決済は成功しているが完了通知反映が最大20分遅延する』不具合が発生しています。P2想定で、優先度判定とエスカレーション判断を会話で進めてください。",
+    evaluationCriteria: progressVisibilityCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-triage-m1", title: "事象の再現条件と影響ユーザーを特定する", order: 1 },
+      { id: "coming-triage-m2", title: "優先度と対応期限を決定する", order: 2 },
+      { id: "coming-triage-m3", title: "エスカレーション先と報告リズムを確定する", order: 3 },
+    ],
+    supplementalInfo: "終了条件: 重大度、判断根拠、エスカレーション経路、次回報告時刻が確定していること。",
+  },
+  {
+    id: "coming-postmortem-followup",
+    title: "P3障害: 表示崩れバグの再発防止",
+    discipline: "CHALLENGE",
+    description: "特定端末で発生する軽微不具合について、原因分析と再発防止策を会話で合意する。",
+    behavior: challengeBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "Androidの一部端末でプロフィール画面のボタンが重なって表示崩れするP3不具合が報告されました。原因分析、優先度判断、再発防止策を会話で整理してください。",
+    evaluationCriteria: stakeholderAlignmentCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-postmortem-m1", title: "事実と原因仮説を切り分ける", order: 1 },
+      { id: "coming-postmortem-m2", title: "恒久対応と暫定対応を決定する", order: 2 },
+      { id: "coming-postmortem-m3", title: "再発防止アクションを担当・期限付きで合意する", order: 3 },
+    ],
+    supplementalInfo: "終了条件: 再発防止アクション（担当/期限）と検証方法が明文化されていること。",
+  },
+  {
+    id: "coming-sprint-retrospective",
+    title: "スプリント振り返り",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "ふりかえり会を設計し、改善アクションを導き出す。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "スプリントふりかえりの進め方と改善アクションを整理してください。",
+    evaluationCriteria: simpleMinutesCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-retro-m1", title: "改善アクションを整理する", order: 1 },
+    ],
+    supplementalInfo: "Keep/Problem/Try を使って、具体的な改善アクションを示してください。",
+  },
+  {
+    id: "coming-release-readiness-review",
+    title: "リリース準備レビュー",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "リリース直前の準備状況を確認し、Go/No-Go判断材料を整理する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "リリース準備レビューのチェック項目と判断基準を整理してください。",
+    evaluationCriteria: simpleTicketCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-release-m1", title: "Go/No-Go判断材料を整理する", order: 1 },
+    ],
+    supplementalInfo: "品質、運用、告知、ロールバック観点のチェック項目を示してください。",
+  },
+  {
+    id: "coming-kpi-review-action",
+    title: "KPIレビューと改善アクション",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description: "事業KPIの振り返りを行い、次の改善施策を定義する。",
+    behavior: singleResponseBehavior,
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt:
+      "主要KPIの振り返りと次スプリントの改善アクションを整理してください。",
+    evaluationCriteria: simpleTicketCriteria,
+    passingScore: 60,
+    missions: [
+      { id: "coming-kpi-m1", title: "改善施策を整理する", order: 1 },
+    ],
+    supplementalInfo: "KPIの現状、課題仮説、施策、検証方法を明確にしてください。",
+  },
+  {
     id: "challenge-project-rescue",
     title: "遅延プロジェクト立て直し (チャレンジ)",
     discipline: "CHALLENGE",
@@ -2328,6 +2626,7 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
   },
 ];
 
+applyBasicPromptRoles(scenarioList);
 applyRelaxedCriteriaToBasicScenarios(scenarioList);
 
 export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
@@ -2340,7 +2639,6 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
         title: "基礎ソフトスキル",
         scenarios: [
           requireScenarioSummary("basic-intro-alignment"),
-          requireScenarioSummary("basic-agenda-facilitation"),
           requireScenarioSummary("basic-schedule-share"),
         ],
       },
@@ -2365,94 +2663,58 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
       },
     ],
   },
-];
-
-export const comingSoonScenarioCatalog: ScenarioCatalogCategory[] = [
   {
     id: "requirement-definition",
-    title: "要件定義",
+    title: "",
     subcategories: [
       {
         id: "requirement-definition-foundation",
         title: "要件定義",
         scenarios: [
-          {
-            id: "coming-requirement-definition",
-            title: "要件定義ドキュメント作成",
-            description: "ヒアリング内容をもとに要件定義書を作成し、レビューを受けるシナリオ",
-            discipline: "CHALLENGE",
-          },
+          requireScenarioSummary("basic-requirement-definition-doc"),
+          requireScenarioSummary("basic-requirement-hearing-plan"),
+          requireScenarioSummary("basic-requirement-user-story"),
+          requireScenarioSummary("basic-requirement-nfr"),
+          requireScenarioSummary("basic-requirement-priority-matrix"),
+          requireScenarioSummary("basic-requirement-risk-check"),
+          requireScenarioSummary("basic-requirement-consensus"),
         ],
       },
     ],
   },
   {
-    id: "planning",
-    title: "計画立案",
+    id: "incident-response",
+    title: "",
     subcategories: [
       {
-        id: "planning-execution",
-        title: "計画立案",
+        id: "incident-response-management",
+        title: "障害対応",
         scenarios: [
-          {
-            id: "coming-risk-management",
-            title: "リスク管理と対応計画",
-            description: "プロジェクトのリスクを洗い出し、優先度を判断して対応計画を策定するシナリオ",
-            discipline: "BASIC",
-          },
-          {
-            id: "coming-cross-team-coordination",
-            title: "チーム間連携調整",
-            description: "複数チームにまたがる機能開発の依存関係を整理し、リリース計画を調整するシナリオ",
-            discipline: "CHALLENGE",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "consensus-building",
-    title: "合意形成",
-    subcategories: [
-      {
-        id: "consensus-building-negotiation",
-        title: "合意形成",
-        scenarios: [
-          {
-            id: "coming-stakeholder-negotiation",
-            title: "ステークホルダー交渉",
-            description: "要件の優先度について意見が対立するステークホルダーとの合意形成を実践するシナリオ",
-            discipline: "BASIC",
-          },
+          requireScenarioSummary("coming-incident-response"),
+          requireScenarioSummary("coming-incident-triage-escalation"),
+          requireScenarioSummary("coming-postmortem-followup"),
         ],
       },
     ],
   },
   {
     id: "business-execution",
-    title: "事業推進",
+    title: "",
     subcategories: [
       {
         id: "business-execution-delivery",
         title: "事業推進",
         scenarios: [
-          {
-            id: "coming-sprint-retrospective",
-            title: "スプリント振り返り",
-            description: "チームのふりかえり会をファシリテートし、改善アクションを導き出すシナリオ",
-            discipline: "BASIC",
-          },
-          {
-            id: "coming-incident-response",
-            title: "障害対応と報告",
-            description: "本番障害発生時の初動対応、影響範囲の特定、ステークホルダーへの報告を実践するシナリオ",
-            discipline: "CHALLENGE",
-          },
+          requireScenarioSummary("coming-priority-tradeoff-workshop"),
+          requireScenarioSummary("coming-stakeholder-negotiation"),
+          requireScenarioSummary("coming-decision-log-alignment"),
         ],
       },
     ],
   },
 ];
+
+export const comingSoonScenarioCatalog: ScenarioCatalogCategory[] = [];
 
 export const comingSoonScenarios: ScenarioSummary[] = comingSoonScenarioCatalog.flatMap((category) =>
   category.subcategories.flatMap((subcategory) => subcategory.scenarios)

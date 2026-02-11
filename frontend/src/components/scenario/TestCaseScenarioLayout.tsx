@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Scenario, TestCase } from "@/types";
-import { ChatComposer } from "@/components/chat/ChatComposer";
-import { ChatStream } from "@/components/chat/ChatStream";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { TestCaseForm } from "@/components/scenario/TestCaseForm";
 import {
   FileUploadMockup,
@@ -18,8 +17,6 @@ import type { SessionState } from "@/services/sessions";
 type TestCaseScenarioLayoutProps = {
   scenario: Scenario;
   state: SessionState | null;
-  awaitingReply: boolean;
-  onSend: (content: string) => void;
   onComplete: () => void;
   onReset: () => void;
 };
@@ -27,8 +24,6 @@ type TestCaseScenarioLayoutProps = {
 export function TestCaseScenarioLayout({
   scenario,
   state,
-  awaitingReply,
-  onSend,
   onComplete,
   onReset,
 }: TestCaseScenarioLayoutProps) {
@@ -104,23 +99,25 @@ export function TestCaseScenarioLayout({
         </div>
       </section>
 
+      <ProjectOverviewSection scenario={scenario} />
+
       <div className="card p-4">
         <h3 className="mb-4 text-sm font-semibold text-slate-900">機能デザイン</h3>
         <div className="p-4">{renderMockup()}</div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="space-y-4">
-          <div className="card p-4">
-            <TestCaseForm
-              testCases={testCases}
-              onAdd={handleAddTestCase}
-              onDelete={handleDeleteTestCase}
-              isLoading={isLoadingTestCases}
-            />
-          </div>
-          {hasActive && (
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="space-y-4">
+        <div className="card p-4">
+          <TestCaseForm
+            testCases={testCases}
+            onAdd={handleAddTestCase}
+            onDelete={handleDeleteTestCase}
+            isLoading={isLoadingTestCases}
+          />
+        </div>
+        {hasActive && (
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-slate-600">
                 {testCases.length === 0
                   ? "テストケースを追加してから提出してください"
@@ -135,16 +132,6 @@ export function TestCaseScenarioLayout({
                 テストケースを提出する
               </button>
             </div>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <ChatStream messages={state?.messages ?? []} maxHeight="40vh" isTyping={awaitingReply} />
-          <ChatComposer
-            onSend={onSend}
-            disabled={!hasActive}
-          />
-          {hasActive && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -154,8 +141,8 @@ export function TestCaseScenarioLayout({
                 セッションをリセット
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

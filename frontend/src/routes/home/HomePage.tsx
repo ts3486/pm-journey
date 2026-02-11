@@ -1,4 +1,4 @@
-import { comingSoonScenarioCatalog, homeScenarioCatalog } from "@/config";
+import { homeScenarioCatalog } from "@/config";
 import type {
   HistoryItem,
   ScenarioCatalogCategory,
@@ -13,9 +13,17 @@ import { listHistory } from "@/services/history";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 
+const unlockedScenarioCountPerCategory = 1;
+
+const isLockedScenario = (_subcategoryId: string, scenarioIndex: number): boolean => {
+  return scenarioIndex >= unlockedScenarioCountPerCategory;
+};
+
 const homeScenarioIds = homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
   category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
-    subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
+    subcategory.scenarios
+      .filter((_, scenarioIndex) => !isLockedScenario(subcategory.id, scenarioIndex))
+      .map((scenario: ScenarioSummary) => scenario.id)
   )
 );
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
@@ -29,6 +37,15 @@ type RoadmapMilestone = {
   id: string;
   title: string;
   categoryId?: string;
+};
+
+type SequenceRoadmapCategory = ScenarioCatalogCategory & {
+  stepNumber: number;
+  stage: JourneyStage;
+  title: string;
+  totalCount: number;
+  completedCount: number;
+  progress: number;
 };
 
 type CategoryPalette = {
@@ -53,28 +70,33 @@ type MilestoneTone = {
   chipReached: string;
 };
 
-const journeyStages: JourneyStage[] = [
-  {
-    role: "Novice PM",
-    goal: "対話と段取りの基礎を固める",
-  },
-  {
-    role: "Developing PM",
-    goal: "品質視点で仕様を検証できるようになる",
-  },
-  {
-    role: "Trained PM",
-    goal: "複雑な調整を主導して価値に繋げる",
-  },
-];
+const assistantJourneyStage: JourneyStage = {
+  role: "PM Assistant",
+  goal: "対話と段取りの基礎を固める",
+};
+
+const developingJourneyStage: JourneyStage = {
+  role: "Developing PM",
+  goal: "品質視点で仕様を検証できるようになる",
+};
+
+const trainedJourneyStage: JourneyStage = {
+  role: "Trained PM",
+  goal: "複雑な調整を主導して価値に繋げる",
+};
+
+const resolveJourneyStage = (index: number, totalCategories: number): JourneyStage => {
+  if (index <= 1) return assistantJourneyStage;
+  if (index === totalCategories - 1) return trainedJourneyStage;
+  return developingJourneyStage;
+};
 
 const roadmapMilestones: RoadmapMilestone[] = [
   { id: "milestone-1", title: "基礎ソフトスキル", categoryId: "soft-skills" },
   { id: "milestone-2", title: "テスト設計", categoryId: "test-cases" },
-  { id: "milestone-3", title: "要件定義" },
-  { id: "milestone-4", title: "計画立案" },
-  { id: "milestone-5", title: "合意形成" },
-  { id: "milestone-6", title: "事業推進" },
+  { id: "milestone-3", title: "要件定義", categoryId: "requirement-definition" },
+  { id: "milestone-4", title: "障害対応", categoryId: "incident-response" },
+  { id: "milestone-5", title: "事業推進", categoryId: "business-execution" },
 ];
 
 const categoryPalettes: CategoryPalette[] = [
@@ -170,10 +192,32 @@ const milestoneTones: MilestoneTone[] = [
   },
 ];
 
-const getCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
+const LockedBadge = ({ toneClassName }: { toneClassName: string }) => (
+  <span
+    className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${toneClassName}`}
+  >
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3 w-3"
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+    <span>LOCKED</span>
+  </span>
+);
+
+const getUnlockedCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
   const uniqueById = new Map<string, ScenarioSummary>();
   category.subcategories.forEach((subcategory) => {
-    subcategory.scenarios.forEach((scenario) => {
+    subcategory.scenarios.forEach((scenario, scenarioIndex) => {
+      if (isLockedScenario(subcategory.id, scenarioIndex)) return;
       uniqueById.set(scenario.id, scenario);
     });
   });
@@ -210,6 +254,7 @@ const resolveHistoryTimestamp = (item: HistoryItem): number => {
 export function HomePage() {
   const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<Record<string, boolean>>({});
 
   const { data: historyItems = [], isLoading: isHistoryLoading, isError, error } = useQuery({
     queryKey: ["history", "list"],
@@ -251,13 +296,13 @@ export function HomePage() {
   const roadmap = useMemo(
     () =>
       homeScenarioCatalog.map((category, index) => {
-        const scenarios = getCategoryScenarios(category);
+        const scenarios = getUnlockedCategoryScenarios(category);
         const completedCount = scenarios.filter((scenario) => completedScenarioIds.has(scenario.id)).length;
         const totalCount = scenarios.length;
         return {
           ...category,
           stepNumber: index + 1,
-          stage: journeyStages[index] ?? journeyStages[journeyStages.length - 1],
+          stage: resolveJourneyStage(index, homeScenarioCatalog.length),
           title: getCategoryTitle(category, index),
           completedCount,
           totalCount,
@@ -267,21 +312,7 @@ export function HomePage() {
     [completedScenarioIds]
   );
 
-  const comingSoonRoadmap = useMemo(
-    () =>
-      comingSoonScenarioCatalog.map((category, index) => {
-        const scenarios = getCategoryScenarios(category);
-        const absoluteIndex = roadmap.length + index;
-        return {
-          ...category,
-          stepNumber: absoluteIndex + 1,
-          stage: journeyStages[absoluteIndex] ?? journeyStages[journeyStages.length - 1],
-          title: getCategoryTitle(category, absoluteIndex),
-          totalCount: scenarios.length,
-        };
-      }),
-    [roadmap.length]
-  );
+  const sequenceRoadmap = useMemo<SequenceRoadmapCategory[]>(() => roadmap, [roadmap]);
 
   const totalScenarios = useMemo(
     () =>
@@ -332,6 +363,13 @@ export function HomePage() {
       milestoneProgress[milestoneProgress.length - 1],
     [milestoneProgress]
   );
+
+  const toggleCategoryExpanded = (categoryId: string) => {
+    setExpandedCategoryIds((current) => ({
+      ...current,
+      [categoryId]: !current[categoryId],
+    }));
+  };
 
   return (
     <div className="space-y-8">
@@ -435,14 +473,16 @@ export function HomePage() {
           {isHistoryLoading ? (
             <span className="text-xs text-slate-500">進捗を集計中...</span>
           ) : (
-            <span className="text-xs text-slate-500">カテゴリ {roadmap.length} ステップ</span>
+            <span className="text-xs text-slate-500">カテゴリ {sequenceRoadmap.length} ステップ</span>
           )}
         </div>
 
         <div className="space-y-6">
-          {roadmap.map((category, categoryIndex) => {
-            const hasNext = categoryIndex < roadmap.length - 1;
+          {sequenceRoadmap.map((category, categoryIndex) => {
+            const hasNext = categoryIndex < sequenceRoadmap.length - 1;
             const palette = categoryPalettes[categoryIndex % categoryPalettes.length];
+            const isExpanded = Boolean(expandedCategoryIds[category.id]);
+            const contentId = `category-panel-${category.id}`;
             return (
               <article key={category.id} className="relative pl-12">
                 {hasNext ? (
@@ -484,147 +524,86 @@ export function HomePage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {category.subcategories.map((subcategory) => {
-                      const isScrollableSubcategory = scrollableSubcategoryIds.has(subcategory.id);
-                      return (
-                        <div key={subcategory.id} className="space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
-                            {isScrollableSubcategory ? (
-                              <span className="text-[11px] text-slate-500">スクロールで表示</span>
-                            ) : null}
-                          </div>
-                          <div className={isScrollableSubcategory ? "max-h-[27rem] overflow-y-auto pr-1 no-scrollbar" : undefined}>
-                            <ul className="space-y-2">
-                              {subcategory.scenarios.map((scenario) => {
-                                const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
-                                const completed = Boolean(completedSessionId);
-                                const interrupted = savedByScenario[scenario.id] && !completed;
-                                return (
-                                  <li
-                                    key={scenario.id}
-                                    className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
-                                      completed
-                                        ? "border-emerald-200/80 bg-emerald-50/60"
-                                        : palette.incompleteScenario
-                                    }`}
-                                  >
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                      <div>
-                                        <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
-                                        <p className="text-xs text-slate-600">{scenario.description}</p>
+                  <div className="border-t border-slate-200/70 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategoryExpanded(category.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={contentId}
+                      className="inline-flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-white/65"
+                    >
+                      <span>{isExpanded ? "シナリオを閉じる" : "シナリオを表示"}</span>
+                      <span className={`text-xs text-slate-500 transition ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                    </button>
+                  </div>
+
+                  {isExpanded ? (
+                    <div id={contentId} className="space-y-3">
+                      {category.subcategories.map((subcategory) => {
+                        const isScrollableSubcategory = scrollableSubcategoryIds.has(subcategory.id);
+                        return (
+                          <div key={subcategory.id} className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>{subcategory.title}</p>
+                              {isScrollableSubcategory ? (
+                                <span className="text-[11px] text-slate-500">スクロールで表示</span>
+                              ) : null}
+                            </div>
+                            <div className={isScrollableSubcategory ? "max-h-[27rem] overflow-y-auto pr-1 no-scrollbar" : undefined}>
+                              <ul className="space-y-2">
+                                {subcategory.scenarios.map((scenario, scenarioIndex) => {
+                                  const locked = isLockedScenario(subcategory.id, scenarioIndex);
+                                  const completedSessionId = locked ? undefined : completedSessionIdsByScenario.get(scenario.id);
+                                  const completed = Boolean(completedSessionId);
+                                  const interrupted = !locked && savedByScenario[scenario.id] && !completed;
+                                  return (
+                                    <li
+                                      key={scenario.id}
+                                      className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
+                                        completed
+                                          ? "border-emerald-200/80 bg-emerald-50/60"
+                                          : palette.incompleteScenario
+                                      }`}
+                                    >
+                                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                          <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
+                                          <p className="text-xs text-slate-600">{scenario.description}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {locked ? (
+                                            <LockedBadge toneClassName={milestoneTones[categoryIndex % milestoneTones.length].chipIdle} />
+                                          ) : null}
+                                          {!locked && completed ? (
+                                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                              完了
+                                            </span>
+                                          ) : null}
+                                          {!locked && interrupted ? (
+                                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
+                                              中断中
+                                            </span>
+                                          ) : null}
+                                          {!locked ? (
+                                            <Link
+                                              className="btn-secondary !px-3 !py-1.5 !text-xs"
+                                              to={`/scenario?scenarioId=${scenario.id}&restart=1`}
+                                            >
+                                              {completed ? "再挑戦" : interrupted ? "再開" : "開始"}
+                                            </Link>
+                                          ) : null}
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        {completed ? (
-                                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                            完了
-                                          </span>
-                                        ) : null}
-                                        {interrupted ? (
-                                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
-                                            中断中
-                                          </span>
-                                        ) : null}
-                                        <Link
-                                          className="btn-secondary !px-3 !py-1.5 !text-xs"
-                                          to={
-                                            completedSessionId
-                                              ? `/history/${completedSessionId}`
-                                              : `/scenario?scenarioId=${scenario.id}&restart=1`
-                                          }
-                                        >
-                                          {completed ? "詳細" : interrupted ? "再開" : "開始"}
-                                        </Link>
-                                      </div>
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-6 reveal" style={revealDelay(360)}>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Next Milestones</p>
-          <h2 className="font-display text-xl text-slate-900 sm:text-2xl">Coming Soon</h2>
-          <p className="text-sm text-slate-600">今後ロードマップに追加予定のシナリオ</p>
-        </div>
-
-        <div className="space-y-6">
-          {comingSoonRoadmap.map((category, categoryIndex) => {
-            const hasNext = categoryIndex < comingSoonRoadmap.length - 1;
-            const palette = categoryPalettes[(roadmap.length + categoryIndex) % categoryPalettes.length];
-
-            return (
-              <article key={category.id} className="relative pl-12">
-                {hasNext ? (
-                  <div
-                    aria-hidden="true"
-                    className={`absolute left-[1.05rem] top-10 h-[calc(100%+1.5rem)] w-px ${palette.timeline}`}
-                  />
-                ) : null}
-
-                <div
-                  className={`absolute left-0 top-5 flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${palette.stepBadge}`}
-                >
-                  {category.stepNumber}
-                </div>
-
-                <div className={`card space-y-4 border p-5 sm:p-6 ${palette.cardSurface}`}>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${palette.stageLabel}`}>
-                        {category.stage.role}
-                      </p>
-                      <h3 className="font-display text-xl text-slate-900">{category.title}</h3>
-                      <p className="text-sm text-slate-600">{category.stage.goal}</p>
+                        );
+                      })}
                     </div>
-                    <div className={`rounded-xl border px-3 py-2 text-right ${palette.metricPill}`}>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">公開予定</p>
-                      <p className="text-lg font-semibold text-slate-900 tabular-nums">{category.totalCount} 件</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {category.subcategories.map((subcategory, subcategoryIndex) => {
-                      const tone = milestoneTones[(roadmap.length + categoryIndex + subcategoryIndex) % milestoneTones.length];
-                      return (
-                        <div key={subcategory.id} className="space-y-2">
-                          <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${palette.subcategoryLabel}`}>
-                            {subcategory.title}
-                          </p>
-                          <ul className="space-y-2">
-                            {subcategory.scenarios.map((scenario) => (
-                              <li key={scenario.id} className={`rounded-xl border px-3 py-3 transition sm:px-4 ${palette.incompleteScenario}`}>
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
-                                    <p className="text-xs text-slate-600">{scenario.description}</p>
-                                  </div>
-                                  <span
-                                    className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.chipIdle}`}
-                                  >
-                                    Soon
-                                  </span>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  ) : null}
                 </div>
               </article>
             );

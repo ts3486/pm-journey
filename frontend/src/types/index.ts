@@ -64,6 +64,7 @@ export type ScenarioBehavior = {
   responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
   phase?: string;
   singleResponse?: boolean;
+  agentResponseEnabled?: boolean;
 };
 
 export type ScenarioSummary = {
@@ -164,6 +165,7 @@ export type Scenario = {
   };
   mode: string;
   kickoffPrompt: string;
+  agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];

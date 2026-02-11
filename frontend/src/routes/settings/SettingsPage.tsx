@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState, type TextareaHTMLAttributes } from "react";
-import ReactMarkdown from "react-markdown";
+import {
+  buildPromptFromSections,
+  createEmptyPromptSections,
+  getBaselinePrompt,
+  getInitialSections,
+  normalizePrompt,
+  promptSectionConfigs,
+  type PromptSectionKey,
+  type PromptSections,
+} from "@/lib/productPromptSections";
 import { useProductConfig, useResetProductConfig, useUpdateProductConfig } from "@/queries/productConfig";
 import { invalidateProductPromptCache } from "@/services/sessions";
 import type { ProductConfig, UpdateProductConfigRequest } from "@/types";
-
-const promptVariables = [
-  { token: "{{scenarioTitle}}", description: "シナリオ名" },
-  { token: "{{scenarioDescription}}", description: "シナリオの説明文" },
-  { token: "{{scenarioDiscipline}}", description: "シナリオ種別 (BASIC/CHALLENGE)" },
-  { token: "{{productName}}", description: "プロダクト名" },
-  { token: "{{productSummary}}", description: "プロダクト概要" },
-  { token: "{{productAudience}}", description: "想定ユーザー" },
-];
 
 const buildUpdatePayload = (
   config: ProductConfig,
@@ -32,189 +32,6 @@ const buildUpdatePayload = (
   coreFeatures: config.coreFeatures ?? [],
   ...overrides,
 });
-
-type PromptSectionKey =
-  | "context"
-  | "usersAndProblems"
-  | "goalsAndSuccess"
-  | "scopeAndFeatures"
-  | "constraintsAndTimeline"
-  | "differentiation";
-
-type PromptSections = Record<PromptSectionKey, string>;
-
-type PromptSectionConfig = {
-  key: PromptSectionKey;
-  heading: string;
-  label: string;
-  hint: string;
-  placeholder: string;
-  aliases: string[];
-};
-
-const promptSectionConfigs: PromptSectionConfig[] = [
-  {
-    key: "context",
-    heading: "プロジェクト背景",
-    label: "1. プロジェクト背景",
-    hint: "product.name / product.summary / product.audience の前提をここにまとめます。",
-    placeholder: "- このプロダクトが解く領域\n- 主な対象ユーザー\n- 今回の文脈",
-    aliases: ["プロジェクトコンテキスト", "背景", "Project Context"],
-  },
-  {
-    key: "usersAndProblems",
-    heading: "対象ユーザーと課題",
-    label: "2. 対象ユーザーと課題",
-    hint: "product.audience / product.problems に対応する内容を書きます。",
-    placeholder: "- 誰のどの課題が中心か\n- いま困っている業務や状況",
-    aliases: ["ターゲットと課題", "Users & Problems"],
-  },
-  {
-    key: "goalsAndSuccess",
-    heading: "目標と成功条件",
-    label: "3. 目標と成功条件",
-    hint: "product.goals / product.successCriteria を中心に記載します。",
-    placeholder: "- 何を達成したいか\n- 成功をどう判断するか",
-    aliases: ["ゴールと成功条件", "Goals & Success"],
-  },
-  {
-    key: "scopeAndFeatures",
-    heading: "スコープと主要機能",
-    label: "4. スコープと主要機能",
-    hint: "product.scope / product.coreFeatures をざっくり整理します。",
-    placeholder: "- 今回扱う範囲\n- 重要な機能や観点",
-    aliases: ["範囲と機能", "Scope & Features"],
-  },
-  {
-    key: "constraintsAndTimeline",
-    heading: "制約とタイムライン",
-    label: "5. 制約とタイムライン",
-    hint: "product.constraints / product.timeline を簡潔に書きます。",
-    placeholder: "- 守るべき制約\n- 期限やマイルストーン",
-    aliases: ["制約とスケジュール", "Constraints & Timeline"],
-  },
-  {
-    key: "differentiation",
-    heading: "差別化ポイントと補足",
-    label: "6. 差別化ポイントと補足",
-    hint: "product.differentiators / product.uniqueEdge + 追加メモを記載します。",
-    placeholder: "- 競合との差別化\n- 議論で重視したい追加情報",
-    aliases: ["差別化要素", "補足", "Differentiation & Notes", "追加メモ"],
-  },
-];
-
-const createEmptyPromptSections = (): PromptSections => ({
-  context: "",
-  usersAndProblems: "",
-  goalsAndSuccess: "",
-  scopeAndFeatures: "",
-  constraintsAndTimeline: "",
-  differentiation: "",
-});
-
-const normalizePrompt = (value?: string) => (value ?? "").trim();
-
-const resolveSectionKey = (heading: string): PromptSectionKey | undefined => {
-  const normalizedHeading = heading.trim().toLowerCase();
-  return promptSectionConfigs.find(
-    (section) =>
-      section.heading.toLowerCase() === normalizedHeading ||
-      section.aliases.some((alias) => alias.toLowerCase() === normalizedHeading)
-  )?.key;
-};
-
-const parsePromptSections = (prompt: string): PromptSections => {
-  const sections = createEmptyPromptSections();
-  const buckets: Record<PromptSectionKey, string[]> = {
-    context: [],
-    usersAndProblems: [],
-    goalsAndSuccess: [],
-    scopeAndFeatures: [],
-    constraintsAndTimeline: [],
-    differentiation: [],
-  };
-  const fallbackLines: string[] = [];
-  let currentSection: PromptSectionKey | null = null;
-
-  for (const line of prompt.split(/\r?\n/)) {
-    const headingMatch = line.match(/^##\s+(.+?)\s*$/);
-    if (headingMatch) {
-      const nextSection = resolveSectionKey(headingMatch[1]);
-      if (nextSection) {
-        currentSection = nextSection;
-        continue;
-      }
-      currentSection = null;
-      fallbackLines.push(line);
-      continue;
-    }
-
-    if (currentSection) {
-      buckets[currentSection].push(line);
-      continue;
-    }
-    fallbackLines.push(line);
-  }
-
-  for (const section of promptSectionConfigs) {
-    sections[section.key] = buckets[section.key].join("\n").trim();
-  }
-
-  const fallback = fallbackLines.join("\n").trim();
-  if (fallback) {
-    sections.differentiation = sections.differentiation
-      ? `${sections.differentiation}\n\n${fallback}`.trim()
-      : fallback;
-  }
-
-  return sections;
-};
-
-const buildPromptFromSections = (sections: PromptSections): string =>
-  promptSectionConfigs
-    .map((section) => {
-      const body = sections[section.key].trim();
-      if (!body) return null;
-      return `## ${section.heading}\n${body}`;
-    })
-    .filter((section): section is string => Boolean(section))
-    .join("\n\n");
-
-const listToBullets = (items: string[]) => items.filter((item) => item.trim().length > 0).map((item) => `- ${item}`).join("\n");
-
-const buildDefaultSectionsFromConfig = (config: ProductConfig): PromptSections => ({
-  context: [`- プロダクト名: ${config.name}`, `- 概要: ${config.summary}`].join("\n"),
-  usersAndProblems: [`- 対象ユーザー: ${config.audience}`, listToBullets(config.problems)].filter(Boolean).join("\n"),
-  goalsAndSuccess: [listToBullets(config.goals), listToBullets(config.successCriteria)].filter(Boolean).join("\n"),
-  scopeAndFeatures: [listToBullets(config.scope), listToBullets(config.coreFeatures)].filter(Boolean).join("\n"),
-  constraintsAndTimeline: [
-    config.timeline?.trim() ? `- タイムライン: ${config.timeline}` : "",
-    listToBullets(config.constraints),
-  ]
-    .filter(Boolean)
-    .join("\n"),
-  differentiation: [
-    listToBullets(config.differentiators),
-    config.uniqueEdge?.trim() ? `- ユニークポイント: ${config.uniqueEdge}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n"),
-});
-
-const getInitialSections = (config: ProductConfig): PromptSections => {
-  const savedPrompt = config.productPrompt?.trim();
-  if (savedPrompt) {
-    return parsePromptSections(savedPrompt);
-  }
-  return buildDefaultSectionsFromConfig(config);
-};
-
-const getBaselinePrompt = (config?: ProductConfig): string => {
-  if (!config) return "";
-  const savedPrompt = config.productPrompt?.trim();
-  if (savedPrompt) return savedPrompt;
-  return buildPromptFromSections(buildDefaultSectionsFromConfig(config)).trim();
-};
 
 export function SettingsPage() {
   const { data, isLoading, isError, error } = useProductConfig();

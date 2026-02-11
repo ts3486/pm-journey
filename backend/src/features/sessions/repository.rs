@@ -183,6 +183,23 @@ impl SessionRepository {
         Ok(())
     }
 
+    pub async fn update_mission_status_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        id: &str,
+        mission_status: &Option<Vec<MissionStatus>>,
+    ) -> Result<()> {
+        let mission_status_value = serde_json::to_value(mission_status)?;
+        sqlx::query("UPDATE sessions SET mission_status = $2 WHERE id = $1")
+            .bind(id)
+            .bind(mission_status_value)
+        .execute(&mut **tx)
+        .await
+        .context("Failed to update mission_status")?;
+
+        Ok(())
+    }
+
     fn map_row(r: PgRow) -> Session {
         let status = match r.get::<String, _>("status").as_str() {
             "active" => SessionStatus::Active,

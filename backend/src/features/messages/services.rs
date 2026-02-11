@@ -1,10 +1,13 @@
 use reqwest::Client;
+use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 
 use crate::error::{anyhow_error, AppError};
 use crate::features::sessions::repository::SessionRepository;
-use crate::models::{default_scenarios, Message, MessageRole, MessageTag, ScenarioType};
+use crate::models::{
+    default_scenarios, Message, MessageRole, MessageTag, Mission, MissionStatus, ScenarioType,
+};
 use crate::shared::helpers::{next_id, normalize_model_id, now_ts, verify_session_ownership};
 
 use super::models::{AgentContext, CreateMessageRequest, MessageResponse};
@@ -19,6 +22,193 @@ fn single_turn_completion_message(title: Option<&str>) -> String {
         "{}はこれで終了です。右側の「シナリオを完了する」ボタンから評価を依頼してください。",
         intro
     )
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MissionCompletionOutput {
+    completed_mission_ids: Vec<String>,
+}
+
+fn extract_json_value(text: &str) -> Option<serde_json::Value> {
+    let trimmed = text.trim();
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
+        return Some(value);
+    }
+    for (start, _) in trimmed.match_indices('{') {
+        let slice = &trimmed[start..];
+        let mut de = serde_json::Deserializer::from_str(slice);
+        if let Ok(value) = serde_json::Value::deserialize(&mut de) {
+            return Some(value);
+        }
+    }
+    None
+}
+
+async fn infer_completed_mission_ids(
+    context: &AgentContext,
+    latest_user_message: &str,
+    missions: &[Mission],
+) -> Result<Vec<String>, AppError> {
+    if missions.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let gemini_key = std::env::var("GEMINI_API_KEY")
+        .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
+        .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
+
+    let default_model = std::env::var("GEMINI_DEFAULT_MODEL")
+        .unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
+    let model_id = normalize_model_id(
+        context
+            .model_id
+            .as_deref()
+            .unwrap_or(default_model.as_str()),
+    );
+
+    let mission_lines = missions
+        .iter()
+        .map(|mission| {
+            let description = mission.description.as_deref().unwrap_or("なし");
+            format!(
+                "- id: {} / title: {} / description: {}",
+                mission.id, mission.title, description
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let system_instruction = [
+        "あなたはミッション達成判定アシスタントです。",
+        "ユーザーの最新回答のみを読んで、達成できたミッションIDだけを返してください。",
+        "保守的に判定し、明確に達成していないミッションは含めないでください。",
+        "出力はJSONのみで、形式は {\"completedMissionIds\":[\"...\"]} としてください。",
+    ]
+    .join("\n");
+
+    let input_text = format!(
+        "## ミッション一覧\n{}\n\n## ユーザー最新回答\n{}",
+        mission_lines, latest_user_message
+    );
+
+    let payload = json!({
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{ "text": input_text }]
+            }
+        ],
+        "systemInstruction": { "parts": [{ "text": system_instruction }] },
+        "generationConfig": {
+            "temperature": 0,
+            "maxOutputTokens": 256,
+            "responseMimeType": "application/json"
+        }
+    });
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        model_id, gemini_key
+    );
+
+    let client = Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| anyhow_error(format!("Gemini mission completion check failed: {}", e)))?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+        return Err(anyhow_error(format!(
+            "Gemini mission completion API error {}: {}",
+            status, text
+        )));
+    }
+
+    let data: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| anyhow_error(format!("Failed to parse mission completion response: {}", e)))?;
+
+    let reply_text = data
+        .get("candidates")
+        .and_then(|v| v.get(0))
+        .and_then(|v| v.get("content"))
+        .and_then(|v| v.get("parts"))
+        .and_then(|v| v.as_array())
+        .map(|parts| {
+            parts
+                .iter()
+                .filter_map(|p| p.get("text").and_then(|t| t.as_str()))
+                .collect::<Vec<_>>()
+                .join("")
+                .trim()
+                .to_string()
+        })
+        .unwrap_or_default();
+
+    let json_value = extract_json_value(&reply_text)
+        .ok_or_else(|| anyhow_error("Mission completion output was not valid JSON"))?;
+    let output: MissionCompletionOutput = serde_json::from_value(json_value)
+        .map_err(|e| anyhow_error(format!("Failed to decode mission completion JSON: {}", e)))?;
+
+    let known_ids = missions
+        .iter()
+        .map(|mission| mission.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let mut unique = std::collections::HashSet::new();
+    let filtered = output
+        .completed_mission_ids
+        .into_iter()
+        .filter(|id| known_ids.contains(id.as_str()))
+        .filter(|id| unique.insert(id.clone()))
+        .collect::<Vec<_>>();
+
+    Ok(filtered)
+}
+
+fn merge_completed_missions(
+    existing: Option<Vec<MissionStatus>>,
+    completed_ids: &[String],
+) -> (Option<Vec<MissionStatus>>, bool) {
+    if completed_ids.is_empty() {
+        return (existing, false);
+    }
+
+    let mut mission_status = existing.unwrap_or_default();
+    let mut changed = false;
+    let completed_at = now_ts();
+
+    for mission_id in completed_ids {
+        if let Some(entry) = mission_status
+            .iter_mut()
+            .find(|entry| entry.mission_id == *mission_id)
+        {
+            if entry.completed_at.is_none() {
+                entry.completed_at = Some(completed_at.clone());
+                changed = true;
+            }
+            continue;
+        }
+        mission_status.push(MissionStatus {
+            mission_id: mission_id.clone(),
+            completed_at: Some(completed_at.clone()),
+        });
+        changed = true;
+    }
+
+    let next = if mission_status.is_empty() {
+        None
+    } else {
+        Some(mission_status)
+    };
+
+    (next, changed)
 }
 
 #[derive(Clone)]
@@ -70,10 +260,14 @@ impl MessageService {
             .ok_or_else(|| anyhow_error("session not found"))?;
 
         let is_user = body.role == MessageRole::User;
-        let scenario_type = default_scenarios()
+        let scenario = default_scenarios()
             .into_iter()
-            .find(|s| s.id == session.scenario_id)
-            .and_then(|s| s.scenario_type);
+            .find(|s| s.id == session.scenario_id);
+        let scenario_type = scenario.as_ref().and_then(|s| s.scenario_type.clone());
+        let scenario_missions = scenario
+            .as_ref()
+            .and_then(|s| s.missions.clone())
+            .unwrap_or_default();
 
         // Create message
         let message = Message {
@@ -93,6 +287,10 @@ impl MessageService {
         // Update session
         if let Some(ms) = body.mission_status {
             session.mission_status = Some(ms);
+            session_repo
+                .update_mission_status_in_tx(&mut tx, session_id, &session.mission_status)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to update mission status: {}", e)))?;
         }
         session.last_activity_at = now_ts();
         session_repo
@@ -111,48 +309,24 @@ impl MessageService {
                 .agent_context
                 .as_ref()
                 .ok_or_else(|| anyhow_error("agentContext is required for user messages"))?;
+            let agent_response_enabled = context
+                .behavior
+                .as_ref()
+                .and_then(|b| b.agent_response_enabled)
+                .unwrap_or(true);
             let behavior_single_response = context
                 .behavior
                 .as_ref()
                 .and_then(|b| b.single_response)
                 .unwrap_or(false);
-            let skip_agent_reply =
-                behavior_single_response || matches!(scenario_type, Some(ScenarioType::Basic));
+            let is_basic_scenario = matches!(scenario_type, Some(ScenarioType::Basic));
+            let should_append_completion_message = behavior_single_response || is_basic_scenario;
 
-            if skip_agent_reply {
-                let closing_content =
-                    single_turn_completion_message(context.scenario_title.as_deref());
-                let system_message = Message {
-                    id: next_id("msg"),
-                    session_id: session_id.to_string(),
-                    role: MessageRole::System,
-                    content: closing_content,
-                    created_at: now_ts(),
-                    tags: Some(vec![MessageTag::Summary]),
-                    queued_offline: None,
-                };
+            let mut reply_tx = self.pool.begin().await.map_err(|e| {
+                anyhow_error(&format!("Failed to begin reply transaction: {}", e))
+            })?;
 
-                let mut reply_tx = self.pool.begin().await.map_err(|e| {
-                    anyhow_error(&format!("Failed to begin reply transaction: {}", e))
-                })?;
-                message_repo
-                    .create_in_tx(&mut reply_tx, &system_message)
-                    .await
-                    .map_err(|e| {
-                        anyhow_error(&format!("Failed to create system message: {}", e))
-                    })?;
-                session_repo
-                    .update_last_activity_in_tx(&mut reply_tx, session_id)
-                    .await
-                    .map_err(|e| {
-                        anyhow_error(&format!("Failed to update session activity: {}", e))
-                    })?;
-                reply_tx.commit().await.map_err(|e| {
-                    anyhow_error(&format!("Failed to commit reply transaction: {}", e))
-                })?;
-
-                reply = system_message;
-            } else {
+            if agent_response_enabled {
                 let history = message_repo
                     .list_by_session(session_id)
                     .await
@@ -169,25 +343,66 @@ impl MessageService {
                     queued_offline: None,
                 };
 
-                let mut reply_tx = self.pool.begin().await.map_err(|e| {
-                    anyhow_error(&format!("Failed to begin reply transaction: {}", e))
-                })?;
                 message_repo
                     .create_in_tx(&mut reply_tx, &agent_message)
                     .await
                     .map_err(|e| anyhow_error(&format!("Failed to create agent message: {}", e)))?;
-                session_repo
-                    .update_last_activity_in_tx(&mut reply_tx, session_id)
-                    .await
-                    .map_err(|e| {
-                        anyhow_error(&format!("Failed to update session activity: {}", e))
-                    })?;
-                reply_tx.commit().await.map_err(|e| {
-                    anyhow_error(&format!("Failed to commit reply transaction: {}", e))
-                })?;
-
                 reply = agent_message;
             }
+
+            if should_append_completion_message {
+                let closing_content =
+                    single_turn_completion_message(context.scenario_title.as_deref());
+                let system_message = Message {
+                    id: next_id("msg"),
+                    session_id: session_id.to_string(),
+                    role: MessageRole::System,
+                    content: closing_content,
+                    created_at: now_ts(),
+                    tags: Some(vec![MessageTag::Summary]),
+                    queued_offline: None,
+                };
+                message_repo
+                    .create_in_tx(&mut reply_tx, &system_message)
+                    .await
+                    .map_err(|e| anyhow_error(&format!("Failed to create system message: {}", e)))?;
+                if !agent_response_enabled {
+                    reply = system_message;
+                }
+            }
+
+            if is_basic_scenario && !scenario_missions.is_empty() {
+                if let Ok(completed_ids) =
+                    infer_completed_mission_ids(context, &message.content, &scenario_missions).await
+                {
+                    let (next_status, changed) =
+                        merge_completed_missions(session.mission_status.clone(), &completed_ids);
+                    if changed {
+                        session.mission_status = next_status;
+                        session_repo
+                            .update_mission_status_in_tx(
+                                &mut reply_tx,
+                                session_id,
+                                &session.mission_status,
+                            )
+                            .await
+                            .map_err(|e| {
+                                anyhow_error(&format!(
+                                    "Failed to persist auto mission completion: {}",
+                                    e
+                                ))
+                            })?;
+                    }
+                }
+            }
+
+            session_repo
+                .update_last_activity_in_tx(&mut reply_tx, session_id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to update session activity: {}", e)))?;
+            reply_tx.commit().await.map_err(|e| {
+                anyhow_error(&format!("Failed to commit reply transaction: {}", e))
+            })?;
         }
 
         // Fetch updated session
@@ -221,6 +436,12 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
         sections.push(scenario_lines.join("\n"));
     }
 
+    if let Some(tone_prompt) = &ctx.tone_prompt {
+        if !tone_prompt.trim().is_empty() {
+            sections.push(format!("## 会話トーン\n{}", tone_prompt));
+        }
+    }
+
     if let Some(product_context) = &ctx.product_context {
         sections.push(product_context.clone());
     }
@@ -230,11 +451,7 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
 
         if behavior.single_response.unwrap_or(false) {
             behavior_lines.push("- これは1回応答のシナリオです".to_string());
-            behavior_lines.push(
-                "- ユーザーの回答を受け取ったら、簡潔に内容を確認し、シナリオ終了を伝えてください"
-                    .to_string(),
-            );
-            behavior_lines.push("- 回答の最後に必ず「以上でこのシナリオは終了です。右側の「シナリオを完了する」ボタンから評価を受けてください。」と伝えてください".to_string());
+            behavior_lines.push("- ユーザーの入力意図を汲んで、実務的な返答を短く返す".to_string());
             behavior_lines.push("- 追加の質問はしない".to_string());
         } else if behavior.user_led.unwrap_or(false) {
             behavior_lines.push("- ユーザー主導：こちらから議題を進めない".to_string());
@@ -283,6 +500,7 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
         .as_ref()
         .map(|b| {
             b.user_led.unwrap_or(false)
+                || b.single_response.unwrap_or(false)
                 || b.response_style.as_deref() == Some("acknowledge_then_wait")
                 || b.max_questions == Some(0)
         })

@@ -10,7 +10,6 @@ import type {
   ProductConfig,
   ProgressFlags,
   Scenario,
-  ScenarioDiscipline,
   Session,
 } from "@/types";
 
@@ -42,6 +41,24 @@ const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
       tags: ["summary"],
     },
   ];
+};
+
+const seededMessagesForBasicScenario = async (sessionId: string, scenario: Scenario): Promise<Message[]> => {
+  const messages: Message[] = [];
+  const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
+  const systemKickoff = scenario.kickoffPrompt?.trim();
+  const agentOpening = agentResponseEnabled ? scenario.agentOpeningMessage?.trim() : undefined;
+
+  if (systemKickoff) {
+    const posted = await api.postMessage(sessionId, "system", systemKickoff, ["summary"]);
+    messages.push(posted.reply);
+  }
+  if (agentOpening) {
+    const posted = await api.postMessage(sessionId, "agent", agentOpening, ["summary"]);
+    messages.push(posted.reply);
+  }
+
+  return messages;
 };
 
 export type SessionSnapshot = {
@@ -103,8 +120,12 @@ const renderPromptTemplate = (
 };
 
 const buildScenarioContext = (scenario: Scenario) => {
+  const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
   const lines = [
-    scenario.kickoffPrompt ? `- キックオフ: ${scenario.kickoffPrompt}` : "",
+    scenario.kickoffPrompt ? `- システム案内: ${scenario.kickoffPrompt}` : "",
+    scenario.agentOpeningMessage && agentResponseEnabled
+      ? `- 会話相手の初回発話: ${scenario.agentOpeningMessage}`
+      : "",
     scenario.supplementalInfo ? `- 補足情報: ${scenario.supplementalInfo}` : "",
   ].filter((line) => line.length > 0);
   if (scenario.missions?.length) {
@@ -147,18 +168,17 @@ const formatProductContext = (scenario: Scenario, productConfig?: ProductConfig)
   return sections.join("\n");
 };
 
-export async function startSession(
-  scenarioId: string,
-  scenarioDiscipline?: ScenarioDiscipline,
-  kickoffPrompt?: string,
-): Promise<SessionState> {
-  let session = await api.createSession(scenarioId);
+export async function startSession(scenario: Scenario): Promise<SessionState> {
+  let session = await api.createSession(scenario.id);
   session = {
     ...session,
-    scenarioDiscipline: session.scenarioDiscipline ?? scenarioDiscipline,
+    scenarioDiscipline: session.scenarioDiscipline ?? scenario.discipline,
   };
-  const messages = kickoffMessage(session.id, kickoffPrompt);
-  storage.setLastSession(session.id, scenarioId);
+  const messages =
+    scenario.scenarioType === "basic"
+      ? await seededMessagesForBasicScenario(session.id, scenario)
+      : kickoffMessage(session.id, scenario.kickoffPrompt);
+  storage.setLastSession(session.id, scenario.id);
   return { session, messages, evaluation: undefined, history: [], loading: false };
 }
 
@@ -226,6 +246,7 @@ export async function sendMessage(
     role === "user" && scenario
       ? {
           systemPrompt: profile.systemPrompt,
+          tonePrompt: profile.tonePrompt,
           modelId: profile.modelId,
           scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
           scenarioTitle: scenario.title,
@@ -245,13 +266,16 @@ export async function sendMessage(
   );
   const reply = apiMessage.reply;
   session.missionStatus = apiMessage.session.missionStatus;
-
-  if (reply) {
-    messages.push(reply);
-  }
+  const nextMessages =
+    scenario?.scenarioType === "basic"
+      ? await api.listMessages(session.id)
+      : (() => {
+          if (reply && reply.role !== "user") messages.push(reply);
+          return messages;
+        })();
 
   storage.setLastSession(session.id, session.scenarioId);
-  return { ...state, session, messages };
+  return { ...state, session, messages: nextMessages };
 }
 
 export async function evaluate(state: SessionState): Promise<SessionState> {

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { defaultScenario, getScenarioById } from "@/config";
 import type { Scenario } from "@/types";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
-import { useProductConfig } from "@/queries/productConfig";
 import {
   createLocalMessage,
   resetSession,
@@ -17,45 +17,14 @@ import {
 } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
 
-const truncateText = (value: string, maxLength: number) => {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength).trimEnd()}…`;
-};
-
-const takeUnique = (values: string[], limit: number) => {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  values.forEach((value) => {
-    const normalized = value.trim();
-    if (!normalized || seen.has(normalized) || result.length >= limit) return;
-    seen.add(normalized);
-    result.push(normalized);
-  });
-  return result;
-};
-
-const extractPromptHighlights = (prompt?: string, limit = 3) => {
-  if (!prompt) return [];
-  const lines = prompt
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("#"))
-    .map((line) => line.replace(/^[-*+]\s+/, "").replace(/^\d+[.)]\s+/, "").replace(/^>\s*/, ""))
-    .filter((line) => line.length > 8)
-    .map((line) => truncateText(line, 84));
-  return takeUnique(lines, limit);
-};
-
 export function ScenarioPage() {
   const [state, setState] = useState<SessionState | null>(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
+  const pendingInitialReplyTimeout = useRef<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const restart = searchParams.get("restart") === "1";
   const scenarioIdParam = searchParams.get("scenarioId");
-  const { data: productConfig } = useProductConfig();
-  const productPrompt = productConfig?.productPrompt?.trim();
 
   const activeScenario = useMemo<Scenario>(() => {
     if (scenarioIdParam) return getScenarioById(scenarioIdParam) ?? defaultScenario;
@@ -64,6 +33,7 @@ export function ScenarioPage() {
   }, [scenarioIdParam, state?.session?.scenarioId]);
 
   const hasActive = Boolean(state?.session);
+  const messages = state?.messages ?? [];
   const missions = activeScenario.missions ?? [];
   const missionStatusMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -71,16 +41,63 @@ export function ScenarioPage() {
     return map;
   }, [state?.session?.missionStatus]);
   const isBasicScenario = activeScenario.scenarioType === "basic";
-  const hasUserResponse = (state?.messages ?? []).some((message) => message.role === "user");
-  const canCompleteScenario = hasActive && hasUserResponse;
-  const scenarioLocked = isBasicScenario && hasUserResponse;
+  const agentResponseEnabled = activeScenario.behavior?.agentResponseEnabled ?? true;
+  const firstUserMessageIndex = messages.findIndex((message) => message.role === "user");
+  const hasUserResponse = firstUserMessageIndex >= 0;
+  const postUserMessages = firstUserMessageIndex >= 0 ? messages.slice(firstUserMessageIndex + 1) : [];
+  const hasAgentResponseAfterUser = postUserMessages.some((message) => message.role === "agent");
+  const hasSystemEndMessageAfterUser = postUserMessages.some((message) => message.role === "system");
+  const basicScenarioEnded =
+    isBasicScenario &&
+    hasSystemEndMessageAfterUser &&
+    (!agentResponseEnabled || hasAgentResponseAfterUser);
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
-  const promptHighlights = useMemo(() => extractPromptHighlights(productPrompt, 3), [productPrompt]);
-  const hasScenarioInfo = promptHighlights.length > 0;
+  const requiresMissionCompletion = missions.length > 0;
+  const canCompleteScenario =
+    hasActive &&
+    hasUserResponse &&
+    (!requiresMissionCompletion || allMissionsComplete) &&
+    (!isBasicScenario || basicScenarioEnded);
+  const scenarioLocked = isBasicScenario && basicScenarioEnded;
+
+  const clearPendingInitialReply = () => {
+    if (pendingInitialReplyTimeout.current !== null) {
+      window.clearTimeout(pendingInitialReplyTimeout.current);
+      pendingInitialReplyTimeout.current = null;
+    }
+  };
 
   const handleStart = async (scenario = activeScenario) => {
-    const snapshot = await startSession(scenario.id, scenario.discipline, scenario.kickoffPrompt);
-    setState({ ...snapshot, session: { ...snapshot.session, scenarioDiscipline: scenario.discipline } });
+    clearPendingInitialReply();
+    setAwaitingReply(false);
+    const snapshot = await startSession(scenario);
+    const seededState = {
+      ...snapshot,
+      session: { ...snapshot.session, scenarioDiscipline: scenario.discipline },
+    };
+    const isBasic = scenario.scenarioType === "basic";
+    const kickoff = snapshot.messages[0];
+    const opening = snapshot.messages[1];
+    const shouldDelayInitialOpening = isBasic && kickoff?.role === "system" && opening?.role === "agent";
+
+    if (shouldDelayInitialOpening) {
+      const initialMessages = snapshot.messages.filter((message) => message.id !== opening.id);
+      setState({ ...seededState, messages: initialMessages });
+      setAwaitingReply(true);
+      const delayMs = Math.floor(700 + Math.random() * 500);
+      pendingInitialReplyTimeout.current = window.setTimeout(() => {
+        setState((current) => {
+          if (!current || current.session.id !== seededState.session.id) return current;
+          const alreadyDisplayed = current.messages.some((message) => message.id === opening.id);
+          if (alreadyDisplayed) return current;
+          return { ...current, messages: [...current.messages, opening] };
+        });
+        setAwaitingReply(false);
+        pendingInitialReplyTimeout.current = null;
+      }, delayMs);
+    } else {
+      setState(seededState);
+    }
     logEvent({
       type: "session_start",
       sessionId: snapshot.session.id,
@@ -93,8 +110,10 @@ export function ScenarioPage() {
     if (!state?.session) return;
     const confirmed = window.confirm("このシナリオのセッションを終了して新しく始めますか？");
     if (!confirmed) return;
+    clearPendingInitialReply();
     await resetSession(state.session.id, state.session.scenarioId);
     setState(null);
+    setAwaitingReply(false);
     logEvent({
       type: "session_reset",
       sessionId: state.session.id,
@@ -169,13 +188,20 @@ export function ScenarioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioIdParam, restart]);
 
+  useEffect(() => {
+    return () => {
+      if (pendingInitialReplyTimeout.current !== null) {
+        window.clearTimeout(pendingInitialReplyTimeout.current);
+        pendingInitialReplyTimeout.current = null;
+      }
+    };
+  }, []);
+
   if (activeScenario.scenarioType === "test-case") {
     return (
       <TestCaseScenarioLayout
         scenario={activeScenario}
         state={state}
-        awaitingReply={awaitingReply}
-        onSend={handleSend}
         onComplete={handleCompleteScenario}
         onReset={handleReset}
       />
@@ -192,7 +218,7 @@ export function ScenarioPage() {
                 {activeScenario.discipline} Scenario
               </p>
               <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
-              <p className="max-w-2xl text-sm text-slate-600">{activeScenario.description}</p>
+              <p className="text-sm text-slate-600">{activeScenario.description}</p>
             </div>
           </div>
         </div>
@@ -202,7 +228,7 @@ export function ScenarioPage() {
           <ChatStream messages={state?.messages ?? []} maxHeight="60vh" isTyping={awaitingReply} />
           <ChatComposer
             onSend={handleSend}
-            disabled={!hasActive || scenarioLocked}
+            disabled={!hasActive || scenarioLocked || awaitingReply}
           />
           {scenarioLocked ? (
             <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
@@ -267,32 +293,21 @@ export function ScenarioPage() {
                 シナリオを完了する
               </button>
             </div>
-            {!canCompleteScenario ? (
+            {!hasUserResponse ? (
               <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
             ) : null}
+            {hasUserResponse && isBasicScenario && !basicScenarioEnded ? (
+              <p className="mt-2 text-xs text-slate-500">
+                エージェントの返答とシナリオ終了メッセージの表示を待ってから完了してください。
+              </p>
+            ) : null}
+            {hasUserResponse && requiresMissionCompletion && !allMissionsComplete ? (
+              <p className="mt-2 text-xs text-slate-500">
+                エージェントがミッション達成を判定すると自動でチェックされます。必要であれば手動でチェックして完了できます。
+              </p>
+            ) : null}
           </div>
-          {hasScenarioInfo ? (
-            <div className="card space-y-3 p-4">
-              {promptHighlights.length > 0 ? (
-                <div className="rounded-xl border border-indigo-100/80 bg-indigo-50/70 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-                      プロジェクト概要
-                    </p>
-                  </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {promptHighlights.map((line) => (
-                      <li key={line} className="flex items-start gap-2 text-xs text-indigo-950/90">
-                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
-                        <span className="leading-relaxed">{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-            
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          <ProjectOverviewSection scenario={activeScenario} />
 
           {hasActive ? (
             <div className="flex justify-end">
