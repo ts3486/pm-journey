@@ -1,5 +1,5 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -8,14 +8,20 @@ type AuthGuardProps = {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { isLoading, isAuthenticated, loginWithRedirect, error } = useAuth0();
   const hasAttemptedRedirect = useRef(false);
+  const redirectToLogin = useCallback(() => {
+    if (hasAttemptedRedirect.current) return;
+    hasAttemptedRedirect.current = true;
+    void loginWithRedirect({
+      appState: {
+        returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      },
+    });
+  }, [loginWithRedirect]);
 
   useEffect(() => {
-    if (hasAttemptedRedirect.current) return;
     if (isLoading || isAuthenticated || error) return;
-
-    hasAttemptedRedirect.current = true;
-    void loginWithRedirect();
-  }, [isLoading, isAuthenticated, loginWithRedirect, error]);
+    redirectToLogin();
+  }, [isLoading, isAuthenticated, error, redirectToLogin]);
 
   if (error) {
     return (
@@ -43,10 +49,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) {
-    if (!hasAttemptedRedirect.current) {
-      hasAttemptedRedirect.current = true;
-      void loginWithRedirect();
-    }
+    redirectToLogin();
     return null;
   }
 

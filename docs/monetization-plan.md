@@ -1,171 +1,167 @@
-# pm-journey Monetization Plan
+# pm-journey Monetization Plan (Concrete v1)
 
-Last updated: February 8, 2026
+Last updated: February 11, 2026
 Owner: Product
-Status: Draft (ready for validation)
+Status: Proposed (ready for implementation planning)
 
-## 1) Objective
+## 1) Monetization Principles
 
-Build a monetization model that:
+- Keep free value high enough to prove product quality.
+- Protect AI gross margin with explicit usage controls.
+- Keep Individual simple (one-time purchase).
+- Price Team on business value (seats + collaboration + reporting).
 
-- Keeps first-session value high for PM learners
-- Covers AI inference + infrastructure costs
-- Converts engaged users into paid plans
-- Expands into team/coaching revenue without breaking the current product UX
+## 2) v1 Pricing Table (JPY/USD)
 
-## 2) Product Context (Current)
+Currency policy:
+- JPY is the billing currency for Japan.
+- USD is display-only reference using `1 USD = JPY 150` (refresh quarterly).
 
-pm-journey already has strong monetizable building blocks:
+| Plan | Billing model | Price (JPY) | Price (USD ref) | Target user |
+|---|---|---:|---:|---|
+| Free | No payment | ¥0 | $0 | New/curious learners |
+| Individual | One-time purchase | ¥14,800 | $99 | Serious solo learners |
+| Team | Subscription, per seat | ¥2,400 / seat / month (min 5 seats) | $16 / seat / month | PM teams and managers |
+| Team Annual | Subscription, per seat | ¥24,000 / seat / year | $160 / seat / year | Teams with annual budgets |
 
-- Scenario-based PM practice (BASIC + CHALLENGE flows)
-- Evaluation with category scores and improvement advice
-- Session history, filtering, and export
-- Optional API-backed mode for multi-device/team use
+Team plan minimum contract values:
+- Monthly: `¥12,000/month` minimum (5 seats).
+- Annual: `¥120,000/year` minimum (5 seats).
 
-These support both B2C (individual PM learners) and B2B (team training/coaching).
-
-## 3) Target Customers and Positioning
-
-### Primary (now): Individual PM learners
-
-- Job seekers preparing for PM interviews
-- Junior/mid PMs improving communication and decision quality
-
-Positioning: "Practice realistic PM conversations and get actionable scoring feedback."
-
-### Secondary (next): Team leads / PM managers
-
-- Managers who want repeatable PM communication training
-- Internal L&D teams
-
-Positioning: "Run structured PM drills and track improvement across the team."
-
-## 4) Pricing and Packaging Strategy
-
-Use a hybrid model: freemium + subscription + usage-based add-ons + team seats.
+## 3) Entitlements and Usage Limits (v1)
 
 ### Free Plan
 
-- Limited scenario runs per month (example: 5)
-- Limited advanced evaluations per month (example: 3)
-- Core history access
-- Goal: activation + trust before paywall
+- Account creation: Enabled
+- Scenario access:
+  - Basic (first 3): `basic-intro-alignment`, `basic-agenda-facilitation`, `basic-schedule-share`
+  - Test case (first 3): `test-login`, `test-form`, `test-file-upload`
+  - All other scenarios: Locked
+- AI review: `12 credits/month` (max `2/day`)
+- History retention: `30 days`
+- Team features (`上長コメント`, dashboard): Locked
 
-### Pro Plan (Individual)
+### Individual Plan (One-time)
 
-- Full scenario library (BASIC + CHALLENGE + new releases)
-- Unlimited history + advanced analytics
-- Priority evaluation queue / richer feedback depth
-- Export templates for portfolio/interview review
-- Price hypothesis:
-  - Monthly: USD 19-29
-  - Annual: USD 190-290 (about 2 months free equivalent)
+- Scenario access: All current and future individual scenarios unlocked
+- AI review: `240 lifetime credits` included (no expiry)
+- Team features (`上長コメント`, dashboard): Locked
+- Billing: one-time only, no recurring charge
 
-### Credit Packs (Add-on)
+### Team Plan (Seat Subscription)
 
-- One-time purchase for extra premium evaluations
-- For free users and Pro users with occasional spikes
-- Price hypothesis:
-  - 10 credits: USD 9-15
-  - 25 credits: USD 19-29
+- Scenario access: All scenarios unlocked for all active organization members
+- AI review pool: `80 credits / active seat / month` (org-shared pool)
+- Team collaboration: `上長コメント` unlocked
+- Team reporting:
+  - MVP: member-level completion + score trend dashboard
+  - Later: deeper competency analytics and custom exports
+- Seat management: invite/remove members, role-based manager/member permissions
 
-### Team Plan (B2B)
+### Add-on AI Credit Packs (All Paid Plans)
 
-- Shared dashboard, seat management, progress rollups
-- Reviewer/manager view + session QA workflows
-- Centralized billing
-- Price hypothesis:
-  - USD 15-30 per seat/month
-  - Minimum 5 seats
+| Pack | Price (JPY) | Price (USD ref) | Effective JPY/credit |
+|---|---:|---:|---:|
+| 30 credits | ¥1,500 | $10 | ¥50 |
+| 100 credits | ¥4,500 | $30 | ¥45 |
+| 250 credits | ¥9,800 | $65 | ¥39.2 |
 
-## 5) Conversion Design
+Rules:
+- Credit packs never expire.
+- Free plan cannot buy packs in v1 (keeps plan boundaries simple).
+- Team overage draws from purchased org packs.
 
-### Key Trigger Points
+## 4) Why This Structure Works
 
-- Allow one complete "wow" session for new users (full feedback visible)
-- Show paywall after clear value signal:
-  - User completed 2+ scenarios, or
-  - User revisits history/evaluation multiple times
+- Free supports activation with real value while keeping AI cost bounded.
+- Individual one-time avoids subscription friction for solo users.
+- Team subscription aligns with recurring team value and collaboration workflows.
+- Credit packs prevent AI-heavy users from compressing margin.
 
-### Paywall Messaging
+## 5) MVP Rollout Plan (12 Weeks)
 
-Lead with outcomes, not features:
+### Phase 0 (Weeks 1-2): Entitlement foundation
 
-- "Improve PM interview readiness with guided score improvement."
-- "Track your decision quality trend across sessions."
+- Add plan model: `FREE`, `INDIVIDUAL`, `TEAM`.
+- Add credit wallet model (monthly allowance + purchased credits).
+- Add server-side entitlement checks for:
+  - scenario access
+  - AI review execution
+  - team-only features
+- Add analytics events:
+  - `paywall_viewed`
+  - `plan_selected`
+  - `checkout_started`
+  - `checkout_completed`
+  - `scenario_locked_viewed`
+  - `ai_review_credit_exhausted`
 
-## 6) Retention Strategy
+Exit criteria:
+- Feature flag can switch each plan behavior on/off.
 
-- Weekly progress summary (score trend + weakest category + next recommended scenario)
-- Scenario recommendations based on prior weak categories
-- Streaks tied to skill consistency (not just daily login)
-- Milestones (e.g., 3 passed CHALLENGE scenarios) with shareable artifacts
+### Phase 1 (Weeks 3-5): Free + Individual launch
 
-## 7) 90-Day Execution Plan
+- Implement free scenario allowlist (exact 6 IDs above).
+- Implement Individual one-time checkout.
+- Implement AI credit deduction and balance UI.
+- Add paywall + plan comparison UI on locked scenario and exhausted credits.
 
-### Days 1-30: Launch paid foundation
+Exit criteria:
+- New users can upgrade to Individual and instantly unlock all scenarios.
 
-- Ship Free + Pro monthly/annual
-- Add usage counters and entitlement checks
-- Add billing-ready paywall copy and plan comparison UI
-- Instrument funnel analytics
+### Phase 2 (Weeks 6-8): Team beta
 
-### Days 31-60: Improve conversion and margins
+- Implement organization entity, membership, and roles.
+- Implement Team subscription with seat quantity.
+- Implement `上長コメント` visibility/permissions.
+- Release dashboard MVP (completion + average score trend per member).
+- Run with 3-5 pilot organizations.
 
-- A/B test price points (19 vs 24 vs 29)
-- A/B test paywall trigger timing
-- Launch credit packs
-- Tune evaluation depth by tier to protect AI margins
+Exit criteria:
+- Team admin can invite members and view team progress.
 
-### Days 61-90: Start team revenue
+### Phase 3 (Weeks 9-12): Pricing and conversion optimization
 
-- Pilot team plan with 3-5 design partners
-- Add team progress dashboard MVP
-- Define sales collateral and onboarding motion
+- A/B test paywall trigger timing:
+  - after first locked click vs after second locked click
+- A/B test Individual price point:
+  - `¥12,800` vs `¥14,800`
+- A/B test Team seat price:
+  - `¥2,200` vs `¥2,400`
+- Tune AI credit allowances based on margin and satisfaction.
 
-## 8) Metrics (North Star + Guardrails)
+Exit criteria:
+- Confirm launch prices for general availability.
 
-### Core Monetization Metrics
+## 6) Success Metrics and Guardrails
 
-- Activation rate: visitor -> first completed scenario
-- Free-to-paid conversion rate (7-day and 30-day)
-- ARPPU and MRR growth
-- 30/60/90-day paid retention
-- Team pilot conversion and seat expansion
+Primary metrics:
+- Free to Individual conversion (30-day): target `>= 4%`
+- Team trial to paid conversion: target `>= 25%`
+- Individual refund rate: target `< 3%`
+- Team net seat expansion at 90 days: target positive
 
-### Unit Economics Guardrails
+Unit economics guardrails:
+- AI cost per review should stay below `¥12`.
+- Gross margin target:
+  - Individual blended: `>= 65%`
+  - Team blended: `>= 70%`
 
-- AI cost per evaluated session
-- Gross margin by plan
-- Credit-pack usage concentration (to detect abuse or underpricing)
+## 7) Risks and Mitigations
 
-## 9) Implementation Notes for Current Codebase
+- Risk: Individual one-time users consume too many reviews.
+  - Mitigation: lifetime included credits + paid packs.
+- Risk: Team buyers wait for full analytics before purchasing.
+  - Mitigation: sell current value (`上長コメント` + completion/score trend), roadmap deeper analytics.
+- Risk: Free users churn before paywall.
+  - Mitigation: keep first 6 scenarios high quality and show progress gain after each completion.
 
-Short-term implementation sequence:
+## 8) Open Decisions (Finalize Before Build Start)
 
-1. Add plan entitlements in frontend and backend (scenario/evaluation limits).
-2. Add billing state to user profile/session metadata.
-3. Add analytics events for funnel:
-   - `paywall_viewed`
-   - `plan_selected`
-   - `checkout_started`
-   - `checkout_completed`
-   - `evaluation_limit_hit`
-4. Add simple feature flags for pricing and paywall experiments.
+1. Team trial policy: `14 days` or `30 days`?
+2. Should free users be allowed to buy small credit packs in v1?
+3. Do we include future CHALLENGE scenarios in Individual one-time without exceptions?
 
-## 10) Risks and Mitigations
+## 9) Delivery Plan Reference
 
-- Risk: Too strict free limits reduce activation.
-  - Mitigation: Guarantee at least one complete high-quality session.
-- Risk: High inference usage erodes margin.
-  - Mitigation: Usage caps + credit packs + response depth controls by tier.
-- Risk: Team plan launched too early.
-  - Mitigation: Start with design partners before broad rollout.
-
-## 11) Open Questions to Finalize Before Launch
-
-1. Which segment is priority for next 2 quarters: B2C only or B2C + early B2B?
-2. What is acceptable gross margin target per paid user?
-3. Which billing stack will be used first (for subscriptions + one-time credits)?
-4. Should annual plan be launched immediately or after monthly proves conversion?
-5. Do we gate by scenario count, evaluation count, or both?
+- Detailed engineering execution plan: `docs/monetization-implementation-plan.md`

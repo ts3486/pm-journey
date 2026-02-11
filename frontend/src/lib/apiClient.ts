@@ -23,6 +23,7 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 
 type ApiClientOptions = {
   getAccessToken?: () => Promise<string>;
+  onUnauthorized?: () => void;
 };
 
 export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions = {}) {
@@ -52,6 +53,10 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        clientOptions.onUnauthorized?.();
+        throw new Error("認証の有効期限が切れました。再ログインしてください。");
+      }
       const rawText = await res.text();
       let detail = rawText;
       try {

@@ -6,11 +6,13 @@ import { HistoryDetailPage } from "@/routes/history/HistoryDetailPage";
 import { SettingsPage } from "@/routes/settings/SettingsPage";
 import { ScenarioPage } from "@/routes/scenario/ScenarioPage";
 import { AchievementsPage } from "@/routes/achievements/AchievementsPage";
+import { ErrorPage } from "@/routes/ErrorPage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppLayout />,
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,

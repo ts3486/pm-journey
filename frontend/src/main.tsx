@@ -16,6 +16,11 @@ const queryClient = new QueryClient({
   },
 });
 
+const handleAuthRedirect = (appState?: { returnTo?: string }) => {
+  const returnTo = appState?.returnTo ?? "/";
+  window.history.replaceState({}, document.title, returnTo);
+};
+
 const root = document.getElementById("root");
 
 if (!root) {
@@ -27,6 +32,7 @@ ReactDOM.createRoot(root).render(
     <Auth0Provider
       domain={env.auth0Domain}
       clientId={env.auth0ClientId}
+      onRedirectCallback={handleAuthRedirect}
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: env.auth0Audience,

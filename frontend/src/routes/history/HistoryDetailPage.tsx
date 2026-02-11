@@ -398,6 +398,65 @@ export function HistoryDetailPage() {
     });
   };
 
+  const evaluation = item?.evaluation;
+  const categories = evaluation?.categories ?? [];
+  const primaryCategories = categories.slice(0, 4);
+  const missionFeedbackEntries = useMemo(() => {
+    if (!isBasicScenario) return [];
+    const source = missionList && missionList.length > 0 ? missionList : categories;
+
+    return source.map((mission, idx) => {
+      const matchedCategory =
+        "title" in mission
+          ? categories.find((category) => category.name === mission.title) ?? categories[idx]
+          : mission;
+
+      return {
+        title: "title" in mission ? mission.title : mission.name ?? `コメント ${idx + 1}`,
+        key: "id" in mission ? mission.id : `${mission.name ?? "category"}-${idx}`,
+        score: typeof matchedCategory?.score === "number" ? matchedCategory.score : null,
+        weight: typeof matchedCategory?.weight === "number" ? matchedCategory.weight : 0,
+        feedback: matchedCategory?.feedback ?? "評価コメントがまだありません。",
+      };
+    });
+  }, [categories, isBasicScenario, missionList]);
+  const basicMissionScore = useMemo(() => {
+    if (!isBasicScenario || missionFeedbackEntries.length === 0) return null;
+
+    const scoredEntries = missionFeedbackEntries.filter((entry) => entry.score != null);
+    if (scoredEntries.length === 0) return null;
+
+    const totalWeight = scoredEntries.reduce(
+      (sum, entry) => sum + (entry.weight > 0 ? entry.weight : 0),
+      0,
+    );
+    if (totalWeight > 0) {
+      return scoredEntries.reduce(
+        (sum, entry) => sum + (entry.score ?? 0) * (entry.weight > 0 ? entry.weight : 0),
+        0,
+      ) / totalWeight;
+    }
+
+    return scoredEntries.reduce((sum, entry) => sum + (entry.score ?? 0), 0) / scoredEntries.length;
+  }, [isBasicScenario, missionFeedbackEntries]);
+  const persistedMessages = item?.actions ?? [];
+  const kickoffPrompt = scenario?.kickoffPrompt?.trim();
+  const hasKickoffPromptInLog = kickoffPrompt
+    ? persistedMessages.some((message) => message.role === "system" && message.content.trim() === kickoffPrompt)
+    : false;
+  const kickoffMessage: Message | null =
+    kickoffPrompt && !hasKickoffPromptInLog
+      ? {
+          id: `kickoff-${item?.sessionId ?? "unknown"}`,
+          sessionId: item?.sessionId ?? "unknown",
+          role: "system",
+          content: kickoffPrompt,
+          createdAt: persistedMessages[0]?.createdAt ?? new Date().toISOString(),
+          tags: ["summary"],
+        }
+      : null;
+  const chatLogMessages = kickoffMessage ? [kickoffMessage, ...persistedMessages] : persistedMessages;
+
   if (!sessionId) {
     return <p className="text-sm text-slate-600">セッションIDが指定されていません。</p>;
   }
@@ -466,65 +525,6 @@ export function HistoryDetailPage() {
       </div>
     );
   }
-
-  const evaluation = item.evaluation;
-  const categories = evaluation?.categories ?? [];
-  const primaryCategories = categories.slice(0, 4);
-  const missionFeedbackEntries = useMemo(() => {
-    if (!isBasicScenario) return [];
-    const source = missionList && missionList.length > 0 ? missionList : categories;
-
-    return source.map((mission, idx) => {
-      const matchedCategory =
-        "title" in mission
-          ? categories.find((category) => category.name === mission.title) ?? categories[idx]
-          : mission;
-
-      return {
-        title: "title" in mission ? mission.title : mission.name ?? `コメント ${idx + 1}`,
-        key: "id" in mission ? mission.id : `${mission.name ?? "category"}-${idx}`,
-        score: typeof matchedCategory?.score === "number" ? matchedCategory.score : null,
-        weight: typeof matchedCategory?.weight === "number" ? matchedCategory.weight : 0,
-        feedback: matchedCategory?.feedback ?? "評価コメントがまだありません。",
-      };
-    });
-  }, [categories, isBasicScenario, missionList]);
-  const basicMissionScore = useMemo(() => {
-    if (!isBasicScenario || missionFeedbackEntries.length === 0) return null;
-
-    const scoredEntries = missionFeedbackEntries.filter((entry) => entry.score != null);
-    if (scoredEntries.length === 0) return null;
-
-    const totalWeight = scoredEntries.reduce(
-      (sum, entry) => sum + (entry.weight > 0 ? entry.weight : 0),
-      0,
-    );
-    if (totalWeight > 0) {
-      return scoredEntries.reduce(
-        (sum, entry) => sum + (entry.score ?? 0) * (entry.weight > 0 ? entry.weight : 0),
-        0,
-      ) / totalWeight;
-    }
-
-    return scoredEntries.reduce((sum, entry) => sum + (entry.score ?? 0), 0) / scoredEntries.length;
-  }, [isBasicScenario, missionFeedbackEntries]);
-  const persistedMessages = item.actions ?? [];
-  const kickoffPrompt = scenario?.kickoffPrompt?.trim();
-  const hasKickoffPromptInLog = kickoffPrompt
-    ? persistedMessages.some((message) => message.role === "system" && message.content.trim() === kickoffPrompt)
-    : false;
-  const kickoffMessage: Message | null =
-    kickoffPrompt && !hasKickoffPromptInLog
-      ? {
-          id: `kickoff-${item.sessionId}`,
-          sessionId: item.sessionId,
-          role: "system",
-          content: kickoffPrompt,
-          createdAt: persistedMessages[0]?.createdAt ?? new Date().toISOString(),
-          tags: ["summary"],
-        }
-      : null;
-  const chatLogMessages = kickoffMessage ? [kickoffMessage, ...persistedMessages] : persistedMessages;
 
   return (
     <div className="space-y-6">
