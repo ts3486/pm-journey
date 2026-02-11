@@ -7,6 +7,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 APP_NAME="${FLY_FRONTEND_APP:-pm-journey-frontend}"
 CONFIG_FILE="${FRONTEND_FLY_CONFIG:-${REPO_ROOT}/frontend/fly.toml}"
 ENV_FILE="${FRONTEND_ENV_FILE:-${REPO_ROOT}/frontend/.env}"
+WORKING_DIR="${FRONTEND_WORKING_DIR:-${REPO_ROOT}/frontend}"
+DOCKERFILE_PATH="${FRONTEND_DOCKERFILE:-${WORKING_DIR}/Dockerfile}"
 
 usage() {
   cat <<'USAGE'
@@ -20,6 +22,7 @@ Options:
 
 Environment overrides:
   FLY_FRONTEND_APP, FRONTEND_FLY_CONFIG, FRONTEND_ENV_FILE
+  FRONTEND_WORKING_DIR, FRONTEND_DOCKERFILE
 USAGE
 }
 
@@ -68,6 +71,16 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+if [[ ! -d "${WORKING_DIR}" ]]; then
+  echo "frontend working directory not found: ${WORKING_DIR}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${DOCKERFILE_PATH}" ]]; then
+  echo "frontend Dockerfile not found: ${DOCKERFILE_PATH}" >&2
+  exit 1
+fi
+
 set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
@@ -92,11 +105,12 @@ fi
 
 echo "Deploying frontend app ${APP_NAME} using ${CONFIG_FILE}"
 "${FLY_BIN}" deploy \
+  "${WORKING_DIR}" \
   --app "${APP_NAME}" \
   --config "${CONFIG_FILE}" \
+  --dockerfile "${DOCKERFILE_PATH}" \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_STORAGE_PREFIX=${VITE_STORAGE_PREFIX}" \
   --build-arg "VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}" \
   --build-arg "VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}" \
   --build-arg "VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}"
-
