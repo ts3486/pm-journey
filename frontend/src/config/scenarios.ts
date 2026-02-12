@@ -1560,7 +1560,15 @@ const featureRequirementCriteria: RatingCriterion[] = [
   },
 ];
 
-const structuredCriteriaScenarioIds = new Set([
+type MissionCriteriaMode =
+  | "basic-communication"
+  | "test-case-quality"
+  | "requirement-definition"
+  | "incident-response"
+  | "business-execution"
+  | "challenge";
+
+const requirementDefinitionScenarioIds = new Set([
   "basic-requirement-definition-doc",
   "basic-requirement-hearing-plan",
   "basic-requirement-user-story",
@@ -1570,11 +1578,85 @@ const structuredCriteriaScenarioIds = new Set([
   "basic-requirement-consensus",
 ]);
 
-const relaxedCommentGuidelines: RatingCriterion["scoringGuidelines"] = {
-  excellent: "ミッションの狙いがはっきり伝わり、必要な背景や意図も補足されている",
-  good: "主要なポイントには触れられており、実務で十分参考になる",
-  needsImprovement: "方向性は合っているが、具体性や抜けが目立つ",
-  poor: "ミッションで求められた内容に十分に答えていない",
+const incidentResponseScenarioIds = new Set([
+  "coming-incident-response",
+  "coming-incident-triage-escalation",
+  "coming-postmortem-followup",
+]);
+
+const businessExecutionScenarioIds = new Set([
+  "coming-priority-tradeoff-workshop",
+  "coming-stakeholder-negotiation",
+  "coming-decision-log-alignment",
+]);
+
+const missionCriteriaTemplates: Record<
+  MissionCriteriaMode,
+  {
+    description: (missionTitle: string) => string;
+    scoringGuidelines: RatingCriterion["scoringGuidelines"];
+  }
+> = {
+  "basic-communication": {
+    description: (missionTitle) =>
+      `${missionTitle}について、基本的なコミュニケーション品質（明確さ・配慮・合意形成）が担保されているかを評価します。`,
+    scoringGuidelines: {
+      excellent: "要点を構造的に整理し、相手への配慮を示しつつ、合意すべき事項と次アクションまで具体化している",
+      good: "主要な要点は明確で、実務に使える内容になっている。合意事項や次アクションに軽微な不足がある",
+      needsImprovement: "方向性は概ね正しいが、説明の明確さ・配慮・具体性のいずれかが不足している",
+      poor: "コミュニケーションが曖昧で、ミッションで必要な合意形成や具体化ができていない",
+    },
+  },
+  "test-case-quality": {
+    description: (missionTitle) =>
+      `${missionTitle}について、再現可能で抜け漏れのないテスト観点を示せているかを評価します。`,
+    scoringGuidelines: {
+      excellent: "正常系・異常系・境界値・前提条件まで含め、再現可能なテスト観点を具体化している",
+      good: "主要なテスト観点を網羅しているが、一部の観点や条件の詳細が不足している",
+      needsImprovement: "観点の方向性はあるが、網羅性や再現性に不足がある",
+      poor: "ミッションに対するテスト観点の整理が不十分で、抜け漏れが多い",
+    },
+  },
+  "requirement-definition": {
+    description: (missionTitle) =>
+      `${missionTitle}について、要件の明確性・検証可能性・スコープ境界を定義できているかを評価します。`,
+    scoringGuidelines: {
+      excellent: "ユーザーストーリー、受入条件、非対象、制約・不明点が整合的に整理され、検証可能な要件として成立している",
+      good: "主要な要件は整理されているが、受入条件の検証性または境界定義に一部不足がある",
+      needsImprovement: "要件には触れているが、曖昧な表現や抜け漏れがあり、実装判断に不確実性が残る",
+      poor: "要件定義として必要な構造（目的・条件・境界）が不足しており、実装可能な形になっていない",
+    },
+  },
+  "incident-response": {
+    description: (missionTitle) =>
+      `${missionTitle}について、障害対応の初動品質（影響評価・優先度判断・連絡体制）が適切かを評価します。`,
+    scoringGuidelines: {
+      excellent: "影響範囲・重大度・初動アクション・エスカレーション・報告内容を一貫して整理し、実行可能な対応計画を示している",
+      good: "主要な障害対応要素は整理されているが、判断根拠または報告・連絡の具体性に一部不足がある",
+      needsImprovement: "対応方針は示しているが、影響評価・優先度・連絡体制のいずれかが曖昧で実行性が低い",
+      poor: "障害対応に必要な初動整理が不足し、優先度判断や連絡方針が不明確",
+    },
+  },
+  "business-execution": {
+    description: (missionTitle) =>
+      `${missionTitle}について、事業推進に必要な意思決定品質（トレードオフ整理・根拠・合意）が担保されているかを評価します。`,
+    scoringGuidelines: {
+      excellent: "選択肢の比較軸と判断根拠が明確で、合意事項・保留事項・次アクションまで実行可能な形で整理されている",
+      good: "意思決定の方向性と合意内容は明確だが、比較根拠またはフォローアップの具体性に一部不足がある",
+      needsImprovement: "意思決定には触れているが、比較軸や根拠が弱く、合意内容が曖昧",
+      poor: "事業推進に必要なトレードオフ整理や合意形成が不十分で、実行計画につながらない",
+    },
+  },
+  challenge: {
+    description: (missionTitle) =>
+      `${missionTitle}について、論点整理と合意形成まで一貫して実行できているかを評価します。`,
+    scoringGuidelines: {
+      excellent: "論点を構造化し、意思決定の根拠・合意内容・フォローアップまで具体的に示している",
+      good: "論点整理と合意形成はできているが、根拠またはフォローアップの具体性が不足している",
+      needsImprovement: "論点整理はあるが、意思決定の根拠や合意形成が弱い",
+      poor: "論点整理や合意形成が不十分で、ミッションの達成が確認できない",
+    },
+  },
 };
 
 const distributeWeights = (count: number): number[] => {
@@ -1591,21 +1673,41 @@ const distributeWeights = (count: number): number[] => {
   return weights;
 };
 
-const applyRelaxedCriteriaToBasicScenarios = (list: Scenario[]) => {
-  list.forEach((scenario) => {
-    if (scenario.scenarioType !== "basic" || !scenario.missions || scenario.missions.length === 0) {
-      return;
-    }
-    if (structuredCriteriaScenarioIds.has(scenario.id)) return;
-    const missions = [...scenario.missions].sort((a, b) => a.order - b.order);
-    const weights = distributeWeights(missions.length);
-    scenario.evaluationCriteria = missions.map((mission, index) => ({
-      id: `${scenario.id}-mission-${index + 1}`,
+const resolveMissionCriteriaMode = (scenario: Scenario): MissionCriteriaMode => {
+  if (scenario.scenarioType === "test-case") return "test-case-quality";
+  if (requirementDefinitionScenarioIds.has(scenario.id)) return "requirement-definition";
+  if (incidentResponseScenarioIds.has(scenario.id)) return "incident-response";
+  if (businessExecutionScenarioIds.has(scenario.id)) return "business-execution";
+  if (scenario.discipline === "CHALLENGE") return "challenge";
+  return "basic-communication";
+};
+
+const buildMissionBasedCriteria = (scenario: Scenario): RatingCriterion[] => {
+  const missions = [...(scenario.missions ?? [])].sort((a, b) => a.order - b.order);
+  if (missions.length === 0) return [];
+
+  const template = missionCriteriaTemplates[resolveMissionCriteriaMode(scenario)];
+  const weights = distributeWeights(missions.length);
+
+  return missions.map((mission, index) => {
+    const missionDescription = mission.description?.trim();
+    return {
+      id: `${scenario.id}-mission-criterion-${mission.id}`,
       name: mission.title,
       weight: weights[index] ?? 100,
-      description: `${mission.title}の内容が具体的に伝わっているかをコメントで評価します。`,
-      scoringGuidelines: relaxedCommentGuidelines,
-    }));
+      description: missionDescription
+        ? `${mission.title}: ${missionDescription}`
+        : template.description(mission.title),
+      scoringGuidelines: template.scoringGuidelines,
+    };
+  });
+};
+
+const applyMissionBasedCriteriaToScenarios = (list: Scenario[]) => {
+  list.forEach((scenario) => {
+    const missionBasedCriteria = buildMissionBasedCriteria(scenario);
+    if (missionBasedCriteria.length === 0) return;
+    scenario.evaluationCriteria = missionBasedCriteria;
   });
 };
 
@@ -2269,7 +2371,7 @@ const scenarioList: Scenario[] = [
   },
   {
     id: "coming-incident-triage-escalation",
-    title: "P2障害: 決済遅延バグのトリアージ",
+    title: "P2障害: 決済遅延バグ",
     discipline: "CHALLENGE",
     description: "一部ユーザーで決済完了通知が遅延する重大不具合について、トリアージとエスカレーション判断を行う。",
     behavior: challengeBehavior,
@@ -2627,7 +2729,7 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
 ];
 
 applyBasicPromptRoles(scenarioList);
-applyRelaxedCriteriaToBasicScenarios(scenarioList);
+applyMissionBasedCriteriaToScenarios(scenarioList);
 
 export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
   {
