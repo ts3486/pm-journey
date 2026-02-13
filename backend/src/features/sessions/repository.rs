@@ -63,9 +63,9 @@ impl SessionRepository {
             INSERT INTO sessions (
                 id, scenario_id, scenario_discipline, status,
                 started_at, ended_at, last_activity_at, user_name,
-                evaluation_requested, progress_flags, mission_status, user_id
+                evaluation_requested, progress_flags, mission_status, user_id, organization_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             "#,
         )
         .bind(&session.id)
@@ -80,6 +80,7 @@ impl SessionRepository {
         .bind(&progress_flags)
         .bind(&mission_status)
         .bind(user_id)
+        .bind(&session.organization_id)
         .execute(&mut **tx)
         .await
         .context("Failed to insert session")?;
@@ -193,9 +194,9 @@ impl SessionRepository {
         sqlx::query("UPDATE sessions SET mission_status = $2 WHERE id = $1")
             .bind(id)
             .bind(mission_status_value)
-        .execute(&mut **tx)
-        .await
-        .context("Failed to update mission_status")?;
+            .execute(&mut **tx)
+            .await
+            .context("Failed to update mission_status")?;
 
         Ok(())
     }
@@ -251,7 +252,32 @@ impl SessionRepository {
             progress_flags,
             evaluation_requested: r.get("evaluation_requested"),
             mission_status,
+            organization_id: r
+                .try_get::<Option<String>, _>("organization_id")
+                .unwrap_or(None),
         }
+    }
+
+    #[allow(dead_code)]
+    pub async fn get_by_id(&self, id: &str) -> Result<Option<Session>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                id, scenario_id, scenario_discipline, status,
+                to_char(started_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as started_at,
+                to_char(ended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ended_at,
+                to_char(last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_activity_at,
+                user_name, evaluation_requested, progress_flags, mission_status, organization_id
+            FROM sessions
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .context("Failed to fetch session")?;
+
+        Ok(row.map(Self::map_row))
     }
 
     pub async fn get_for_user(&self, id: &str, user_id: &str) -> Result<Option<Session>> {
@@ -262,7 +288,7 @@ impl SessionRepository {
                 to_char(started_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as started_at,
                 to_char(ended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ended_at,
                 to_char(last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_activity_at,
-                user_name, evaluation_requested, progress_flags, mission_status
+                user_name, evaluation_requested, progress_flags, mission_status, organization_id
             FROM sessions
             WHERE id = $1 AND user_id = $2
             "#,
@@ -284,7 +310,7 @@ impl SessionRepository {
                 to_char(started_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as started_at,
                 to_char(ended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ended_at,
                 to_char(last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_activity_at,
-                user_name, evaluation_requested, progress_flags, mission_status
+                user_name, evaluation_requested, progress_flags, mission_status, organization_id
             FROM sessions
             WHERE user_id = $1
             ORDER BY last_activity_at DESC
@@ -298,6 +324,26 @@ impl SessionRepository {
         Ok(rows.into_iter().map(Self::map_row).collect())
     }
 
+    pub async fn list_all(&self) -> Result<Vec<Session>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id, scenario_id, scenario_discipline, status,
+                to_char(started_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as started_at,
+                to_char(ended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ended_at,
+                to_char(last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_activity_at,
+                user_name, evaluation_requested, progress_flags, mission_status, organization_id
+            FROM sessions
+            ORDER BY last_activity_at DESC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to list all sessions")?;
+
+        Ok(rows.into_iter().map(Self::map_row).collect())
+    }
+
     pub async fn delete_for_user(&self, id: &str, user_id: &str) -> Result<bool> {
         let result = sqlx::query("DELETE FROM sessions WHERE id = $1 AND user_id = $2")
             .bind(id)
@@ -305,6 +351,16 @@ impl SessionRepository {
             .execute(&self.pool)
             .await
             .context("Failed to delete session")?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn delete_by_id(&self, id: &str) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM sessions WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .context("Failed to delete session by id")?;
 
         Ok(result.rows_affected() > 0)
     }

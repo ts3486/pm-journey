@@ -176,6 +176,8 @@ export type ManagerComment = {
   id: string;
   sessionId: string;
   authorName?: string;
+  authorUserId?: string;
+  authorRole?: string;
   content: string;
   createdAt: string;
 };
@@ -188,6 +190,7 @@ export type OutputSubmission = {
   kind: OutputSubmissionType;
   value: string;
   note?: string;
+  createdByUserId?: string;
   createdAt: string;
 };
 
@@ -222,6 +225,42 @@ export type UpdateProductConfigRequest = Omit<
   ProductConfig,
   "id" | "isDefault" | "createdAt" | "updatedAt"
 >;
+
+export type PlanCode = "FREE" | "INDIVIDUAL" | "TEAM";
+
+export type EntitlementResponse = {
+  planCode: PlanCode;
+  monthlyCredits: number;
+  maxDailyCredits?: number;
+  teamFeatures: boolean;
+  organizationId?: string;
+};
+
+export type CreditBalanceResponse = {
+  available: number;
+  monthlyRemaining: number;
+  purchasedRemaining: number;
+};
+
+export type CreateIndividualCheckoutRequest = {
+  successUrl?: string;
+  cancelUrl?: string;
+};
+
+export type IndividualCheckoutResponse = {
+  mode: string;
+  checkoutUrl?: string | null;
+  alreadyEntitled: boolean;
+  message?: string | null;
+};
+
+export type CreateBillingPortalSessionRequest = {
+  returnUrl?: string;
+};
+
+export type BillingPortalSessionResponse = {
+  url: string;
+};
 
 export type ScenarioCatalogSubcategory = {
   id: string;

@@ -135,6 +135,22 @@ export function NavBar() {
                   >
                     プロンプト設定
                   </Link>
+                  <Link
+                    to="/settings/billing"
+                    role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                  >
+                    請求設定
+                  </Link>
+                  <Link
+                    to="/pricing"
+                    role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                  >
+                    料金
+                  </Link>
                   <button
                     type="button"
                     role="menuitem"

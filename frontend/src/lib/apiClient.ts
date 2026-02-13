@@ -1,11 +1,18 @@
 import type {
+  BillingPortalSessionResponse,
+  CreateBillingPortalSessionRequest,
+  CreateIndividualCheckoutRequest,
+  EntitlementResponse,
   Evaluation,
   HistoryItem,
+  IndividualCheckoutResponse,
   ManagerComment,
   Message,
   MessageRole,
   MessageTag,
   MissionStatus,
+  OutputSubmission,
+  OutputSubmissionType,
   ProductConfig,
   RatingCriterion,
   Scenario,
@@ -71,6 +78,18 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
         const retrySecondsMatch =
           message.match(/retryDelay"?:\s*"(\d+)s"/) ?? message.match(/retry in ([0-9.]+)s/i);
         const retrySeconds = retrySecondsMatch ? Number(retrySecondsMatch[1]) : null;
+        if (/PLAN_REQUIRED/i.test(message)) {
+          return "このシナリオは現在のプランでは利用できません。プランをアップグレードしてください。";
+        }
+        if (/FAIR_USE_LIMIT_REACHED/i.test(message)) {
+          return "本日のフェアユース上限に達しました。時間をおいて再試行してください。";
+        }
+        if (/CREDIT_DAILY_LIMIT/i.test(message)) {
+          return "本日のAIレビュー上限に達しました。明日再試行するか、プランを見直してください。";
+        }
+        if (/CREDIT_EXHAUSTED/i.test(message)) {
+          return "AIレビュークレジットが不足しています。クレジット購入またはプラン変更をご検討ください。";
+        }
         if (status === 429 || /RESOURCE_EXHAUSTED|Quota exceeded|Too Many Requests/i.test(message)) {
           return `Gemini APIの利用上限に達しました。${
             retrySeconds ? `${retrySeconds}秒後に再試行してください。` : "時間をおいて再試行してください。"
@@ -101,6 +120,25 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     },
     async createSession(scenarioId: string): Promise<Session> {
       return request<Session>("/sessions", { method: "POST", body: { scenarioId } });
+    },
+    async getMyEntitlements(): Promise<EntitlementResponse> {
+      return request<EntitlementResponse>("/me/entitlements");
+    },
+    async createIndividualCheckout(
+      payload: CreateIndividualCheckoutRequest = {}
+    ): Promise<IndividualCheckoutResponse> {
+      return request<IndividualCheckoutResponse>("/billing/checkout/individual", {
+        method: "POST",
+        body: payload,
+      });
+    },
+    async createBillingPortalSession(
+      payload: CreateBillingPortalSessionRequest = {}
+    ): Promise<BillingPortalSessionResponse> {
+      return request<BillingPortalSessionResponse>("/billing/portal/session", {
+        method: "POST",
+        body: payload,
+      });
     },
     async listSessions(): Promise<HistoryItem[]> {
       return request<HistoryItem[]>("/sessions");
@@ -173,6 +211,21 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
         method: "POST",
         body: payload,
       });
+    },
+    async listOutputs(sessionId: string): Promise<OutputSubmission[]> {
+      return request<OutputSubmission[]>(`/sessions/${sessionId}/outputs`);
+    },
+    async createOutput(
+      sessionId: string,
+      payload: { kind: OutputSubmissionType; value: string; note?: string }
+    ): Promise<OutputSubmission> {
+      return request<OutputSubmission>(`/sessions/${sessionId}/outputs`, {
+        method: "POST",
+        body: payload,
+      });
+    },
+    async deleteOutput(sessionId: string, outputId: string): Promise<void> {
+      await request(`/sessions/${sessionId}/outputs/${outputId}`, { method: "DELETE" });
     },
     async listTestCases(sessionId: string): Promise<TestCase[]> {
       return request<TestCase[]>(`/sessions/${sessionId}/test-cases`);

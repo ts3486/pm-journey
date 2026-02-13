@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listHistory } from "@/services/history";
+import { useEntitlements } from "@/queries/entitlements";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 
@@ -255,6 +256,8 @@ export function HomePage() {
   const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Record<string, boolean>>({});
+  const { data: entitlements } = useEntitlements();
+  const currentPlanCode = entitlements?.planCode ?? "FREE";
 
   const { data: historyItems = [], isLoading: isHistoryLoading, isError, error } = useQuery({
     queryKey: ["history", "list"],
@@ -373,6 +376,30 @@ export function HomePage() {
 
   return (
     <div className="space-y-8">
+      <section className="card p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Current Plan</p>
+            {currentPlanCode === "FREE" ? (
+              <p className="text-sm text-slate-700">
+                プラン: <span className="font-semibold">FREE</span> / AI利用は日次フェアユース上限で制御
+              </p>
+            ) : currentPlanCode === "INDIVIDUAL" ? (
+              <p className="text-sm text-slate-700">
+                プラン: <span className="font-semibold">INDIVIDUAL</span> / AI利用は日次フェアユース上限で制御（クレジット表示なし）
+              </p>
+            ) : (
+              <p className="text-sm text-slate-700">
+                プラン: <span className="font-semibold">TEAM</span> / TEAM機能は準備中（管理者プレビュー）
+              </p>
+            )}
+          </div>
+          <Link to="/pricing" className="btn-secondary w-full sm:w-auto">
+            料金プランを確認
+          </Link>
+        </div>
+      </section>
+
       <section
         className="card relative overflow-hidden border-orange-200/70 bg-gradient-to-br from-orange-50/80 via-white/92 to-sky-50/70 p-6 reveal sm:p-8"
         style={revealDelay(120)}

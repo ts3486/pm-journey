@@ -1,8 +1,9 @@
 use sqlx::PgPool;
 
-use crate::error::{anyhow_error, AppError};
+use crate::error::{anyhow_error, forbidden_error, AppError};
+use crate::features::sessions::authorization::authorize_session_access;
 use crate::models::TestCase;
-use crate::shared::helpers::{next_id, now_ts, verify_session_ownership};
+use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::CreateTestCaseRequest;
 use super::repository::TestCaseRepository;
@@ -22,7 +23,12 @@ impl TestCaseService {
         session_id: &str,
         user_id: &str,
     ) -> Result<Vec<TestCase>, AppError> {
-        verify_session_ownership(&self.pool, session_id, user_id).await?;
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_view() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for test case view",
+            ));
+        }
 
         let repo = TestCaseRepository::new(self.pool.clone());
         let test_cases = repo
@@ -38,7 +44,12 @@ impl TestCaseService {
         user_id: &str,
         body: CreateTestCaseRequest,
     ) -> Result<TestCase, AppError> {
-        verify_session_ownership(&self.pool, session_id, user_id).await?;
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_edit_session() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for test case create",
+            ));
+        }
 
         let repo = TestCaseRepository::new(self.pool.clone());
 
@@ -62,8 +73,24 @@ impl TestCaseService {
 
     pub async fn delete_test_case(&self, id: &str, user_id: &str) -> Result<bool, AppError> {
         let repo = TestCaseRepository::new(self.pool.clone());
+        let test_case = match repo
+            .get(id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to get test case: {}", e)))?
+        {
+            Some(test_case) => test_case,
+            None => return Ok(false),
+        };
+
+        let access = authorize_session_access(&self.pool, &test_case.session_id, user_id).await?;
+        if !access.can_edit_session() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for test case delete",
+            ));
+        }
+
         let deleted = repo
-            .delete_for_user(id, user_id)
+            .delete(id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to delete test case: {}", e)))?;
         Ok(deleted)

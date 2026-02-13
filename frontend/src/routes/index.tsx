@@ -4,8 +4,10 @@ import { HomePage } from "@/routes/home/HomePage";
 import { HistoryPage } from "@/routes/history/HistoryPage";
 import { HistoryDetailPage } from "@/routes/history/HistoryDetailPage";
 import { SettingsPage } from "@/routes/settings/SettingsPage";
+import { BillingSettingsPage } from "@/routes/settings/BillingSettingsPage";
 import { ScenarioPage } from "@/routes/scenario/ScenarioPage";
 import { AchievementsPage } from "@/routes/achievements/AchievementsPage";
+import { PricingPage } from "@/routes/pricing/PricingPage";
 import { ErrorPage } from "@/routes/ErrorPage";
 
 export const router = createBrowserRouter([
@@ -37,6 +39,14 @@ export const router = createBrowserRouter([
       {
         path: "settings",
         element: <SettingsPage />,
+      },
+      {
+        path: "settings/billing",
+        element: <BillingSettingsPage />,
+      },
+      {
+        path: "pricing",
+        element: <PricingPage />,
       },
     ],
   },

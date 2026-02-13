@@ -1,7 +1,7 @@
 use crate::models::ManagerComment;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{postgres::PgRow, PgPool, Postgres, Row, Transaction};
 
 #[derive(Clone)]
 pub struct CommentRepository {
@@ -33,19 +33,21 @@ impl CommentRepository {
             .parse()
             .context("Failed to parse created_at timestamp")?;
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO comments (
-                id, session_id, author_name, content, created_at
+                id, session_id, author_name, author_user_id, author_role, content, created_at
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
-            comment.id,
-            comment.session_id,
-            comment.author_name,
-            comment.content,
-            created_at,
         )
+        .bind(&comment.id)
+        .bind(&comment.session_id)
+        .bind(&comment.author_name)
+        .bind(&comment.author_user_id)
+        .bind(&comment.author_role)
+        .bind(&comment.content)
+        .bind(created_at)
         .execute(&mut **tx)
         .await
         .context("Failed to insert comment")?;
@@ -53,61 +55,68 @@ impl CommentRepository {
         Ok(())
     }
 
+    fn map_row(r: PgRow) -> ManagerComment {
+        ManagerComment {
+            id: r.get("id"),
+            session_id: r.get("session_id"),
+            author_name: r
+                .try_get::<Option<String>, _>("author_name")
+                .unwrap_or(None),
+            author_user_id: r
+                .try_get::<Option<String>, _>("author_user_id")
+                .unwrap_or(None),
+            author_role: r
+                .try_get::<Option<String>, _>("author_role")
+                .unwrap_or(None),
+            content: r.get("content"),
+            created_at: r
+                .try_get::<Option<String>, _>("created_at")
+                .unwrap_or(None)
+                .unwrap_or_default(),
+        }
+    }
+
     pub async fn get(&self, id: &str) -> Result<Option<ManagerComment>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT
-                id, session_id, author_name, content,
+                id, session_id, author_name, author_user_id, author_role, content,
                 to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
             FROM comments
             WHERE id = $1
             "#,
-            id
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await
         .context("Failed to fetch comment")?;
 
-        Ok(row.map(|r| ManagerComment {
-            id: r.id,
-            session_id: r.session_id,
-            author_name: r.author_name,
-            content: r.content,
-            created_at: r.created_at.unwrap_or_default(),
-        }))
+        Ok(row.map(Self::map_row))
     }
 
     pub async fn list_by_session(&self, session_id: &str) -> Result<Vec<ManagerComment>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT
-                id, session_id, author_name, content,
+                id, session_id, author_name, author_user_id, author_role, content,
                 to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
             FROM comments
             WHERE session_id = $1
             ORDER BY created_at ASC
             "#,
-            session_id
         )
+        .bind(session_id)
         .fetch_all(&self.pool)
         .await
         .context("Failed to list comments")?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| ManagerComment {
-                id: r.id,
-                session_id: r.session_id,
-                author_name: r.author_name,
-                content: r.content,
-                created_at: r.created_at.unwrap_or_default(),
-            })
-            .collect())
+        Ok(rows.into_iter().map(Self::map_row).collect())
     }
 
     #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
-        sqlx::query!("DELETE FROM comments WHERE session_id = $1", session_id)
+        sqlx::query("DELETE FROM comments WHERE session_id = $1")
+            .bind(session_id)
             .execute(&self.pool)
             .await
             .context("Failed to delete comments")?;

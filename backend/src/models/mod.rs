@@ -2,6 +2,21 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PmbokKnowledgeArea {
+    Integration,
+    Scope,
+    Schedule,
+    Cost,
+    Quality,
+    Resource,
+    Communication,
+    Risk,
+    Procurement,
+    Stakeholder,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ScenarioType {
     Basic,
@@ -41,6 +56,9 @@ pub struct Scenario {
     pub missions: Option<Vec<Mission>>,
     #[serde(alias = "supplemental_info")]
     pub supplemental_info: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(alias = "pmbok_knowledge_areas")]
+    pub pmbok_knowledge_areas: Option<Vec<PmbokKnowledgeArea>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
@@ -105,6 +123,8 @@ pub struct Session {
     pub evaluation_requested: bool,
     #[serde(alias = "mission_status")]
     pub mission_status: Option<Vec<MissionStatus>>,
+    #[serde(alias = "organization_id")]
+    pub organization_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
@@ -216,6 +236,10 @@ pub struct ManagerComment {
     pub session_id: String,
     #[serde(alias = "author_name")]
     pub author_name: Option<String>,
+    #[serde(alias = "author_user_id")]
+    pub author_user_id: Option<String>,
+    #[serde(alias = "author_role")]
+    pub author_role: Option<String>,
     pub content: String,
     #[serde(alias = "created_at")]
     pub created_at: String,
@@ -232,6 +256,48 @@ pub struct TestCase {
     pub steps: String,
     #[serde(alias = "expected_result")]
     pub expected_result: String,
+    #[serde(alias = "created_at")]
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputKind {
+    Text,
+    Url,
+    Image,
+}
+
+impl OutputKind {
+    pub fn as_str(&self) -> &str {
+        match self {
+            OutputKind::Text => "text",
+            OutputKind::Url => "url",
+            OutputKind::Image => "image",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "text" => Some(OutputKind::Text),
+            "url" => Some(OutputKind::Url),
+            "image" => Some(OutputKind::Image),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Output {
+    pub id: String,
+    #[serde(alias = "session_id")]
+    pub session_id: String,
+    pub kind: OutputKind,
+    pub value: String,
+    pub note: Option<String>,
+    #[serde(alias = "created_by_user_id")]
+    pub created_by_user_id: String,
     #[serde(alias = "created_at")]
     pub created_at: String,
 }
@@ -291,6 +357,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-intro-m1".to_string(), title: "自己紹介を行う".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("時間配分（5分自己紹介/15分期待値/10分次アクション）を意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-meeting-minutes".to_string(),
@@ -330,6 +397,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-minutes-m3".to_string(), title: "共有メッセージとして要約する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("読み手がすぐ理解できる要約とアクション整理を重視してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-schedule-share".to_string(),
@@ -367,6 +435,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-schedule-m1".to_string(), title: "全体像と進め方を共有する".to_string(), description: None, order: 1 },
             ]),
             supplemental_info: Some("不確実性や前提条件を必ず共有してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-docs-refine".to_string(),
@@ -406,6 +475,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-docs-m3".to_string(), title: "要点を伝わる形でまとめる".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("読み手が迷わない構成と簡潔な表現を意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-ticket-refine".to_string(),
@@ -445,6 +515,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-ticket-m3".to_string(), title: "依存関係とリスクを明文化する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("ACは観測可能な期待値で書き、依存は担当と期日をセットで整理してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-ticket-splitting".to_string(),
@@ -484,6 +555,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-split-m3".to_string(), title: "依存関係とリスクを明文化する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("最初のリリースで必要な最小スコープを意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-acceptance-review".to_string(),
@@ -523,6 +595,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-acceptance-m3".to_string(), title: "依存関係とリスクを確認する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("Given-When-Then形式や観測可能な条件を意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-unknowns-discovery".to_string(),
@@ -562,6 +635,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-unknowns-m3".to_string(), title: "優先度と解消計画を決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("影響度が高い不明点から優先して解消してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-testcase-design".to_string(),
@@ -601,6 +675,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-test-m3".to_string(), title: "前提データ・環境・優先度を整理する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("カバレッジを意識しつつ、時間制約に収まる最小セットを優先してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-test-viewpoints".to_string(),
@@ -640,6 +715,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-viewpoints-m3".to_string(), title: "前提条件と不足情報を整理する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("観点の抜け漏れがないか、仕様との対応を意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-test-risk-review".to_string(),
@@ -679,6 +755,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-riskreview-m3".to_string(), title: "前提条件と不足情報を整理する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("限られた時間で効果が高いテストに集中してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "basic-regression-smoke".to_string(),
@@ -718,6 +795,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "basic-regression-m3".to_string(), title: "前提データと環境を整理する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("最小セットで品質を担保できる範囲を意識してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-project-rescue".to_string(),
@@ -757,6 +835,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-rescue-m3".to_string(), title: "リカバリ計画とコミュニケーション案を作る".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("品質バーを下げずに間に合わせる打ち手（並行作業・カット案・リソース振替）を検討してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-deadline-advance".to_string(),
@@ -796,6 +875,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-deadline-m3".to_string(), title: "合意した方針と次アクションを決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("品質・スコープ・リソースのトレードオフを明確にしてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-progress-visibility".to_string(),
@@ -835,6 +915,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-visibility-m3".to_string(), title: "報告と次アクションを合意する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("最小限の指標で現状を把握できるようにしてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-quality-fire".to_string(),
@@ -874,6 +955,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-quality-m3".to_string(), title: "関係者への説明と合意を行う".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("ユーザー影響とリリース計画のトレードオフを明確にしてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-ambiguous-request".to_string(),
@@ -913,6 +995,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-ambiguous-m3".to_string(), title: "確認事項と次アクションを決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("曖昧さを放置せず、仮置きでも合意を取って進めてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-scope-addition".to_string(),
@@ -952,6 +1035,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-scopeadd-m3".to_string(), title: "合意内容と次アクションを決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("期限・品質・リソースのトレードオフを明確にしてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-scope-negotiation".to_string(),
@@ -991,6 +1075,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-negotiation-m3".to_string(), title: "合意プロセスとステークホルダー調整を計画する".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("合意後に残るリスクとフォローアップを必ず記録してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-impossible-request".to_string(),
@@ -1030,6 +1115,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-impossible-m3".to_string(), title: "合意した対応と次アクションを決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("無理の理由を尊重しつつ、実現可能な落とし所を探してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-conflict-mediation".to_string(),
@@ -1069,6 +1155,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-conflict-m3".to_string(), title: "フォロータスクと担当を決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("感情的な対立を避けるため、事実と解釈を分けて提示してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-priority-conflict".to_string(),
@@ -1108,6 +1195,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-priority-m3".to_string(), title: "フォロータスクと担当を決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("事実と解釈を分け、公平なファシリテーションを心がけてください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-stakeholder-misalignment".to_string(),
@@ -1147,6 +1235,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-alignment-m3".to_string(), title: "再発防止の確認プロセスを決める".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("合意後の確認プロセス（定例やチェックポイント）まで設計してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
         Scenario {
             id: "challenge-user-perspective".to_string(),
@@ -1186,6 +1275,7 @@ pub fn default_scenarios() -> Vec<Scenario> {
                 Mission { id: "challenge-user-m3".to_string(), title: "最小改善案と合意をまとめる".to_string(), description: None, order: 3 },
             ]),
             supplemental_info: Some("機能ではなく価値に立ち返り、最小の打ち手を提案してください。".to_string()),
+            pmbok_knowledge_areas: None,
         },
     ];
 
@@ -1193,9 +1283,46 @@ pub fn default_scenarios() -> Vec<Scenario> {
         if scenario.scenario_type.is_none() {
             scenario.scenario_type = scenario_type_for_id(&scenario.id);
         }
+        if scenario.pmbok_knowledge_areas.is_none() {
+            scenario.pmbok_knowledge_areas = pmbok_areas_for_id(&scenario.id);
+        }
     }
 
     scenarios
+}
+
+fn pmbok_areas_for_id(id: &str) -> Option<Vec<PmbokKnowledgeArea>> {
+    use PmbokKnowledgeArea::*;
+    let areas = match id {
+        // Basic scenarios
+        "basic-intro-alignment" => vec![Stakeholder, Communication],
+        "basic-meeting-minutes" => vec![Communication, Integration],
+        "basic-schedule-share" => vec![Schedule, Communication],
+        "basic-docs-refine" => vec![Communication, Quality],
+        "basic-ticket-refine" => vec![Scope, Quality],
+        "basic-ticket-splitting" => vec![Scope, Schedule],
+        "basic-acceptance-review" => vec![Quality, Scope],
+        "basic-unknowns-discovery" => vec![Risk, Integration],
+        "basic-testcase-design" => vec![Quality],
+        "basic-test-viewpoints" => vec![Quality, Risk],
+        "basic-test-risk-review" => vec![Quality, Risk],
+        "basic-regression-smoke" => vec![Quality],
+        // Challenge scenarios
+        "challenge-project-rescue" => vec![Integration, Schedule, Risk],
+        "challenge-deadline-advance" => vec![Schedule, Scope, Stakeholder],
+        "challenge-progress-visibility" => vec![Communication, Integration],
+        "challenge-quality-fire" => vec![Quality, Risk, Communication],
+        "challenge-ambiguous-request" => vec![Scope, Stakeholder],
+        "challenge-scope-addition" => vec![Scope, Stakeholder, Schedule],
+        "challenge-scope-negotiation" => vec![Scope, Stakeholder, Procurement],
+        "challenge-impossible-request" => vec![Scope, Stakeholder, Risk],
+        "challenge-conflict-mediation" => vec![Resource, Stakeholder, Communication],
+        "challenge-priority-conflict" => vec![Stakeholder, Scope, Communication],
+        "challenge-stakeholder-misalignment" => vec![Stakeholder, Communication],
+        "challenge-user-perspective" => vec![Scope, Stakeholder, Quality],
+        _ => return None,
+    };
+    Some(areas)
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]

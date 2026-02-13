@@ -54,3 +54,22 @@ pub fn client_error<T: Display>(message: T) -> AppError {
         anyhow::anyhow!(message.to_string()),
     )
 }
+
+#[allow(dead_code)]
+pub fn forbidden_error<T: Display>(message: T) -> AppError {
+    AppError::new(StatusCode::FORBIDDEN, anyhow::anyhow!(message.to_string()))
+}
+
+pub fn payment_required_error<T: Display>(message: T) -> AppError {
+    AppError::new(
+        StatusCode::PAYMENT_REQUIRED,
+        anyhow::anyhow!(message.to_string()),
+    )
+}
+
+pub fn too_many_requests_error<T: Display>(message: T) -> AppError {
+    AppError::new(
+        StatusCode::TOO_MANY_REQUESTS,
+        anyhow::anyhow!(message.to_string()),
+    )
+}

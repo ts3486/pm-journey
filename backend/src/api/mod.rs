@@ -5,9 +5,21 @@ use axum::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::features::billing::handlers::{
+    __path_checkout_individual, __path_create_portal_session, __path_stripe_webhook,
+    checkout_individual, create_portal_session, stripe_webhook,
+};
+use crate::features::billing::models::{
+    BillingPortalSessionResponse, CreateBillingPortalSessionRequest,
+    CreateIndividualCheckoutRequest, IndividualCheckoutResponse, StripeWebhookResponse,
+};
 use crate::features::comments::handlers::{
     __path_create_comment, __path_list_comments, create_comment, list_comments,
 };
+use crate::features::credits::handlers::{__path_get_my_credits, get_my_credits};
+use crate::features::credits::models::CreditBalanceResponse;
+use crate::features::entitlements::handlers::{__path_get_my_entitlements, get_my_entitlements};
+use crate::features::entitlements::models::{EntitlementResponse, PlanCode};
 use crate::features::evaluations::handlers::{__path_evaluate_session, evaluate_session};
 use crate::features::evaluations::models::{
     EvaluationCriterion, EvaluationRequest, ScoringGuidelines,
@@ -18,6 +30,23 @@ use crate::features::messages::handlers::{
     __path_list_messages, __path_post_message, list_messages, post_message,
 };
 use crate::features::messages::models::AgentContext;
+use crate::features::organizations::handlers::{
+    __path_accept_invitation, __path_create_invitation, __path_create_organization,
+    __path_delete_member, __path_get_current_organization, __path_list_current_members,
+    __path_update_current_organization, __path_update_member, accept_invitation, create_invitation,
+    create_organization, delete_member, get_current_organization, list_current_members,
+    update_current_organization, update_member,
+};
+use crate::features::organizations::models::{
+    CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
+    InvitationResponse, Organization, OrganizationMember, OrganizationMembersResponse,
+    UpdateMemberRequest, UpdateOrganizationRequest,
+};
+use crate::features::outputs::handlers::{
+    __path_create_output, __path_delete_output, __path_list_outputs, create_output, delete_output,
+    list_outputs,
+};
+use crate::features::outputs::models::CreateOutputRequest;
 use crate::features::product_config::handlers::{
     __path_get_product_config, __path_reset_product_config, __path_update_product_config,
     get_product_config, reset_product_config, update_product_config,
@@ -38,8 +67,8 @@ use crate::features::test_cases::handlers::{
 use crate::features::test_cases::models::{CreateTestCaseRequest, TestCaseResponse};
 use crate::models::{
     Evaluation, FeatureMockup, HistoryItem, ManagerComment, Message, MessageRole, MessageTag,
-    Mission, MissionStatus, ProgressFlags, Scenario, ScenarioDiscipline, ScenarioType, Session,
-    SessionStatus, TestCase,
+    Mission, MissionStatus, Output, OutputKind, ProgressFlags, Scenario, ScenarioDiscipline,
+    ScenarioType, Session, SessionStatus, TestCase,
 };
 use crate::state::SharedState;
 
@@ -62,6 +91,22 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         evaluate_session,
         list_comments,
         create_comment,
+        list_outputs,
+        create_output,
+        delete_output,
+        create_organization,
+        get_current_organization,
+        update_current_organization,
+        list_current_members,
+        create_invitation,
+        accept_invitation,
+        update_member,
+        delete_member,
+        get_my_entitlements,
+        get_my_credits,
+        checkout_individual,
+        create_portal_session,
+        stripe_webhook,
         import_sessions,
         list_test_cases,
         create_test_case,
@@ -90,13 +135,33 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         MissionStatus,
         Mission,
         ManagerComment,
+        Output,
+        OutputKind,
+        CreateOutputRequest,
+        Organization,
+        OrganizationMember,
+        CurrentOrganizationResponse,
+        OrganizationMembersResponse,
+        InvitationResponse,
+        CreateOrganizationRequest,
+        UpdateOrganizationRequest,
+        CreateInvitationRequest,
+        UpdateMemberRequest,
         TestCase,
         TestCaseResponse,
         CreateTestCaseRequest,
         crate::models::ProductInfo,
         AgentContext,
         ProductConfig,
-        UpdateProductConfigRequest
+        UpdateProductConfigRequest,
+        EntitlementResponse,
+        PlanCode,
+        CreditBalanceResponse,
+        CreateBillingPortalSessionRequest,
+        BillingPortalSessionResponse,
+        CreateIndividualCheckoutRequest,
+        IndividualCheckoutResponse,
+        StripeWebhookResponse
     ))
 )]
 struct ApiDoc;
@@ -109,6 +174,11 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route("/scenarios/:id", get(get_scenario))
         .route("/sessions", post(create_session).get(list_sessions))
         .route("/sessions/:id", get(get_session).delete(delete_session))
+        .route("/me/entitlements", get(get_my_entitlements))
+        .route("/me/credits", get(get_my_credits))
+        .route("/billing/checkout/individual", post(checkout_individual))
+        .route("/billing/portal/session", post(create_portal_session))
+        .route("/billing/webhook/stripe", post(stripe_webhook))
         .route(
             "/sessions/:id/messages",
             get(list_messages).post(post_message),
@@ -117,6 +187,32 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route(
             "/sessions/:id/comments",
             get(list_comments).post(create_comment),
+        )
+        .route(
+            "/sessions/:id/outputs",
+            get(list_outputs).post(create_output),
+        )
+        .route(
+            "/sessions/:id/outputs/:outputId",
+            axum::routing::delete(delete_output),
+        )
+        .route("/organizations", post(create_organization))
+        .route(
+            "/organizations/current",
+            get(get_current_organization).patch(update_current_organization),
+        )
+        .route("/organizations/current/members", get(list_current_members))
+        .route(
+            "/organizations/current/invitations",
+            post(create_invitation),
+        )
+        .route(
+            "/organizations/current/invitations/:token/accept",
+            post(accept_invitation),
+        )
+        .route(
+            "/organizations/current/members/:memberId",
+            axum::routing::patch(update_member).delete(delete_member),
         )
         .route(
             "/sessions/:id/test-cases",
