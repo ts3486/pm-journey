@@ -5,6 +5,11 @@ import type { Scenario } from "@/types";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
+import {
+  getScenarioCategoryGuide,
+  getScenarioGuideSeenStorageKey,
+  ScenarioCategoryGuideModal,
+} from "@/components/scenario/ScenarioCategoryGuideModal";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
 import {
   createLocalMessage,
@@ -20,6 +25,7 @@ import { logEvent } from "@/services/telemetry";
 export function ScenarioPage() {
   const [state, setState] = useState<SessionState | null>(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const pendingInitialReplyTimeout = useRef<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -31,6 +37,8 @@ export function ScenarioPage() {
     if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
     return defaultScenario;
   }, [scenarioIdParam, state?.session?.scenarioId]);
+  const activeGuide = useMemo(() => getScenarioCategoryGuide(activeScenario.id), [activeScenario.id]);
+  const activeGuideCategoryId = activeGuide?.categoryId;
 
   const hasActive = Boolean(state?.session);
   const messages = state?.messages ?? [];
@@ -40,15 +48,15 @@ export function ScenarioPage() {
     (state?.session.missionStatus ?? []).forEach((mission) => map.set(mission.missionId, true));
     return map;
   }, [state?.session?.missionStatus]);
-  const isBasicScenario = activeScenario.scenarioType === "basic";
+  const isSingleResponseScenario = activeScenario.behavior?.singleResponse ?? false;
   const agentResponseEnabled = activeScenario.behavior?.agentResponseEnabled ?? true;
   const firstUserMessageIndex = messages.findIndex((message) => message.role === "user");
   const hasUserResponse = firstUserMessageIndex >= 0;
   const postUserMessages = firstUserMessageIndex >= 0 ? messages.slice(firstUserMessageIndex + 1) : [];
   const hasAgentResponseAfterUser = postUserMessages.some((message) => message.role === "agent");
   const hasSystemEndMessageAfterUser = postUserMessages.some((message) => message.role === "system");
-  const basicScenarioEnded =
-    isBasicScenario &&
+  const singleResponseScenarioEnded =
+    isSingleResponseScenario &&
     hasSystemEndMessageAfterUser &&
     (!agentResponseEnabled || hasAgentResponseAfterUser);
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
@@ -57,8 +65,8 @@ export function ScenarioPage() {
     hasActive &&
     hasUserResponse &&
     (!requiresMissionCompletion || allMissionsComplete) &&
-    (!isBasicScenario || basicScenarioEnded);
-  const scenarioLocked = isBasicScenario && basicScenarioEnded;
+    (!isSingleResponseScenario || singleResponseScenarioEnded);
+  const scenarioLocked = isSingleResponseScenario && singleResponseScenarioEnded;
 
   const clearPendingInitialReply = () => {
     if (pendingInitialReplyTimeout.current !== null) {
@@ -132,7 +140,7 @@ export function ScenarioPage() {
     if (!state) return;
     const trimmed = content.trim();
     if (!trimmed) return;
-    if (activeScenario.scenarioType === "basic") {
+    if (isSingleResponseScenario) {
       const alreadyAnswered = state.messages.some((message) => message.role === "user");
       if (alreadyAnswered) return;
     }
@@ -158,6 +166,21 @@ export function ScenarioPage() {
   const handleCompleteScenario = async () => {
     if (!state) return;
     navigate(`/history/${state.session.id}?autoEvaluate=1`);
+  };
+
+  const handleOpenGuide = () => {
+    if (!activeGuide) return;
+    setIsGuideOpen(true);
+  };
+
+  const handleCloseGuide = () => {
+    setIsGuideOpen(false);
+    if (!activeGuideCategoryId || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId), "1");
+    } catch {
+      // localStorage unavailable: keep guide behavior functional without persistence.
+    }
   };
 
   useEffect(() => {
@@ -189,6 +212,21 @@ export function ScenarioPage() {
   }, [scenarioIdParam, restart]);
 
   useEffect(() => {
+    if (!activeGuideCategoryId) {
+      setIsGuideOpen(false);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    try {
+      const hasSeenGuide =
+        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId)) === "1";
+      if (!hasSeenGuide) setIsGuideOpen(true);
+    } catch {
+      setIsGuideOpen(true);
+    }
+  }, [activeGuideCategoryId]);
+
+  useEffect(() => {
     return () => {
       if (pendingInitialReplyTimeout.current !== null) {
         window.clearTimeout(pendingInitialReplyTimeout.current);
@@ -197,133 +235,153 @@ export function ScenarioPage() {
     };
   }, []);
 
+  const guideModal = activeGuide ? (
+    <ScenarioCategoryGuideModal guide={activeGuide} isOpen={isGuideOpen} onClose={handleCloseGuide} />
+  ) : null;
+
   if (activeScenario.scenarioType === "test-case") {
     return (
-      <TestCaseScenarioLayout
-        scenario={activeScenario}
-        state={state}
-        onComplete={handleCompleteScenario}
-        onReset={handleReset}
-      />
+      <>
+        <TestCaseScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={activeGuide ? handleOpenGuide : undefined}
+        />
+        {guideModal}
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <section className="card p-6 reveal">
-        <div className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-                {activeScenario.discipline} Scenario
-              </p>
-              <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
-              <p className="text-sm text-slate-600">{activeScenario.description}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <ChatStream messages={state?.messages ?? []} maxHeight="60vh" isTyping={awaitingReply} />
-          <ChatComposer
-            onSend={handleSend}
-            disabled={!hasActive || scenarioLocked || awaitingReply}
-          />
-          {scenarioLocked ? (
-            <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
-              ベーシックシナリオは1回の回答で終了します。右側の「シナリオを完了する」ボタンから評価を依頼してください。
-            </div>
-          ) : null}
-        </div>
-
-        <div className="space-y-4">
-          <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">ミッション</p>
-              </div>
-            </div>
-            <ul className="mt-3 space-y-2">
-              {missions.length === 0 ? (
-                <li className="text-xs text-slate-500">設定されたミッションはありません。</li>
-              ) : (
-                missions
-                  .slice()
-                  .sort((a, b) => a.order - b.order)
-                  .map((mission) => {
-                    const done = missionStatusMap.get(mission.id) ?? false;
-                    return (
-                      <li key={mission.id}>
-                        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
-                          <input
-                            type="checkbox"
-                            className="mt-1 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                            checked={done}
-                            name={`mission-${mission.id}`}
-                            onChange={(event) => handleMissionToggle(mission.id, event.target.checked)}
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">{mission.title}</p>
-                            {mission.description ? (
-                              <p className="text-xs text-slate-600">{mission.description}</p>
-                            ) : null}
-                          </div>
-                        </label>
-                      </li>
-                    );
-                  })
-              )}
-            </ul>
-          </div>
-
-          <div className="card-muted px-4 py-4 text-sm text-slate-700">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  {allMissionsComplete ? "ミッション達成" : "評価を実行"}
+    <>
+      <div className="space-y-6">
+        <section className="card p-6 reveal">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                  {activeScenario.discipline} Scenario
                 </p>
+                <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
+                <p className="text-sm text-slate-600">{activeScenario.description}</p>
               </div>
-              <button
-                type="button"
-                className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleCompleteScenario}
-                disabled={!canCompleteScenario}
-              >
-                シナリオを完了する
-              </button>
+              {activeGuide ? (
+                <button
+                  type="button"
+                  className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
+                  onClick={handleOpenGuide}
+                >
+                  進め方ガイドを開く
+                </button>
+              ) : null}
             </div>
-            {!hasUserResponse ? (
-              <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
-            ) : null}
-            {hasUserResponse && isBasicScenario && !basicScenarioEnded ? (
-              <p className="mt-2 text-xs text-slate-500">
-                エージェントの返答とシナリオ終了メッセージの表示を待ってから完了してください。
-              </p>
-            ) : null}
-            {hasUserResponse && requiresMissionCompletion && !allMissionsComplete ? (
-              <p className="mt-2 text-xs text-slate-500">
-                エージェントがミッション達成を判定すると自動でチェックされます。必要であれば手動でチェックして完了できます。
-              </p>
+          </div>
+        </section>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            <ChatStream messages={state?.messages ?? []} maxHeight="60vh" isTyping={awaitingReply} />
+            <ChatComposer
+              onSend={handleSend}
+              disabled={!hasActive || scenarioLocked || awaitingReply}
+            />
+            {scenarioLocked ? (
+              <div className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+                このシナリオは1回の回答で終了します。右側の「シナリオを完了する」ボタンから評価を依頼してください。
+              </div>
             ) : null}
           </div>
-          <ProjectOverviewSection scenario={activeScenario} />
 
-          {hasActive ? (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="text-xs text-slate-400 transition hover:text-slate-600"
-                onClick={handleReset}
-                aria-label="セッションをリセット"
-                title="セッションをリセット"
-              >
-                セッションをリセット
-              </button>
+          <div className="space-y-4">
+            <div className="card p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">ミッション</p>
+                </div>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {missions.length === 0 ? (
+                  <li className="text-xs text-slate-500">設定されたミッションはありません。</li>
+                ) : (
+                  missions
+                    .slice()
+                    .sort((a, b) => a.order - b.order)
+                    .map((mission) => {
+                      const done = missionStatusMap.get(mission.id) ?? false;
+                      return (
+                        <li key={mission.id}>
+                          <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200/70 px-3 py-2">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                              checked={done}
+                              name={`mission-${mission.id}`}
+                              onChange={(event) => handleMissionToggle(mission.id, event.target.checked)}
+                            />
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{mission.title}</p>
+                              {mission.description ? (
+                                <p className="text-xs text-slate-600">{mission.description}</p>
+                              ) : null}
+                            </div>
+                          </label>
+                        </li>
+                      );
+                    })
+                )}
+              </ul>
             </div>
-          ) : null}
+
+            <div className="card-muted px-4 py-4 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {allMissionsComplete ? "ミッション達成" : "評価を実行"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handleCompleteScenario}
+                  disabled={!canCompleteScenario}
+                >
+                  シナリオを完了する
+                </button>
+              </div>
+              {!hasUserResponse ? (
+                <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
+              ) : null}
+              {hasUserResponse && isSingleResponseScenario && !singleResponseScenarioEnded ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  エージェントの返答とシナリオ終了メッセージの表示を待ってから完了してください。
+                </p>
+              ) : null}
+              {hasUserResponse && requiresMissionCompletion && !allMissionsComplete ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  エージェントがミッション達成を判定すると自動でチェックされます。必要であれば手動でチェックして完了できます。
+                </p>
+              ) : null}
+            </div>
+            <ProjectOverviewSection scenario={activeScenario} />
+
+            {hasActive ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 transition hover:text-slate-600"
+                  onClick={handleReset}
+                  aria-label="セッションをリセット"
+                  title="セッションをリセット"
+                >
+                  セッションをリセット
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
-    </div>
+      {guideModal}
+    </>
   );
 }

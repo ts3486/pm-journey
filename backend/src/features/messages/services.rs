@@ -320,7 +320,7 @@ impl MessageService {
                 .and_then(|b| b.single_response)
                 .unwrap_or(false);
             let is_basic_scenario = matches!(scenario_type, Some(ScenarioType::Basic));
-            let should_append_completion_message = behavior_single_response || is_basic_scenario;
+            let should_append_completion_message = behavior_single_response;
 
             let mut reply_tx = self.pool.begin().await.map_err(|e| {
                 anyhow_error(&format!("Failed to begin reply transaction: {}", e))

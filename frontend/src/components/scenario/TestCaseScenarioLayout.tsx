@@ -19,6 +19,7 @@ type TestCaseScenarioLayoutProps = {
   state: SessionState | null;
   onComplete: () => void;
   onReset: () => void;
+  onOpenGuide?: () => void;
 };
 
 export function TestCaseScenarioLayout({
@@ -26,6 +27,7 @@ export function TestCaseScenarioLayout({
   state,
   onComplete,
   onReset,
+  onOpenGuide,
 }: TestCaseScenarioLayoutProps) {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [isLoadingTestCases, setIsLoadingTestCases] = useState(false);
@@ -95,6 +97,15 @@ export function TestCaseScenarioLayout({
               <h1 className="font-display text-2xl text-slate-900">{scenario.title}</h1>
               <p className="max-w-2xl text-sm text-slate-600">{scenario.description}</p>
             </div>
+            {onOpenGuide ? (
+              <button
+                type="button"
+                className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
+                onClick={onOpenGuide}
+              >
+                進め方ガイドを開く
+              </button>
+            ) : null}
           </div>
         </div>
       </section>

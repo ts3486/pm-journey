@@ -1299,6 +1299,13 @@ const challengeBehavior: ScenarioBehavior = {
   responseStyle: "advisor",
 };
 
+const requirementDialogueBehavior: ScenarioBehavior = {
+  userLed: false,
+  allowProactive: true,
+  maxQuestions: 2,
+  responseStyle: "advisor",
+};
+
 // Test-case scenario behavior: user-led, agent answers questions but doesn't provide test cases
 const testCaseBehavior: ScenarioBehavior = {
   userLed: true,
@@ -2165,18 +2172,18 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "ログイン機能のユーザーストーリーと受入条件を定義する。",
-    behavior: {...singleResponseBehavior, agentResponseEnabled: false},
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "ログイン機能の要件定義を行います。ユーザーストーリーと受入条件を定義してください。",
+      "お疲れ様です、POの鈴木です！ログイン機能で『ログインできない』問い合わせが増えているので、最低限のログイン体験を安定化したいです。要件定義をお願いできますか？",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqdoc-m1", title: "ログイン機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqdoc-m2", title: "ログイン成功/失敗時の要件を定義する", order: 1 },
     ],
     supplementalInfo:
-      "ログイン機能のユーザーストーリの定義を作成してください。",
+      "会話で段階的に要件を合意してください。目的・対象ユーザーの確認、受入条件と非対象の整理、不明点の確認先と期限の設定まで行ってください。",
   },
   {
     id: "basic-requirement-hearing-plan",
@@ -2184,18 +2191,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "問い合わせフォーム機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "問い合わせフォーム機能の要件定義を行います。入力・送信・エラー時の期待挙動を含めて整理してください。",
+      "問い合わせフォームの離脱が増えています。CSは入力項目を減らしたい一方で、法務は同意取得を厳密にしたいと言っています。要件を整理してもらえますか？",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqhear-m1", title: "問い合わせフォーム機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqhear-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqhear-m2", title: "入力/送信/エラー時の受入条件を定義する", order: 2 },
+      { id: "basic-reqhear-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には入力バリデーションと送信失敗時の扱いを含めてください。",
+      "会話で段階的に要件を合意してください。入力バリデーション、送信失敗時の扱い、同意取得の境界を明確にし、不明点の確認計画まで整理してください。",
   },
   {
     id: "basic-requirement-user-story",
@@ -2203,18 +2212,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "ファイルアップロード機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "ファイルアップロード機能の要件定義を行います。許可形式、サイズ制限、失敗時の扱いを含めて整理してください。",
+      "サポート向けに添付ファイルアップロードを追加したいです。営業は早期リリースを求めていますが、インフラはサイズ制限を厳守してほしいと言っています。要件を整理してください。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqstory-m1", title: "ファイルアップロード機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqstory-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqstory-m2", title: "形式/サイズ/失敗時の受入条件を定義する", order: 2 },
+      { id: "basic-reqstory-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には形式・サイズ・エラー時の期待挙動を含めてください。",
+      "会話で段階的に要件を合意してください。許可形式、サイズ上限、失敗時リトライの期待挙動を明確化し、不明点の確認計画まで整理してください。",
   },
   {
     id: "basic-requirement-nfr",
@@ -2222,18 +2233,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "パスワード再設定機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "パスワード再設定機能の要件定義を行います。本人確認、期限、再設定完了までの流れを整理してください。",
+      "パスワード再設定の問い合わせが急増しています。UXは簡単な導線を求めていますが、セキュリティは厳格な本人確認を求めています。要件を整理してもらえますか？",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqnfr-m1", title: "パスワード再設定機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqnfr-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqnfr-m2", title: "本人確認/期限/完了条件の受入条件を定義する", order: 2 },
+      { id: "basic-reqnfr-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件にはトークン有効期限と不正利用防止を含めてください。",
+      "会話で段階的に要件を合意してください。トークン有効期限と不正利用防止を含む受入条件を明確化し、不明点の確認計画まで整理してください。",
   },
   {
     id: "basic-requirement-priority-matrix",
@@ -2241,18 +2254,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "検索・絞り込み機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "検索・絞り込み機能の要件定義を行います。検索条件、ソート、0件時の挙動を含めて整理してください。",
+      "検索・絞り込み機能の改善依頼があります。PMは多条件検索を求めていますが、開発からは性能劣化の懸念が出ています。要件を整理しましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqprio-m1", title: "検索・絞り込み機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqprio-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqprio-m2", title: "検索条件/ソート/0件表示の受入条件を定義する", order: 2 },
+      { id: "basic-reqprio-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には複合条件と0件表示を含めてください。",
+      "会話で段階的に要件を合意してください。複合条件検索と0件表示の期待挙動を明確化し、性能懸念に関する確認計画まで整理してください。",
   },
   {
     id: "basic-requirement-risk-check",
@@ -2260,18 +2275,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "通知設定機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "通知設定機能の要件定義を行います。通知チャネル、通知頻度、保存反映を整理してください。",
+      "通知設定を見直したいです。マーケは通知頻度を上げたい一方で、ユーザーからは通知過多の不満が来ています。要件定義を手伝ってください。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqrisk-m1", title: "通知設定機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqrisk-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqrisk-m2", title: "チャネル/頻度/保存反映の受入条件を定義する", order: 2 },
+      { id: "basic-reqrisk-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には保存後の反映と権限拒否時の挙動を含めてください。",
+      "会話で段階的に要件を合意してください。保存後の反映と権限拒否時の挙動を含む受入条件を定義し、不明点の確認計画まで整理してください。",
   },
   {
     id: "basic-requirement-consensus",
@@ -2279,18 +2296,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "プロフィール編集機能のユーザーストーリーと受入条件を定義する。",
-    behavior: singleResponseBehavior,
+    behavior: requirementDialogueBehavior,
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
-      "プロフィール編集機能の要件定義を行います。入力制約、保存、同時編集時の扱いを整理してください。",
+      "プロフィール編集を改善したいです。利用者は即時保存を期待していますが、開発は同時編集時の競合を懸念しています。要件を整理してください。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
-      { id: "basic-reqconsensus-m1", title: "プロフィール編集機能のユーザーストーリーを定義する", order: 1 },
+      { id: "basic-reqconsensus-m1", title: "目的・対象ユーザーを確認する", order: 1 },
+      { id: "basic-reqconsensus-m2", title: "入力制約/保存/競合時の受入条件を定義する", order: 2 },
+      { id: "basic-reqconsensus-m3", title: "非対象と不明点の確認アクションを整理する", order: 3 },
     ],
     supplementalInfo:
-      "以下を1回で回答してください: 1) ユーザーストーリー1本 2) 受入条件3つ 3) 非対象1つ 4) 不明点2つ。受入条件には保存失敗時と競合時の扱いを含めてください。",
+      "会話で段階的に要件を合意してください。保存失敗時と競合時の期待挙動を含む受入条件を明確化し、不明点の確認計画まで整理してください。",
   },
   {
     id: "coming-stakeholder-negotiation",
