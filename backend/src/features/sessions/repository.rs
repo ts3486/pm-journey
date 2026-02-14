@@ -184,6 +184,22 @@ impl SessionRepository {
         Ok(())
     }
 
+    pub async fn mark_evaluated_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        id: &str,
+    ) -> Result<()> {
+        sqlx::query!(
+            "UPDATE sessions SET status = 'evaluated', evaluation_requested = TRUE, last_activity_at = NOW() WHERE id = $1",
+            id
+        )
+        .execute(&mut **tx)
+        .await
+        .context("Failed to mark session as evaluated")?;
+
+        Ok(())
+    }
+
     pub async fn update_mission_status_in_tx(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -340,6 +356,40 @@ impl SessionRepository {
         .fetch_all(&self.pool)
         .await
         .context("Failed to list all sessions")?;
+
+        Ok(rows.into_iter().map(Self::map_row).collect())
+    }
+
+    pub async fn list_completed_for_org_member(
+        &self,
+        org_id: &str,
+        member_user_id: &str,
+    ) -> Result<Vec<Session>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id, scenario_id, scenario_discipline, status,
+                to_char(started_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as started_at,
+                to_char(ended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ended_at,
+                to_char(last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_activity_at,
+                user_name, evaluation_requested, progress_flags, mission_status, organization_id
+            FROM sessions
+            WHERE organization_id = $1
+              AND user_id = $2
+              AND (
+                status IN ('completed', 'evaluated')
+                OR EXISTS (
+                  SELECT 1 FROM evaluations e WHERE e.session_id = sessions.id
+                )
+              )
+            ORDER BY COALESCE(ended_at, last_activity_at) DESC
+            "#,
+        )
+        .bind(org_id)
+        .bind(member_user_id)
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to list completed sessions for organization member")?;
 
         Ok(rows.into_iter().map(Self::map_row).collect())
     }

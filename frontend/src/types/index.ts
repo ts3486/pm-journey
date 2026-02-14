@@ -201,6 +201,14 @@ export type ScenarioCatalogSection = {
   scenarios: ScenarioSummary[];
 };
 
+export type ScenarioEvaluationCriteriaConfig = {
+  softSkills: string[];
+  testCases: string[];
+  requirementDefinition: string[];
+  incidentResponse: string[];
+  businessExecution: string[];
+};
+
 export type ProductConfig = {
   id?: string;
   name: string;
@@ -217,6 +225,7 @@ export type ProductConfig = {
   techStack: string[];
   coreFeatures: string[];
   productPrompt?: string;
+  scenarioEvaluationCriteria: ScenarioEvaluationCriteriaConfig;
   isDefault: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -235,6 +244,15 @@ export type EntitlementResponse = {
   maxDailyCredits?: number;
   teamFeatures: boolean;
   organizationId?: string;
+};
+
+export type MyAccountResponse = {
+  id: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CreditBalanceResponse = {
@@ -277,6 +295,8 @@ export type OrganizationMember = {
   id: string;
   organizationId: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
   role: "owner" | "admin" | "manager" | "member" | "reviewer";
   status: "active" | "invited" | "deactivated";
   invitedByUserId?: string;

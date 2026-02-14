@@ -13,8 +13,8 @@ use crate::features::feature_flags::services::FeatureFlagService;
 use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::{
-    BillingPortalSessionResponse, CreateBillingPortalSessionRequest,
-    CreateTeamCheckoutRequest, StripeWebhookResponse, TeamCheckoutResponse,
+    BillingPortalSessionResponse, CreateBillingPortalSessionRequest, CreateTeamCheckoutRequest,
+    StripeWebhookResponse, TeamCheckoutResponse,
 };
 
 #[derive(Clone)]
@@ -1049,10 +1049,7 @@ impl BillingService {
         let mut form = vec![
             ("mode".to_string(), "subscription".to_string()),
             ("line_items[0][price]".to_string(), team_price_id.clone()),
-            (
-                "line_items[0][quantity]".to_string(),
-                "1".to_string(),
-            ),
+            ("line_items[0][quantity]".to_string(), "1".to_string()),
             ("success_url".to_string(), success_url),
             ("cancel_url".to_string(), cancel_url),
             ("client_reference_id".to_string(), user_id.to_string()),
@@ -1524,7 +1521,8 @@ impl BillingService {
             .ok_or_else(|| client_error("ORGANIZATION_ID_REQUIRED: organizationId is required"))?;
         self.ensure_team_checkout_permission(&organization_id, user_id)
             .await?;
-        if body.seat_quantity < TEAM_MEMBER_COUNT_MIN || body.seat_quantity > TEAM_MEMBER_COUNT_MAX {
+        if body.seat_quantity < TEAM_MEMBER_COUNT_MIN || body.seat_quantity > TEAM_MEMBER_COUNT_MAX
+        {
             return Err(client_error(
                 "SEAT_QUANTITY_INVALID: seatQuantity must be between 1 and 10",
             ));
@@ -1733,13 +1731,11 @@ mod tests {
 
     #[test]
     fn checkout_return_urls_reject_non_http_scheme() {
-        assert!(
-            resolve_checkout_return_urls_from_options(
-                Some("file:///tmp/success"),
-                Some("https://app.example/cancel")
-            )
-            .is_err()
-        );
+        assert!(resolve_checkout_return_urls_from_options(
+            Some("file:///tmp/success"),
+            Some("https://app.example/cancel")
+        )
+        .is_err());
     }
 
     #[test]

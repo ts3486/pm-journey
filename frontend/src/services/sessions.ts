@@ -1,4 +1,5 @@
 import { getScenarioById, resolveAgentProfile } from "@/config";
+import { buildScenarioEvaluationCriteria } from "@/lib/scenarioEvaluationCriteria";
 import { api } from "@/services/api";
 import { storage } from "@/services/storage";
 import type {
@@ -265,9 +266,16 @@ export async function sendMessage(
 export async function evaluate(state: SessionState): Promise<SessionState> {
   const scenario = getScenarioById(state.session.scenarioId);
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
+  const criteria = scenario
+    ? buildScenarioEvaluationCriteria({
+        scenario,
+        scenarioEvaluationCriteria: productConfig?.scenarioEvaluationCriteria,
+        fallbackCriteria: scenario.evaluationCriteria,
+      })
+    : undefined;
   const payload = scenario
     ? {
-        criteria: scenario.evaluationCriteria,
+        criteria: criteria ?? scenario.evaluationCriteria,
         passingScore: scenario.passingScore,
         scenarioType: resolveScenarioType(scenario),
         scenarioTitle: scenario.title,
@@ -294,9 +302,16 @@ export async function evaluateSessionById(
 ): Promise<Evaluation> {
   const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
+  const criteria = scenario
+    ? buildScenarioEvaluationCriteria({
+        scenario,
+        scenarioEvaluationCriteria: productConfig?.scenarioEvaluationCriteria,
+        fallbackCriteria: scenario.evaluationCriteria,
+      })
+    : undefined;
   const payload = scenario
     ? {
-        criteria: scenario.evaluationCriteria,
+        criteria: criteria ?? scenario.evaluationCriteria,
         passingScore: scenario.passingScore,
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,

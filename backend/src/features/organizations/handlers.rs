@@ -6,6 +6,7 @@ use axum::{
 
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
+use crate::models::HistoryItem;
 use crate::state::SharedState;
 
 use super::models::{
@@ -101,6 +102,24 @@ pub async fn get_current_progress(
         .get_current_progress(&auth.user_id)
         .await?;
     Ok(Json(progress))
+}
+
+#[utoipa::path(
+    get,
+    path = "/organizations/current/members/{memberId}/sessions/completed",
+    responses((status = 200, body = [HistoryItem]))
+)]
+pub async fn list_member_completed_sessions(
+    State(state): State<SharedState>,
+    auth: AuthUser,
+    Path(member_id): Path<String>,
+) -> Result<Json<Vec<HistoryItem>>, AppError> {
+    let sessions = state
+        .services()
+        .organizations()
+        .list_member_completed_sessions(&auth.user_id, &member_id)
+        .await?;
+    Ok(Json(sessions))
 }
 
 #[utoipa::path(

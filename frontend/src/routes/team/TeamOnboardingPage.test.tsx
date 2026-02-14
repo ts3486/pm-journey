@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TeamOnboardingPage, teamCheckoutNavigator } from "@/routes/team/TeamOnboardingPage";
+import { TeamOnboardingPage } from "@/routes/team/TeamOnboardingPage";
+import { env } from "@/config/env";
 import { useCurrentOrganization } from "@/queries/organizations";
 import { api } from "@/services/api";
 
@@ -14,14 +15,12 @@ vi.mock("@/services/api", () => ({
   api: {
     createOrganization: vi.fn(),
     acceptOrganizationInvitation: vi.fn(),
-    createTeamCheckout: vi.fn(),
   },
 }));
 
 const useCurrentOrganizationMock = vi.mocked(useCurrentOrganization);
 const createOrganizationMock = vi.mocked(api.createOrganization);
 const acceptOrganizationInvitationMock = vi.mocked(api.acceptOrganizationInvitation);
-const createTeamCheckoutMock = vi.mocked(api.createTeamCheckout);
 
 const mockNoOrganization = () => {
   useCurrentOrganizationMock.mockReturnValue({
@@ -82,53 +81,7 @@ describe("TeamOnboardingPage", () => {
     mockNoOrganization();
   });
 
-  it("runs team registration flow and proceeds to stripe checkout", async () => {
-    createOrganizationMock.mockResolvedValue({
-      id: "org_new",
-      name: "Team Ops",
-      createdByUserId: "auth0|owner",
-      createdAt: "2026-02-14T00:00:00Z",
-      updatedAt: "2026-02-14T00:00:00Z",
-    });
-    createTeamCheckoutMock.mockResolvedValue({
-      mode: "stripe",
-      checkoutUrl: "https://billing.example/team-checkout",
-      alreadyEntitled: false,
-      message: "CHECKOUT_SESSION_CREATED",
-    });
-    const assignSpy = vi.spyOn(teamCheckoutNavigator, "assign").mockImplementation(() => {});
-    renderPage("/team/onboarding?flow=register");
-
-    fireEvent.change(screen.getByLabelText("チーム名"), { target: { value: "Team Ops" } });
-    fireEvent.change(screen.getByLabelText("メンバー数"), { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "確認画面へ進む" }));
-
-    expect(await screen.findByText("2. 設定内容の確認")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Stripeで決済へ進む" }));
-
-    await waitFor(() => {
-      expect(createOrganizationMock).toHaveBeenCalledTimes(1);
-    });
-    expect(createOrganizationMock).toHaveBeenCalledWith({ name: "Team Ops" });
-    expect(createTeamCheckoutMock).toHaveBeenCalledWith({
-      organizationId: "org_new",
-      seatQuantity: 8,
-      successUrl: `${window.location.origin}/pricing?checkout=success&plan=team`,
-      cancelUrl: `${window.location.origin}/pricing?checkout=cancel&plan=team`,
-    });
-    expect(assignSpy).toHaveBeenCalledWith("https://billing.example/team-checkout");
-  });
-
-  it("blocks team registration checkout for non-manager role in existing organization", () => {
-    mockExistingOrganization("member");
-    renderPage("/team/onboarding?flow=register");
-
-    expect(screen.getByText("Teamチェックアウトは owner / admin / manager のみ実行できます。")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "確認画面へ進む" })).toBeDisabled();
-  });
-
-  it("creates an organization from onboarding form", async () => {
+  it("creates a team from onboarding form", async () => {
     createOrganizationMock.mockResolvedValue({
       id: "org_new",
       name: "Team Ops",
@@ -138,10 +91,10 @@ describe("TeamOnboardingPage", () => {
     });
     renderPage();
 
-    fireEvent.change(screen.getByLabelText("組織名"), {
+    fireEvent.change(screen.getByLabelText("チーム名"), {
       target: { value: " Team Ops " },
     });
-    fireEvent.click(screen.getByRole("button", { name: "組織を作成する" }));
+    fireEvent.click(screen.getByRole("button", { name: "チームを作成する" }));
 
     await waitFor(() => {
       expect(createOrganizationMock).toHaveBeenCalledTimes(1);
@@ -204,16 +157,33 @@ describe("TeamOnboardingPage", () => {
     expect(screen.getByText("ログイン中のメールアドレスが招待先と一致しません。")).toBeInTheDocument();
   });
 
-  it("locks onboarding actions when already in an organization", () => {
+  it("locks onboarding actions when already in a team", () => {
     mockExistingOrganization();
     renderPage();
 
-    expect(screen.getByText("すでに組織に参加済みです")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "組織を作成する" })).toBeDisabled();
+    expect(screen.getByText("すでにチームに参加済みです")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "チームを作成する" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "招待に参加する" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "請求設定を開く" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: env.billingEnabled ? "請求設定を開く" : "Team管理を開く" }),
+    ).toHaveAttribute("href", env.billingEnabled ? "/settings/billing" : "/settings/team");
+  });
+
+  it("shows non-admin members a non-management destination", () => {
+    mockExistingOrganization("member");
+    renderPage();
+
+    if (env.billingEnabled) {
+      expect(screen.getByRole("link", { name: "請求設定を開く" })).toHaveAttribute(
+        "href",
+        "/settings/billing",
+      );
+      return;
+    }
+
+    expect(screen.getByRole("link", { name: "アカウント情報を開く" })).toHaveAttribute(
       "href",
-      "/settings/billing",
+      "/settings/account",
     );
   });
 });

@@ -11,6 +11,7 @@ describe("router", () => {
     expect(childPaths).toContain("history/:sessionId");
     expect(childPaths).toContain("scenario");
     expect(childPaths).toContain("settings");
+    expect(childPaths).toContain("settings/account");
     expect(childPaths).toContain("settings/billing");
     expect(childPaths).toContain("settings/team");
     expect(childPaths).toContain("pricing");

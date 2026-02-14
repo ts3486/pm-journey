@@ -175,9 +175,10 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
         .expect("accept invitation request");
     assert_eq!(accept_response.status(), StatusCode::OK);
 
+    let session_progress_active_id = id("session-progress-active");
     insert_session(
         &pool,
-        &id("session-progress-active"),
+        &session_progress_active_id,
         &invitee,
         current_org_json
             .get("organization")
@@ -193,9 +194,10 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
         }),
     )
     .await;
+    let session_progress_completed_id = id("session-progress-completed");
     insert_session(
         &pool,
-        &id("session-progress-completed"),
+        &session_progress_completed_id,
         &invitee,
         current_org_json
             .get("organization")
@@ -282,6 +284,50 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
         })
         .expect("invitee member id")
         .to_string();
+
+    let completed_sessions_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::GET,
+            &format!("/organizations/current/members/{invitee_member_id}/sessions/completed"),
+            &owner_token,
+            None,
+        ))
+        .await
+        .expect("completed sessions request");
+    assert_eq!(completed_sessions_response.status(), StatusCode::OK);
+    let completed_sessions_body = to_bytes(completed_sessions_response.into_body(), usize::MAX)
+        .await
+        .expect("completed sessions body");
+    let completed_sessions_json: serde_json::Value =
+        serde_json::from_slice(&completed_sessions_body).expect("completed sessions json");
+    let completed_sessions = completed_sessions_json
+        .as_array()
+        .expect("completed sessions array");
+    assert_eq!(completed_sessions.len(), 1);
+    assert_eq!(
+        completed_sessions[0].get("sessionId"),
+        Some(&json!(session_progress_completed_id))
+    );
+    assert_ne!(
+        completed_sessions[0].get("sessionId"),
+        Some(&json!(session_progress_active_id))
+    );
+
+    let completed_sessions_for_member_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::GET,
+            &format!("/organizations/current/members/{invitee_member_id}/sessions/completed"),
+            &invitee_token,
+            None,
+        ))
+        .await
+        .expect("completed sessions member request");
+    assert_eq!(
+        completed_sessions_for_member_response.status(),
+        StatusCode::FORBIDDEN
+    );
 
     let update_member_response = app
         .clone()

@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamManagementPage } from "@/routes/settings/TeamManagementPage";
 import type { PlanCode } from "@/types";
+import { env } from "@/config/env";
 import { useEntitlements } from "@/queries/entitlements";
 import {
   useCurrentOrganization,
@@ -69,6 +70,8 @@ function mockCurrentOrganization(role: "owner" | "admin" | "manager" | "member" 
         id: "org_member_test",
         organizationId: "org_test",
         userId: "auth0|manager",
+        userName: "Manager User",
+        userEmail: "manager@example.com",
         role,
         status: "active",
         createdAt: "2026-02-14T00:00:00Z",
@@ -101,6 +104,8 @@ function mockOrganizationMembers() {
           id: "member_owner",
           organizationId: "org_test",
           userId: "auth0|owner",
+          userName: "Owner User",
+          userEmail: "owner@example.com",
           role: "owner",
           status: "active",
           createdAt: "2026-02-14T00:00:00Z",
@@ -110,6 +115,8 @@ function mockOrganizationMembers() {
           id: "member_manager",
           organizationId: "org_test",
           userId: "auth0|manager",
+          userName: "Manager User",
+          userEmail: "manager@example.com",
           role: "manager",
           status: "active",
           createdAt: "2026-02-14T00:00:00Z",
@@ -160,7 +167,7 @@ describe("TeamManagementPage", () => {
     refetchCurrentOrganizationMock.mockClear();
     refetchMembersMock.mockClear();
     refetchProgressMock.mockClear();
-    mockCurrentOrganization("manager");
+    mockCurrentOrganization("admin");
     mockOrganizationMembers();
     mockOrganizationProgress();
   });
@@ -177,8 +184,14 @@ describe("TeamManagementPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("billing-page")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "招待を作成" })).not.toBeInTheDocument();
+    if (env.billingEnabled) {
+      expect(screen.getByText("billing-page")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "招待を作成" })).not.toBeInTheDocument();
+      return;
+    }
+
+    expect(screen.getByText("Team Management")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "招待を作成" })).toBeInTheDocument();
   });
 
   it("shows team member usage and creates invitation", async () => {
@@ -210,6 +223,12 @@ describe("TeamManagementPage", () => {
     );
 
     expect(screen.getByText("メンバー利用: 3 / 5（active 2 + pending 1）")).toBeInTheDocument();
+    expect(screen.queryByText("auth0|manager")).not.toBeInTheDocument();
+    expect(screen.queryByText("auth0|owner")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "完了シナリオ詳細" })).toHaveAttribute(
+      "href",
+      "/settings/team/members/member_owner/completed",
+    );
 
     fireEvent.change(screen.getByLabelText("メールアドレス"), {
       target: { value: "invitee@example.com" },
@@ -226,23 +245,28 @@ describe("TeamManagementPage", () => {
       email: "invitee@example.com",
       role: "member",
     });
-    expect(await screen.findByText(/https:\/\/app\.example\/team\/onboarding\?invite=invite_token_abc/)).toBeInTheDocument();
+    expect(screen.getByText("Manager User")).toBeInTheDocument();
+    expect(await screen.findByText("招待を作成しました。招待メールを送信しました。")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/https:\/\/app\.example\/team\/onboarding\?invite=invite_token_abc/),
+    ).not.toBeInTheDocument();
   });
 
-  it("disables team management actions for non-manager role", () => {
+  it("redirects non-admin members away from team management", () => {
     mockEntitlements("TEAM");
     mockCurrentOrganization("member");
 
     render(
-      <MemoryRouter>
-        <TeamManagementPage />
+      <MemoryRouter initialEntries={["/settings/team"]}>
+        <Routes>
+          <Route path="/settings/team" element={<TeamManagementPage />} />
+          <Route path="/settings/account" element={<p>account-page</p>} />
+        </Routes>
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText("閲覧のみ可能です。Team管理操作は owner / admin / manager に限定されています。"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "招待を作成" })).toBeDisabled();
+    expect(screen.getByText("account-page")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "招待を作成" })).not.toBeInTheDocument();
   });
 
   it("updates a member role from team management section", async () => {
@@ -274,7 +298,7 @@ describe("TeamManagementPage", () => {
     expect(updateCurrentOrganizationMemberMock).toHaveBeenCalledWith("member_manager", {
       role: "admin",
     });
-    expect(await screen.findByText("メンバー auth0|manager のロールを更新しました。")).toBeInTheDocument();
+    expect(await screen.findByText("メンバー Manager User のロールを更新しました。")).toBeInTheDocument();
   });
 
   it("deletes a member from team management section", async () => {
@@ -293,7 +317,7 @@ describe("TeamManagementPage", () => {
       expect(deleteCurrentOrganizationMemberMock).toHaveBeenCalledTimes(1);
     });
     expect(deleteCurrentOrganizationMemberMock).toHaveBeenCalledWith("member_manager");
-    expect(await screen.findByText("メンバー auth0|manager を削除しました。")).toBeInTheDocument();
+    expect(await screen.findByText("メンバー Manager User を削除しました。")).toBeInTheDocument();
   });
 
   it("shows onboarding entry when no organization is found", () => {

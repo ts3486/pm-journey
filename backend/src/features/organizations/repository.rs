@@ -23,17 +23,21 @@ impl OrganizationRepository {
         let row = sqlx::query(
             r#"
             SELECT
-                id,
-                organization_id,
-                user_id,
-                role,
-                status,
-                invited_by_user_id,
-                to_char(joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
-                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
-                to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
-            FROM organization_members
-            WHERE organization_id = $1 AND user_id = $2 AND status = 'active'
+                m.id,
+                m.organization_id,
+                m.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                m.role,
+                m.status,
+                m.invited_by_user_id,
+                to_char(m.joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
+                to_char(m.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
+                to_char(m.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
+            FROM organization_members m
+            LEFT JOIN users u
+              ON u.id = m.user_id
+            WHERE m.organization_id = $1 AND m.user_id = $2 AND m.status = 'active'
             "#,
         )
         .bind(org_id)
@@ -52,18 +56,22 @@ impl OrganizationRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id,
-                organization_id,
-                user_id,
-                role,
-                status,
-                invited_by_user_id,
-                to_char(joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
-                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
-                to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
-            FROM organization_members
-            WHERE user_id = $1 AND status = 'active'
-            ORDER BY created_at DESC
+                m.id,
+                m.organization_id,
+                m.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                m.role,
+                m.status,
+                m.invited_by_user_id,
+                to_char(m.joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
+                to_char(m.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
+                to_char(m.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
+            FROM organization_members m
+            LEFT JOIN users u
+              ON u.id = m.user_id
+            WHERE m.user_id = $1 AND m.status = 'active'
+            ORDER BY m.created_at DESC
             "#,
         )
         .bind(user_id)
@@ -181,18 +189,22 @@ impl OrganizationRepository {
         let rows = sqlx::query(
             r#"
             SELECT
-                id,
-                organization_id,
-                user_id,
-                role,
-                status,
-                invited_by_user_id,
-                to_char(joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
-                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
-                to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
-            FROM organization_members
-            WHERE organization_id = $1
-            ORDER BY created_at ASC
+                m.id,
+                m.organization_id,
+                m.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                m.role,
+                m.status,
+                m.invited_by_user_id,
+                to_char(m.joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
+                to_char(m.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
+                to_char(m.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
+            FROM organization_members m
+            LEFT JOIN users u
+              ON u.id = m.user_id
+            WHERE m.organization_id = $1
+            ORDER BY m.created_at ASC
             "#,
         )
         .bind(org_id)
@@ -211,17 +223,21 @@ impl OrganizationRepository {
         let row = sqlx::query(
             r#"
             SELECT
-                id,
-                organization_id,
-                user_id,
-                role,
-                status,
-                invited_by_user_id,
-                to_char(joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
-                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
-                to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
-            FROM organization_members
-            WHERE organization_id = $1 AND id = $2
+                m.id,
+                m.organization_id,
+                m.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                m.role,
+                m.status,
+                m.invited_by_user_id,
+                to_char(m.joined_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as joined_at,
+                to_char(m.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at,
+                to_char(m.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
+            FROM organization_members m
+            LEFT JOIN users u
+              ON u.id = m.user_id
+            WHERE m.organization_id = $1 AND m.id = $2
             "#,
         )
         .bind(org_id)
@@ -574,7 +590,10 @@ impl OrganizationRepository {
         .await
         .context("Failed to list organization member progress")?;
 
-        Ok(rows.into_iter().map(Self::map_member_progress_row).collect())
+        Ok(rows
+            .into_iter()
+            .map(Self::map_member_progress_row)
+            .collect())
     }
 
     fn map_member_row(r: PgRow) -> OrganizationMember {
@@ -582,6 +601,8 @@ impl OrganizationRepository {
             id: r.get("id"),
             organization_id: r.get("organization_id"),
             user_id: r.get("user_id"),
+            user_name: r.try_get::<Option<String>, _>("user_name").unwrap_or(None),
+            user_email: r.try_get::<Option<String>, _>("user_email").unwrap_or(None),
             role: r.get("role"),
             status: r.get("status"),
             invited_by_user_id: r
@@ -650,7 +671,9 @@ impl OrganizationRepository {
             progress_item_completions: r
                 .try_get::<i64, _>("progress_item_completions")
                 .unwrap_or(0),
-            last_activity_at: r.try_get::<Option<String>, _>("last_activity_at").unwrap_or(None),
+            last_activity_at: r
+                .try_get::<Option<String>, _>("last_activity_at")
+                .unwrap_or(None),
         }
     }
 }

@@ -1,6 +1,129 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScenarioEvaluationCriteriaConfig {
+    #[serde(default)]
+    pub soft_skills: Vec<String>,
+    #[serde(default)]
+    pub test_cases: Vec<String>,
+    #[serde(default)]
+    pub requirement_definition: Vec<String>,
+    #[serde(default)]
+    pub incident_response: Vec<String>,
+    #[serde(default)]
+    pub business_execution: Vec<String>,
+}
+
+fn normalize_criterion_line(value: String) -> String {
+    let trimmed = value.trim();
+    let without_bullet = trimmed
+        .strip_prefix("- ")
+        .or_else(|| trimmed.strip_prefix("* "))
+        .or_else(|| trimmed.strip_prefix("+ "))
+        .unwrap_or(trimmed);
+
+    let mut chars = without_bullet.chars().peekable();
+    let mut number_prefix_len = 0usize;
+    while matches!(chars.peek(), Some(c) if c.is_ascii_digit()) {
+        number_prefix_len += 1;
+        chars.next();
+    }
+    if number_prefix_len > 0 {
+        if matches!(chars.peek(), Some('.' | ')')) {
+            chars.next();
+            if matches!(chars.peek(), Some(' ')) {
+                chars.next();
+            }
+            return chars.collect::<String>().trim().to_string();
+        }
+    }
+
+    without_bullet.trim().to_string()
+}
+
+fn normalize_criteria(criteria: Vec<String>, fallback: &[String]) -> Vec<String> {
+    let mut deduped = Vec::new();
+    for item in criteria {
+        let normalized = normalize_criterion_line(item);
+        if normalized.is_empty() {
+            continue;
+        }
+        if !deduped.iter().any(|existing| existing == &normalized) {
+            deduped.push(normalized);
+        }
+    }
+    if deduped.is_empty() {
+        fallback.to_vec()
+    } else {
+        deduped
+    }
+}
+
+impl ScenarioEvaluationCriteriaConfig {
+    pub fn default_criteria() -> Self {
+        Self {
+            soft_skills: vec![
+                "論点整理の明確さ".to_string(),
+                "相手視点のコミュニケーション".to_string(),
+                "合意形成と意思決定".to_string(),
+                "次アクションの具体性".to_string(),
+            ],
+            test_cases: vec![
+                "正常系シナリオの網羅性".to_string(),
+                "異常系・境界値の網羅性".to_string(),
+                "前提条件・テストデータの明確さ".to_string(),
+                "優先順位と実行効率".to_string(),
+            ],
+            requirement_definition: vec![
+                "要件の目的・背景の明確さ".to_string(),
+                "受入条件の検証可能性".to_string(),
+                "スコープ境界と制約の整理".to_string(),
+                "不明点・リスクと確認計画".to_string(),
+            ],
+            incident_response: vec![
+                "影響範囲と重大度の評価".to_string(),
+                "初動対応と優先度判断".to_string(),
+                "連絡・エスカレーションの適切さ".to_string(),
+                "復旧計画と再発防止の具体性".to_string(),
+            ],
+            business_execution: vec![
+                "目的に対する意思決定の妥当性".to_string(),
+                "トレードオフと根拠の明確さ".to_string(),
+                "ステークホルダー合意形成".to_string(),
+                "実行計画とフォローアップ".to_string(),
+            ],
+        }
+    }
+
+    pub fn normalized(self) -> Self {
+        let defaults = Self::default_criteria();
+        Self {
+            soft_skills: normalize_criteria(self.soft_skills, &defaults.soft_skills),
+            test_cases: normalize_criteria(self.test_cases, &defaults.test_cases),
+            requirement_definition: normalize_criteria(
+                self.requirement_definition,
+                &defaults.requirement_definition,
+            ),
+            incident_response: normalize_criteria(
+                self.incident_response,
+                &defaults.incident_response,
+            ),
+            business_execution: normalize_criteria(
+                self.business_execution,
+                &defaults.business_execution,
+            ),
+        }
+    }
+}
+
+impl Default for ScenarioEvaluationCriteriaConfig {
+    fn default() -> Self {
+        Self::default_criteria()
+    }
+}
+
 /// Product configuration for all scenarios
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +153,8 @@ pub struct ProductConfig {
     pub core_features: Vec<String>,
     #[serde(default, alias = "product_prompt")]
     pub product_prompt: Option<String>,
+    #[serde(default, alias = "scenario_evaluation_criteria")]
+    pub scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig,
     /// Whether this is the default product config (not user-customized)
     #[serde(default, alias = "is_default")]
     pub is_default: bool,
@@ -66,6 +191,8 @@ pub struct UpdateProductConfigRequest {
     pub core_features: Vec<String>,
     #[serde(default, alias = "product_prompt")]
     pub product_prompt: Option<String>,
+    #[serde(default, alias = "scenario_evaluation_criteria")]
+    pub scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig,
 }
 
 impl ProductConfig {
@@ -156,6 +283,7 @@ impl ProductConfig {
 - 運用担当が判断しやすい審査ビューを提供し、処理速度を高める。"#
                     .to_string(),
             ),
+            scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig::default_criteria(),
             is_default: true,
             created_at: None,
             updated_at: None,

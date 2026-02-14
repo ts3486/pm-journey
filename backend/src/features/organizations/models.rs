@@ -22,6 +22,10 @@ pub struct OrganizationMember {
     pub organization_id: String,
     #[serde(alias = "user_id")]
     pub user_id: String,
+    #[serde(alias = "user_name")]
+    pub user_name: Option<String>,
+    #[serde(alias = "user_email")]
+    pub user_email: Option<String>,
     pub role: String,
     pub status: String,
     #[serde(alias = "invited_by_user_id")]

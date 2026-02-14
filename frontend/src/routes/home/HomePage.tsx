@@ -11,20 +11,19 @@ import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listHistory } from "@/services/history";
 import { useEntitlements } from "@/queries/entitlements";
+import { useCurrentOrganization } from "@/queries/organizations";
+import { env } from "@/config/env";
+import { canViewTeamManagement } from "@/lib/teamAccess";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 
-const unlockedScenarioCountPerCategory = 1;
-
-const isLockedScenario = (_subcategoryId: string, scenarioIndex: number): boolean => {
-  return scenarioIndex >= unlockedScenarioCountPerCategory;
-};
-
-const homeScenarioIds = homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
-  category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
-    subcategory.scenarios
-      .filter((_, scenarioIndex) => !isLockedScenario(subcategory.id, scenarioIndex))
-      .map((scenario: ScenarioSummary) => scenario.id)
+const homeScenarioIds = Array.from(
+  new Set(
+    homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
+      category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
+        subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
+      )
+    )
   )
 );
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
@@ -193,32 +192,10 @@ const milestoneTones: MilestoneTone[] = [
   },
 ];
 
-const LockedBadge = ({ toneClassName }: { toneClassName: string }) => (
-  <span
-    className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${toneClassName}`}
-  >
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3 w-3"
-    >
-      <rect x="5" y="11" width="14" height="10" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </svg>
-    <span>LOCKED</span>
-  </span>
-);
-
-const getUnlockedCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
+const getCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
   const uniqueById = new Map<string, ScenarioSummary>();
   category.subcategories.forEach((subcategory) => {
-    subcategory.scenarios.forEach((scenario, scenarioIndex) => {
-      if (isLockedScenario(subcategory.id, scenarioIndex)) return;
+    subcategory.scenarios.forEach((scenario) => {
       uniqueById.set(scenario.id, scenario);
     });
   });
@@ -256,8 +233,12 @@ export function HomePage() {
   const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Record<string, boolean>>({});
-  const { data: entitlements } = useEntitlements();
-  const currentPlanCode = entitlements?.planCode ?? "FREE";
+  const { data: entitlements, isLoading: isEntitlementsLoading } = useEntitlements();
+  const { data: currentOrganization } = useCurrentOrganization();
+  const currentPlanCode = entitlements?.planCode;
+  const hasCurrentOrganization = Boolean(currentOrganization?.organization?.id);
+  const currentOrganizationRole = currentOrganization?.membership?.role ?? null;
+  const canAccessTeamManagement = canViewTeamManagement(currentOrganizationRole);
 
   const { data: historyItems = [], isLoading: isHistoryLoading, isError, error } = useQuery({
     queryKey: ["history", "list"],
@@ -299,7 +280,7 @@ export function HomePage() {
   const roadmap = useMemo(
     () =>
       homeScenarioCatalog.map((category, index) => {
-        const scenarios = getUnlockedCategoryScenarios(category);
+        const scenarios = getCategoryScenarios(category);
         const completedCount = scenarios.filter((scenario) => completedScenarioIds.has(scenario.id)).length;
         const totalCount = scenarios.length;
         return {
@@ -376,25 +357,32 @@ export function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="card p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Current Plan</p>
-            {currentPlanCode === "FREE" ? (
+      {!isEntitlementsLoading && currentPlanCode === "FREE" ? (
+        <section className="card p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Current Plan</p>
               <p className="text-sm text-slate-700">
                 プラン: <span className="font-semibold">FREE</span> / AI利用は日次フェアユース上限で制御
               </p>
-            ) : (
-              <p className="text-sm text-slate-700">
-                プラン: <span className="font-semibold">TEAM</span> / 組織単位の日次フェアユース上限で制御
-              </p>
-            )}
+            </div>
+            <Link
+              to={
+                env.billingEnabled
+                  ? "/pricing"
+                  : hasCurrentOrganization
+                    ? canAccessTeamManagement
+                      ? "/settings/team"
+                      : "/settings/account"
+                    : "/team/onboarding"
+              }
+              className="btn-secondary w-full sm:w-auto"
+            >
+              {env.billingEnabled ? "料金プランを確認" : "チーム設定へ進む"}
+            </Link>
           </div>
-          <Link to="/pricing" className="btn-secondary w-full sm:w-auto">
-            料金プランを確認
-          </Link>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section
         className="card relative overflow-hidden border-orange-200/70 bg-gradient-to-br from-orange-50/80 via-white/92 to-sky-50/70 p-6 reveal sm:p-8"
@@ -574,11 +562,10 @@ export function HomePage() {
                             </div>
                             <div className={isScrollableSubcategory ? "max-h-[27rem] overflow-y-auto pr-1 no-scrollbar" : undefined}>
                               <ul className="space-y-2">
-                                {subcategory.scenarios.map((scenario, scenarioIndex) => {
-                                  const locked = isLockedScenario(subcategory.id, scenarioIndex);
-                                  const completedSessionId = locked ? undefined : completedSessionIdsByScenario.get(scenario.id);
+                                {subcategory.scenarios.map((scenario) => {
+                                  const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
                                   const completed = Boolean(completedSessionId);
-                                  const interrupted = !locked && savedByScenario[scenario.id] && !completed;
+                                  const interrupted = savedByScenario[scenario.id] && !completed;
                                   return (
                                     <li
                                       key={scenario.id}
@@ -594,27 +581,22 @@ export function HomePage() {
                                           <p className="text-xs text-slate-600">{scenario.description}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          {locked ? (
-                                            <LockedBadge toneClassName={milestoneTones[categoryIndex % milestoneTones.length].chipIdle} />
-                                          ) : null}
-                                          {!locked && completed ? (
+                                          {completed ? (
                                             <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                                               完了
                                             </span>
                                           ) : null}
-                                          {!locked && interrupted ? (
+                                          {interrupted ? (
                                             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
                                               中断中
                                             </span>
                                           ) : null}
-                                          {!locked ? (
-                                            <Link
-                                              className="btn-secondary !px-3 !py-1.5 !text-xs"
-                                              to={`/scenario?scenarioId=${scenario.id}&restart=1`}
-                                            >
-                                              {completed ? "再挑戦" : interrupted ? "再開" : "開始"}
-                                            </Link>
-                                          ) : null}
+                                          <Link
+                                            className="btn-secondary !px-3 !py-1.5 !text-xs"
+                                            to={`/scenario?scenarioId=${scenario.id}&restart=1`}
+                                          >
+                                            {completed ? "再挑戦" : interrupted ? "再開" : "開始"}
+                                          </Link>
                                         </div>
                                       </div>
                                     </li>

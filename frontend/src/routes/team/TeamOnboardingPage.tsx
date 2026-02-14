@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { env } from "@/config/env";
+import { canViewTeamManagement } from "@/lib/teamAccess";
 import { queryKeys } from "@/queries/keys";
 import { useCurrentOrganization } from "@/queries/organizations";
 import { api } from "@/services/api";
@@ -14,11 +16,6 @@ type InviteFeedback = {
   suggestion?: string;
 };
 
-type RegistrationStep = "settings" | "confirm";
-
-const TEAM_MEMBER_MIN = 1;
-const TEAM_MEMBER_MAX = 10;
-
 const inviteFeedbackToneClass: Record<InviteFeedbackTone, string> = {
   info: "border-sky-200 bg-sky-50 text-sky-700",
   success: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -26,53 +23,13 @@ const inviteFeedbackToneClass: Record<InviteFeedbackTone, string> = {
   error: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-const canManageTeamCheckoutRole = (role?: string | null): boolean => {
-  return role === "owner" || role === "admin" || role === "manager";
-};
-
 const mapCreateOrganizationErrorMessage = (error: unknown): string => {
-  const message = error instanceof Error ? error.message : "組織作成に失敗しました。";
+  const message = error instanceof Error ? error.message : "チーム作成に失敗しました。";
   if (/organization name is required/i.test(message)) {
-    return "組織名を入力してください。";
+    return "チーム名を入力してください。";
   }
   return message;
 };
-
-const mapTeamCheckoutErrorMessage = (error: unknown): string => {
-  const message = error instanceof Error ? error.message : "チェックアウト開始に失敗しました。";
-  if (/FORBIDDEN_ROLE/i.test(message)) {
-    return "Teamチェックアウトは owner / admin / manager のみ実行できます。";
-  }
-  if (/SEAT_QUANTITY_INVALID/i.test(message)) {
-    return `メンバー数は ${TEAM_MEMBER_MIN}〜${TEAM_MEMBER_MAX} の範囲で指定してください。`;
-  }
-  if (/TEAM_FEATURES_DISABLED/i.test(message)) {
-    return "Team機能は現在無効です。";
-  }
-  return message;
-};
-
-const parseMemberCount = (raw: string): number | null => {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const parsed = Number.parseInt(trimmed, 10);
-  if (!Number.isInteger(parsed)) return null;
-  return parsed;
-};
-
-const validateMemberCount = (raw: string): string | null => {
-  const parsed = parseMemberCount(raw);
-  if (parsed == null) {
-    return "メンバー数を入力してください。";
-  }
-  if (parsed < TEAM_MEMBER_MIN || parsed > TEAM_MEMBER_MAX) {
-    return `メンバー数は ${TEAM_MEMBER_MIN}〜${TEAM_MEMBER_MAX} の範囲で指定してください。`;
-  }
-  return null;
-};
-
-const checkoutReturnUrl = (origin: string, status: "success" | "cancel") =>
-  `${origin}/pricing?checkout=${status}&plan=team`;
 
 const inviteTokenDetectedFeedback = (): InviteFeedback => ({
   tone: "info",
@@ -128,12 +85,6 @@ const mapInviteAcceptanceFeedback = (error: unknown): InviteFeedback => {
   };
 };
 
-export const teamCheckoutNavigator = {
-  assign(url: string) {
-    window.location.assign(url);
-  },
-};
-
 export function TeamOnboardingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -144,11 +95,8 @@ export function TeamOnboardingPage() {
     error: currentOrganizationError,
   } = useCurrentOrganization();
 
-  const flow = searchParams.get("flow")?.trim().toLowerCase() ?? "";
-  const isTeamRegistrationFlow = flow === "register";
   const inviteTokenFromQuery = searchParams.get("invite")?.trim() ?? "";
-
-  const [organizationName, setOrganizationName] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [inviteToken, setInviteToken] = useState(inviteTokenFromQuery);
   const [isCreatePending, setIsCreatePending] = useState(false);
   const [isAcceptPending, setIsAcceptPending] = useState(false);
@@ -158,32 +106,18 @@ export function TeamOnboardingPage() {
     inviteTokenFromQuery ? inviteTokenDetectedFeedback() : null,
   );
 
-  const [registrationStep, setRegistrationStep] = useState<RegistrationStep>("settings");
-  const [teamNameInput, setTeamNameInput] = useState("");
-  const [teamMemberInput, setTeamMemberInput] = useState("5");
-  const [teamNameError, setTeamNameError] = useState<string | null>(null);
-  const [teamMemberError, setTeamMemberError] = useState<string | null>(null);
-  const [registrationError, setRegistrationError] = useState<string | null>(null);
-  const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
-  const [isCheckoutPending, setIsCheckoutPending] = useState(false);
-  const [createdOrganizationId, setCreatedOrganizationId] = useState<string | null>(null);
-
   const currentOrganizationId = currentOrganization?.organization.id ?? null;
   const currentOrganizationName = currentOrganization?.organization.name ?? null;
   const currentRole = currentOrganization?.membership.role ?? null;
+  const canAccessTeamManagement = canViewTeamManagement(currentRole);
   const hasCurrentOrganization = Boolean(currentOrganizationId);
-  const hasTeamCheckoutRole = canManageTeamCheckoutRole(currentRole);
-  const effectiveOrganizationId = currentOrganizationId ?? createdOrganizationId;
-
-  const registrationDisabledReason = useMemo(() => {
-    if (isCurrentOrganizationLoading) {
-      return "組織情報を確認中です。";
-    }
-    if (hasCurrentOrganization && !hasTeamCheckoutRole) {
-      return "Teamチェックアウトは owner / admin / manager のみ実行できます。";
-    }
-    return null;
-  }, [hasCurrentOrganization, hasTeamCheckoutRole, isCurrentOrganizationLoading]);
+  const postOnboardingPath = env.billingEnabled ? "/settings/billing" : "/settings/team";
+  const existingOrganizationPath = env.billingEnabled
+    ? "/settings/billing"
+    : canAccessTeamManagement
+      ? "/settings/team"
+      : "/settings/account";
+  const isActionDisabled = isCreatePending || isAcceptPending || hasCurrentOrganization;
 
   useEffect(() => {
     if (!inviteTokenFromQuery) return;
@@ -192,14 +126,6 @@ export function TeamOnboardingPage() {
     setActionError(null);
     setActionMessage(null);
   }, [inviteTokenFromQuery]);
-
-  useEffect(() => {
-    if (!isTeamRegistrationFlow) return;
-    if (!hasCurrentOrganization) return;
-    if (!currentOrganizationName) return;
-    if (teamNameInput.trim()) return;
-    setTeamNameInput(currentOrganizationName);
-  }, [currentOrganizationName, hasCurrentOrganization, isTeamRegistrationFlow, teamNameInput]);
 
   const refreshTeamContext = async () => {
     await Promise.all([
@@ -210,107 +136,18 @@ export function TeamOnboardingPage() {
     ]);
   };
 
-  const validateRegistrationInputs = (): { memberCount: number | null } => {
-    setTeamNameError(null);
-    setTeamMemberError(null);
-    setRegistrationError(null);
-    setRegistrationMessage(null);
-
-    if (registrationDisabledReason) {
-      setRegistrationError(registrationDisabledReason);
-      return { memberCount: null };
-    }
-
-    if (!hasCurrentOrganization && !teamNameInput.trim()) {
-      setTeamNameError("チーム名を入力してください。");
-      return { memberCount: null };
-    }
-
-    const memberError = validateMemberCount(teamMemberInput);
-    if (memberError) {
-      setTeamMemberError(memberError);
-      return { memberCount: null };
-    }
-
-    return {
-      memberCount: parseMemberCount(teamMemberInput),
-    };
-  };
-
-  const handleProceedToConfirmation = () => {
-    const { memberCount } = validateRegistrationInputs();
-    if (memberCount == null) {
-      return;
-    }
-    setRegistrationStep("confirm");
-  };
-
-  const handleBackToSettings = () => {
-    setRegistrationStep("settings");
-    setRegistrationError(null);
-    setRegistrationMessage(null);
-  };
-
-  const handleStartTeamCheckout = async () => {
-    const { memberCount } = validateRegistrationInputs();
-    if (memberCount == null) {
-      return;
-    }
-
-    setIsCheckoutPending(true);
-    try {
-      let organizationId = effectiveOrganizationId;
-      if (!organizationId) {
-        const created = await api.createOrganization({ name: teamNameInput.trim() });
-        organizationId = created.id;
-        setCreatedOrganizationId(created.id);
-        await refreshTeamContext();
-      }
-
-      if (!organizationId) {
-        setRegistrationError("購入対象の組織が見つかりません。");
-        return;
-      }
-
-      const origin = window.location.origin;
-      const response = await api.createTeamCheckout({
-        organizationId,
-        seatQuantity: memberCount,
-        successUrl: checkoutReturnUrl(origin, "success"),
-        cancelUrl: checkoutReturnUrl(origin, "cancel"),
-      });
-
-      if (response.alreadyEntitled) {
-        setRegistrationMessage("この組織ではすでにTeamプランが有効です。");
-        return;
-      }
-
-      const checkoutUrl = response.checkoutUrl?.trim();
-      if (!checkoutUrl) {
-        setRegistrationError("チェックアウトURLを取得できませんでした。時間をおいて再試行してください。");
-        return;
-      }
-
-      teamCheckoutNavigator.assign(checkoutUrl);
-    } catch (error) {
-      setRegistrationError(mapTeamCheckoutErrorMessage(error));
-    } finally {
-      setIsCheckoutPending(false);
-    }
-  };
-
   const handleCreateOrganization = async () => {
     setActionError(null);
     setActionMessage(null);
 
     if (hasCurrentOrganization) {
-      setActionError("すでに組織に参加しています。現在の組織設定からTeam管理を進めてください。");
+      setActionError("すでにチームに参加しています。現在のチーム設定からTeam管理を進めてください。");
       return;
     }
 
-    const normalizedName = organizationName.trim();
+    const normalizedName = teamName.trim();
     if (!normalizedName) {
-      setActionError("組織名を入力してください。");
+      setActionError("チーム名を入力してください。");
       return;
     }
 
@@ -318,8 +155,12 @@ export function TeamOnboardingPage() {
     try {
       const created = await api.createOrganization({ name: normalizedName });
       await refreshTeamContext();
-      setActionMessage(`組織 ${created.name} を作成しました。請求設定へ移動します。`);
-      navigate("/settings/billing");
+      setActionMessage(
+        env.billingEnabled
+          ? `チーム ${created.name} を作成しました。請求設定へ移動します。`
+          : `チーム ${created.name} を作成しました。Team管理へ移動します。`,
+      );
+      navigate(postOnboardingPath);
     } catch (error) {
       setActionError(mapCreateOrganizationErrorMessage(error));
     } finally {
@@ -334,7 +175,7 @@ export function TeamOnboardingPage() {
     if (hasCurrentOrganization) {
       setInviteFeedback({
         tone: "warning",
-        title: "すでに組織参加済みです",
+        title: "すでにチーム参加済みです",
         description: "招待参加は未所属ユーザーのみ実行できます。",
       });
       return;
@@ -362,10 +203,16 @@ export function TeamOnboardingPage() {
       setInviteFeedback({
         tone: "success",
         title: "招待を受諾しました",
-        description: "請求設定ページへ移動します。",
+        description: env.billingEnabled
+          ? "請求設定ページへ移動します。"
+          : "Team管理ページへ移動します。",
       });
-      setActionMessage("招待を受諾しました。請求設定へ移動します。");
-      navigate("/settings/billing");
+      setActionMessage(
+        env.billingEnabled
+          ? "招待を受諾しました。請求設定へ移動します。"
+          : "招待を受諾しました。Team管理へ移動します。",
+      );
+      navigate(postOnboardingPath);
     } catch (error) {
       setInviteFeedback(mapInviteAcceptanceFeedback(error));
     } finally {
@@ -373,174 +220,13 @@ export function TeamOnboardingPage() {
     }
   };
 
-  if (isTeamRegistrationFlow) {
-    const previewTeamName = hasCurrentOrganization ? currentOrganizationName : teamNameInput.trim();
-
-    return (
-      <div className="space-y-6">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Team Registration</p>
-          <h1 className="font-display text-2xl text-slate-900">Team登録フロー</h1>
-          <p className="text-sm text-slate-600">
-            Team設定を入力し、確認後にStripe決済へ進みます。料金は月額3,000円の固定です。
-          </p>
-        </header>
-
-        <section className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <p>
-            ステップ:{" "}
-            <span className="font-semibold">{registrationStep === "settings" ? "1/2 設定入力" : "2/2 確認"}</span>
-          </p>
-        </section>
-
-        {registrationMessage ? (
-          <section className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {registrationMessage}
-          </section>
-        ) : null}
-        {registrationError ? (
-          <section className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {registrationError}
-          </section>
-        ) : null}
-        {currentOrganizationError ? (
-          <section className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {currentOrganizationError instanceof Error
-              ? currentOrganizationError.message
-              : "組織状態の取得に失敗しました。"}
-          </section>
-        ) : null}
-
-        {registrationStep === "settings" ? (
-          <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-            <article className="card p-5">
-              <h2 className="font-display text-lg text-slate-900">1. Team設定を入力</h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Team名とメンバー数を設定してください。メンバー数は{TEAM_MEMBER_MIN}〜{TEAM_MEMBER_MAX}名です。
-              </p>
-
-              {hasCurrentOrganization ? (
-                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                  <p>
-                    組織: <span className="font-semibold">{currentOrganizationName}</span> ({currentOrganizationId})
-                  </p>
-                  <p>
-                    あなたのロール: <span className="font-semibold">{currentRole}</span>
-                  </p>
-                </div>
-              ) : (
-                <label className="mt-4 flex flex-col gap-1 text-xs text-slate-700">
-                  チーム名
-                  <input
-                    type="text"
-                    value={teamNameInput}
-                    onChange={(event) => {
-                      setTeamNameInput(event.target.value);
-                      if (teamNameError) setTeamNameError(null);
-                    }}
-                    placeholder="例: PM Journey Team"
-                    className="input-base"
-                    disabled={isCheckoutPending}
-                  />
-                </label>
-              )}
-              {teamNameError ? <p className="mt-2 text-xs text-rose-700">{teamNameError}</p> : null}
-
-              <label className="mt-4 flex flex-col gap-1 text-xs text-slate-700">
-                メンバー数
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={TEAM_MEMBER_MIN}
-                  max={TEAM_MEMBER_MAX}
-                  step={1}
-                  value={teamMemberInput}
-                  onChange={(event) => {
-                    setTeamMemberInput(event.target.value);
-                    if (teamMemberError) {
-                      setTeamMemberError(validateMemberCount(event.target.value));
-                    }
-                  }}
-                  onBlur={() => setTeamMemberError(validateMemberCount(teamMemberInput))}
-                  className="input-base"
-                  disabled={isCheckoutPending}
-                />
-              </label>
-              {teamMemberError ? <p className="mt-2 text-xs text-rose-700">{teamMemberError}</p> : null}
-
-              {registrationDisabledReason ? (
-                <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  {registrationDisabledReason}
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                className="btn-primary mt-4 w-full"
-                onClick={handleProceedToConfirmation}
-                disabled={isCheckoutPending || Boolean(registrationDisabledReason)}
-              >
-                確認画面へ進む
-              </button>
-            </article>
-
-            <article className="card p-5">
-              <h2 className="font-display text-lg text-slate-900">別の操作</h2>
-              <div className="mt-3 flex flex-col gap-2">
-                <Link to="/team/onboarding" className="btn-secondary text-center">
-                  招待で既存チームに参加
-                </Link>
-                <Link to="/pricing" className="btn-secondary text-center">
-                  料金ページへ戻る
-                </Link>
-              </div>
-            </article>
-          </section>
-        ) : (
-          <section className="card p-5">
-            <h2 className="font-display text-lg text-slate-900">2. 設定内容の確認</h2>
-            <p className="mt-2 text-sm text-slate-600">内容を確認して、問題なければStripe決済へ進んでください。</p>
-
-            <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-              <p>
-                Team名: <span className="font-semibold">{previewTeamName || "-"}</span>
-              </p>
-              <p>
-                メンバー数: <span className="font-semibold">{parseMemberCount(teamMemberInput) ?? "-"}</span>
-              </p>
-              <p>
-                請求: <span className="font-semibold">¥3,000 / 月（固定）</span>
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" className="btn-secondary" onClick={handleBackToSettings} disabled={isCheckoutPending}>
-                設定に戻る
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => void handleStartTeamCheckout()}
-                disabled={isCheckoutPending || Boolean(registrationDisabledReason)}
-              >
-                {isCheckoutPending ? "Stripeへ遷移中..." : "Stripeで決済へ進む"}
-              </button>
-            </div>
-          </section>
-        )}
-      </div>
-    );
-  }
-
-  const isActionDisabled = isCreatePending || isAcceptPending || hasCurrentOrganization;
-
   return (
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Team Onboarding</p>
         <h1 className="font-display text-2xl text-slate-900">チーム利用の開始</h1>
         <p className="text-sm text-slate-600">
-          Teamプラン利用前に、組織を新規作成するか、招待トークンで既存組織に参加してください。
+          チームを新規作成するか、招待トークンで既存チームに参加してください。
         </p>
       </header>
 
@@ -565,50 +251,51 @@ export function TeamOnboardingPage() {
         <section className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {currentOrganizationError instanceof Error
             ? currentOrganizationError.message
-            : "組織状態の取得に失敗しました。"}
+            : "チーム状態の取得に失敗しました。"}
         </section>
       ) : null}
 
       <section className="card p-5">
         {isCurrentOrganizationLoading ? (
-          <p className="text-sm text-slate-600">現在の組織状態を確認中...</p>
+          <p className="text-sm text-slate-600">現在のチーム状態を確認中...</p>
         ) : hasCurrentOrganization ? (
           <div className="space-y-3 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">すでに組織に参加済みです</p>
+            <p className="font-semibold text-slate-900">すでにチームに参加済みです</p>
             <p>
-              組織: <span className="font-semibold">{currentOrganizationName}</span> ({currentOrganizationId})
+              チーム: <span className="font-semibold">{currentOrganizationName}</span> ({currentOrganizationId})
             </p>
             <p>
               あなたのロール: <span className="font-semibold">{currentRole}</span>
             </p>
             <div className="flex flex-wrap gap-2">
-              <Link to="/settings/billing" className="btn-secondary">
-                請求設定を開く
-              </Link>
-              <Link to="/team/onboarding?flow=register" className="btn-secondary">
-                Team登録フローへ
+              <Link to={existingOrganizationPath} className="btn-secondary">
+                {env.billingEnabled
+                  ? "請求設定を開く"
+                  : canAccessTeamManagement
+                    ? "Team管理を開く"
+                    : "アカウント情報を開く"}
               </Link>
             </div>
           </div>
         ) : (
           <p className="text-sm text-slate-600">
-            現在は組織に未所属です。以下のいずれかを完了すると Teamチェックアウトへ進めます。
+            現在はチームに未所属です。以下のいずれかでチームに参加できます。
           </p>
         )}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="card p-5">
-          <h2 className="font-display text-lg text-slate-900">1. 組織を新規作成</h2>
+          <h2 className="font-display text-lg text-slate-900">1. チームを新規作成</h2>
           <p className="mt-2 text-sm text-slate-600">
             新しいチーム運用を始める場合はこちら。作成者は自動で owner になります。
           </p>
           <label className="mt-4 flex flex-col gap-1 text-xs text-slate-700">
-            組織名
+            チーム名
             <input
               type="text"
-              value={organizationName}
-              onChange={(event) => setOrganizationName(event.target.value)}
+              value={teamName}
+              onChange={(event) => setTeamName(event.target.value)}
               placeholder="例: PM Journey Team"
               className="input-base"
               disabled={isActionDisabled}
@@ -620,12 +307,12 @@ export function TeamOnboardingPage() {
             onClick={() => void handleCreateOrganization()}
             disabled={isActionDisabled}
           >
-            {isCreatePending ? "組織を作成中..." : "組織を作成する"}
+            {isCreatePending ? "チームを作成中..." : "チームを作成する"}
           </button>
         </article>
 
         <article className="card p-5">
-          <h2 className="font-display text-lg text-slate-900">2. 招待で既存組織に参加</h2>
+          <h2 className="font-display text-lg text-slate-900">2. 招待で既存チームに参加</h2>
           <p className="mt-2 text-sm text-slate-600">
             管理者から共有された招待トークンを入力して参加します。
           </p>
@@ -653,9 +340,6 @@ export function TeamOnboardingPage() {
           >
             {isAcceptPending ? "招待を受諾中..." : "招待に参加する"}
           </button>
-          <Link to="/team/onboarding?flow=register" className="btn-secondary mt-2 block w-full text-center">
-            Team登録フローへ進む
-          </Link>
         </article>
       </section>
     </div>

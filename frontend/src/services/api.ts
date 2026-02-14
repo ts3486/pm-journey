@@ -17,6 +17,8 @@ const call =
 export const api: ApiClient = {
   createScenario: call("createScenario"),
   createSession: call("createSession"),
+  getMyAccount: call("getMyAccount"),
+  deleteMyAccount: call("deleteMyAccount"),
   getMyEntitlements: call("getMyEntitlements"),
   createTeamCheckout: call("createTeamCheckout"),
   createBillingPortalSession: call("createBillingPortalSession"),
@@ -24,6 +26,7 @@ export const api: ApiClient = {
   getCurrentOrganization: call("getCurrentOrganization"),
   listCurrentOrganizationMembers: call("listCurrentOrganizationMembers"),
   getCurrentOrganizationProgress: call("getCurrentOrganizationProgress"),
+  listCurrentOrganizationMemberCompletedSessions: call("listCurrentOrganizationMemberCompletedSessions"),
   createOrganizationInvitation: call("createOrganizationInvitation"),
   acceptOrganizationInvitation: call("acceptOrganizationInvitation"),
   updateCurrentOrganizationMember: call("updateCurrentOrganizationMember"),

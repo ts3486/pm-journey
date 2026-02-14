@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BillingSettingsPage, billingPortalNavigator } from "@/routes/settings/BillingSettingsPage";
 import type { PlanCode } from "@/types";
+import { env } from "@/config/env";
 import { useEntitlements } from "@/queries/entitlements";
 import { useCurrentOrganization, useCurrentOrganizationMembers } from "@/queries/organizations";
 import { api } from "@/services/api";
@@ -41,7 +42,7 @@ function mockEntitlements(planCode: PlanCode) {
   } as any);
 }
 
-function mockCurrentOrganization() {
+function mockCurrentOrganization(role: "owner" | "admin" | "manager" | "member" | "reviewer" = "admin") {
   useCurrentOrganizationMock.mockReturnValue({
     data: {
       organization: {
@@ -54,8 +55,8 @@ function mockCurrentOrganization() {
       membership: {
         id: "org_member_test",
         organizationId: "org_test",
-        userId: "auth0|manager",
-        role: "manager",
+        userId: "auth0|admin",
+        role,
         status: "active",
         createdAt: "2026-02-14T00:00:00Z",
         updatedAt: "2026-02-14T00:00:00Z",
@@ -99,6 +100,13 @@ describe("BillingSettingsPage", () => {
       </MemoryRouter>,
     );
 
+    if (!env.billingEnabled) {
+      expect(screen.getByText("Billing Disabled")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "チーム作成 / 招待へ" })).toHaveAttribute("href", "/team/onboarding");
+      expect(screen.getByRole("link", { name: "Team管理を開く" })).toHaveAttribute("href", "/settings/team");
+      return;
+    }
+
     expect(screen.getByText("現在のプラン: Free")).toBeInTheDocument();
     expect(screen.getByText("支払い状態:", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("未契約")).toBeInTheDocument();
@@ -114,6 +122,13 @@ describe("BillingSettingsPage", () => {
         <BillingSettingsPage />
       </MemoryRouter>,
     );
+
+    if (!env.billingEnabled) {
+      expect(screen.getByText("Billing Disabled")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Team管理を開く" })).toHaveAttribute("href", "/settings/team");
+      expect(screen.queryByRole("button", { name: "請求情報を管理" })).not.toBeInTheDocument();
+      return;
+    }
 
     expect(screen.getByText("現在のプラン: Team")).toBeInTheDocument();
     expect(screen.getByText("有効")).toBeInTheDocument();
@@ -135,6 +150,13 @@ describe("BillingSettingsPage", () => {
       </MemoryRouter>,
     );
 
+    if (!env.billingEnabled) {
+      expect(screen.getByText("Billing Disabled")).toBeInTheDocument();
+      expect(createBillingPortalSessionMock).not.toHaveBeenCalled();
+      expect(assignSpy).not.toHaveBeenCalled();
+      return;
+    }
+
     fireEvent.click(screen.getByRole("button", { name: "請求情報を管理" }));
 
     await waitFor(() => {
@@ -144,5 +166,18 @@ describe("BillingSettingsPage", () => {
       returnUrl: `${window.location.origin}/settings/billing`,
     });
     expect(assignSpy).toHaveBeenCalledWith("https://billing.stripe.com/session/test");
+  });
+
+  it("hides team management entry for non-admin members", () => {
+    mockEntitlements("TEAM");
+    mockCurrentOrganization("member");
+
+    render(
+      <MemoryRouter>
+        <BillingSettingsPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("link", { name: "Team管理を開く" })).not.toBeInTheDocument();
   });
 });

@@ -5,8 +5,8 @@ use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
 use super::models::{
-    BillingPortalSessionResponse, CreateBillingPortalSessionRequest,
-    CreateTeamCheckoutRequest, StripeWebhookResponse, TeamCheckoutResponse,
+    BillingPortalSessionResponse, CreateBillingPortalSessionRequest, CreateTeamCheckoutRequest,
+    StripeWebhookResponse, TeamCheckoutResponse,
 };
 
 #[utoipa::path(

@@ -7,6 +7,7 @@ use crate::features::entitlements::services::EntitlementService;
 use crate::features::evaluations::repository::EvaluationRepository;
 use crate::features::feature_flags::services::FeatureFlagService;
 use crate::features::messages::repository::MessageRepository;
+use crate::features::organizations::repository::OrganizationRepository;
 use crate::features::sessions::repository::SessionRepository;
 use crate::models::{
     default_scenarios, HistoryItem, HistoryMetadata, MessageRole, ProgressFlags, Session,
@@ -39,6 +40,18 @@ impl SessionService {
         let mut organization_id = None;
 
         let feature_flags = FeatureFlagService::new();
+        if feature_flags.is_team_features_enabled() {
+            let organization_repo = OrganizationRepository::new(self.pool.clone());
+            let active_memberships = organization_repo
+                .list_active_orgs_for_user(user_id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to load active memberships: {}", e)))?;
+            organization_id = active_memberships
+                .into_iter()
+                .next()
+                .map(|membership| membership.organization_id);
+        }
+
         if feature_flags.is_entitlement_enforced() {
             let entitlement_service = EntitlementService::new(self.pool.clone());
             let effective_plan = entitlement_service.resolve_effective_plan(user_id).await?;
@@ -53,7 +66,9 @@ impl SessionService {
                 ));
             }
 
-            organization_id = effective_plan.organization_id;
+            if organization_id.is_none() {
+                organization_id = effective_plan.organization_id;
+            }
         }
 
         let session = Session {

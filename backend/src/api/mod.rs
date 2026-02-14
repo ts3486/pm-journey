@@ -33,10 +33,11 @@ use crate::features::messages::models::AgentContext;
 use crate::features::organizations::handlers::{
     __path_accept_invitation, __path_create_invitation, __path_create_organization,
     __path_delete_member, __path_get_current_organization, __path_get_current_progress,
-    __path_list_current_members, __path_update_current_organization, __path_update_member,
-    accept_invitation, create_invitation, create_organization, delete_member,
-    get_current_organization, get_current_progress, list_current_members,
-    update_current_organization, update_member,
+    __path_list_current_members, __path_list_member_completed_sessions,
+    __path_update_current_organization, __path_update_member, accept_invitation, create_invitation,
+    create_organization, delete_member, get_current_organization, get_current_progress,
+    list_current_members, list_member_completed_sessions, update_current_organization,
+    update_member,
 };
 use crate::features::organizations::models::{
     CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
@@ -67,6 +68,10 @@ use crate::features::test_cases::handlers::{
     delete_test_case, list_test_cases,
 };
 use crate::features::test_cases::models::{CreateTestCaseRequest, TestCaseResponse};
+use crate::features::users::handlers::{
+    __path_delete_my_account, __path_get_my_account, delete_my_account, get_my_account,
+};
+use crate::features::users::models::MyAccountResponse;
 use crate::models::{
     Evaluation, FeatureMockup, HistoryItem, ManagerComment, Message, MessageRole, MessageTag,
     Mission, MissionStatus, Output, OutputKind, ProgressFlags, Scenario, ScenarioDiscipline,
@@ -101,10 +106,13 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         update_current_organization,
         list_current_members,
         get_current_progress,
+        list_member_completed_sessions,
         create_invitation,
         accept_invitation,
         update_member,
         delete_member,
+        get_my_account,
+        delete_my_account,
         get_my_entitlements,
         get_my_credits,
         checkout_team,
@@ -160,6 +168,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         AgentContext,
         ProductConfig,
         UpdateProductConfigRequest,
+        MyAccountResponse,
         EntitlementResponse,
         PlanCode,
         CreditBalanceResponse,
@@ -180,6 +189,7 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route("/scenarios/:id", get(get_scenario))
         .route("/sessions", post(create_session).get(list_sessions))
         .route("/sessions/:id", get(get_session).delete(delete_session))
+        .route("/me", get(get_my_account).delete(delete_my_account))
         .route("/me/entitlements", get(get_my_entitlements))
         .route("/me/credits", get(get_my_credits))
         .route("/billing/checkout/team", post(checkout_team))
@@ -209,6 +219,10 @@ pub fn router_with_state(state: SharedState) -> Router {
         )
         .route("/organizations/current/members", get(list_current_members))
         .route("/organizations/current/progress", get(get_current_progress))
+        .route(
+            "/organizations/current/members/:memberId/sessions/completed",
+            get(list_member_completed_sessions),
+        )
         .route(
             "/organizations/current/invitations",
             post(create_invitation),

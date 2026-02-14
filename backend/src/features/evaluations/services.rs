@@ -13,11 +13,8 @@ use crate::features::feature_flags::services::FeatureFlagService;
 use crate::features::messages::repository::MessageRepository;
 use crate::features::sessions::authorization::authorize_session_access;
 use crate::features::sessions::repository::SessionRepository;
-use crate::models::{
-    default_scenarios, Evaluation, EvaluationCategory, Message, MessageRole, SessionStatus,
-};
+use crate::models::{default_scenarios, Evaluation, EvaluationCategory, Message, MessageRole};
 use crate::shared::gemini::resolve_eval_credentials;
-use crate::shared::helpers::now_ts;
 
 use super::models::{EvaluationCriterion, EvaluationRequest, ScoringGuidelines};
 
@@ -55,7 +52,7 @@ impl EvaluationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to begin transaction: {}", e)))?;
 
-        let mut session = access.session;
+        let session = access.session;
 
         let criteria = if let Some(criteria) = request.criteria.clone() {
             if criteria.is_empty() {
@@ -141,12 +138,9 @@ impl EvaluationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to create evaluation: {}", e)))?;
 
-        // Update session status
-        session.status = SessionStatus::Evaluated;
-        session.evaluation_requested = true;
-        session.last_activity_at = now_ts();
+        // Persist evaluated state so Team Management can detect completion.
         session_repo
-            .update_last_activity_in_tx(&mut tx, session_id)
+            .mark_evaluated_in_tx(&mut tx, session_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to update session: {}", e)))?;
 

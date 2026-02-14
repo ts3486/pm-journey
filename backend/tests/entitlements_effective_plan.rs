@@ -137,7 +137,7 @@ async fn direct_user_entitlement_has_priority_over_org_team_entitlement() {
 }
 
 #[tokio::test]
-async fn no_org_entitlement_falls_back_to_free_user_plan() {
+async fn no_org_entitlement_falls_back_to_team_user_plan_for_testing() {
     let _env_guard = env_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -155,6 +155,7 @@ async fn no_org_entitlement_falls_back_to_free_user_plan() {
 
     unsafe {
         env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
+        env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", "true");
     }
 
     let user_id = user_id("free-fallback-member");
@@ -168,7 +169,7 @@ async fn no_org_entitlement_falls_back_to_free_user_plan() {
         .await
         .expect("resolve effective plan");
 
-    assert_eq!(effective.plan_code, PlanCode::Free);
+    assert_eq!(effective.plan_code, PlanCode::Team);
     assert_eq!(effective.organization_id, None);
 
     let row = sqlx::query(
@@ -177,19 +178,20 @@ async fn no_org_entitlement_falls_back_to_free_user_plan() {
         FROM entitlements
         WHERE scope_type = 'user'
           AND scope_id = $1
-          AND plan_code = 'FREE'
+          AND plan_code = 'TEAM'
           AND status = 'active'
         "#,
     )
     .bind(&user_id)
     .fetch_one(&pool)
     .await
-    .expect("query free fallback entitlement");
-    let free_count = row.try_get::<i64, _>("count").expect("count");
-    assert_eq!(free_count, 1);
+    .expect("query team fallback entitlement");
+    let team_count = row.try_get::<i64, _>("count").expect("count");
+    assert_eq!(team_count, 1);
 
     unsafe {
         env::remove_var("FF_TEAM_FEATURES_ENABLED");
+        env::remove_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING");
     }
 }
 

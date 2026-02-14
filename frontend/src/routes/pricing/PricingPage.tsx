@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { env } from "@/config/env";
+import { canViewTeamManagement } from "@/lib/teamAccess";
 import { useEntitlements } from "@/queries/entitlements";
 import { useCurrentOrganization } from "@/queries/organizations";
 import type { PlanCode } from "@/types";
@@ -45,12 +47,6 @@ const planSortRank: Record<PlanCode, number> = {
   TEAM: 1,
 };
 
-const canManageTeamCheckoutRole = (role?: string | null): boolean => {
-  return role === "owner" || role === "admin" || role === "manager";
-};
-
-const teamRegistrationPath = "/team/onboarding?flow=register";
-
 export function PricingPage() {
   const { data: entitlements, isLoading: isEntitlementsLoading } = useEntitlements();
   const { data: currentOrganization, isLoading: isOrganizationLoading } = useCurrentOrganization();
@@ -58,6 +54,7 @@ export function PricingPage() {
   const currentPlanCode = entitlements?.planCode ?? "FREE";
   const currentOrganizationId = currentOrganization?.organization.id ?? null;
   const currentOrganizationRole = currentOrganization?.membership.role ?? null;
+  const canAccessTeamManagement = canViewTeamManagement(currentOrganizationRole);
 
   const recommendedPlan = useMemo<PlanCode | null>(() => {
     if (currentPlanCode === "FREE") return "TEAM";
@@ -78,22 +75,59 @@ export function PricingPage() {
     return null;
   }, []);
 
-  const teamRegistrationDisabledReason = useMemo(() => {
-    if (isOrganizationLoading) {
-      return "組織情報を確認中です。";
-    }
-    if (currentOrganizationId && !canManageTeamCheckoutRole(currentOrganizationRole)) {
-      return "Teamチェックアウトは owner / admin / manager のみ実行できます。";
-    }
-    return null;
-  }, [currentOrganizationId, currentOrganizationRole, isOrganizationLoading]);
+  if (!env.billingEnabled) {
+    return (
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Pricing</p>
+          <h1 className="font-display text-2xl text-slate-900">課金機能を一時停止中</h1>
+          <p className="text-sm text-slate-600">
+            現在は課金なしで動作確認できるモードです。Team設定や組織管理はそのままテストできます。
+          </p>
+        </header>
+
+        <section className="card p-5">
+          {isEntitlementsLoading ? (
+            <p className="text-sm text-slate-600">プラン情報を読み込み中...</p>
+          ) : (
+            <div className="space-y-2 text-sm text-slate-700">
+              <p>
+                現在のプラン: <span className="font-semibold text-slate-900">{currentPlanCode}</span>
+              </p>
+              <p>
+                組織:{" "}
+                <span className="font-semibold text-slate-900">
+                  {currentOrganizationId ? `${currentOrganizationId}（参加済み）` : "未所属"}
+                </span>
+              </p>
+              <p>
+                あなたのロール:{" "}
+                <span className="font-semibold text-slate-900">{currentOrganizationRole ?? "未所属"}</span>
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="flex flex-wrap gap-3">
+          <Link to="/team/onboarding" className="btn-secondary">
+            チーム設定を開始
+          </Link>
+          {canAccessTeamManagement ? (
+            <Link to="/settings/team" className="btn-secondary">
+              Team管理を開く
+            </Link>
+          ) : null}
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Pricing</p>
         <h1 className="font-display text-2xl text-slate-900">料金プラン</h1>
-        <p className="text-sm text-slate-600">Team設定は登録フロー内で入力・確認してから決済へ進みます。</p>
+        <p className="text-sm text-slate-600">チーム作成・参加はチームオンボーディングから行えます。</p>
       </header>
 
       {checkoutStatusMessage ? (
@@ -128,20 +162,20 @@ export function PricingPage() {
           const isCurrent = currentPlanCode === plan.code;
           const isRecommended = recommendedPlan === plan.code && !isCurrent;
           const isLowerTier = planSortRank[plan.code] < planSortRank[currentPlanCode];
-          const canStartTeamRegistration =
+          const canStartTeamOnboarding =
             plan.code === "TEAM" &&
             !isCurrent &&
             !isLowerTier &&
             !isEntitlementsLoading &&
-            !teamRegistrationDisabledReason;
+            !isOrganizationLoading;
 
           const actionLabel = isCurrent
             ? "利用中"
             : plan.code === "TEAM"
-              ? "Team登録を開始"
+              ? "チーム設定へ進む"
               : "Freeを利用中";
 
-          const isActionDisabled = plan.code === "TEAM" ? !canStartTeamRegistration : true;
+          const isActionDisabled = plan.code === "TEAM" ? !canStartTeamOnboarding : true;
 
           return (
             <article
@@ -175,17 +209,14 @@ export function PricingPage() {
                   <p>
                     組織:{" "}
                     <span className="font-semibold">
-                      {currentOrganizationId ? `${currentOrganizationId}（参加済み）` : "未所属（登録フローで作成可能）"}
+                      {currentOrganizationId ? `${currentOrganizationId}（参加済み）` : "未所属（オンボーディングで作成可能）"}
                     </span>
                   </p>
                   <p>
                     あなたのロール:{" "}
                     <span className="font-semibold">{currentOrganizationRole ?? "未所属"}</span>
                   </p>
-                  <p>Team設定（チーム名・メンバー数）は次の登録フローで入力して確認します。</p>
-                  {teamRegistrationDisabledReason ? (
-                    <p className="text-amber-700">{teamRegistrationDisabledReason}</p>
-                  ) : null}
+                  <p>チーム作成または招待参加はチームオンボーディングで実行します。</p>
                   {!currentOrganizationId ? (
                     <Link to="/team/onboarding" className="btn-secondary mt-1 w-full">
                       招待で既存チームに参加する場合はこちら
@@ -196,7 +227,7 @@ export function PricingPage() {
 
               <div className="mt-5">
                 {plan.code === "TEAM" && !isActionDisabled ? (
-                  <Link to={teamRegistrationPath} className="btn-secondary block w-full text-center">
+                  <Link to="/team/onboarding" className="btn-secondary block w-full text-center">
                     {actionLabel}
                   </Link>
                 ) : (

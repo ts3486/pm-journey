@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PricingPage } from "@/routes/pricing/PricingPage";
 import type { PlanCode } from "@/types";
+import { env } from "@/config/env";
 import { useEntitlements } from "@/queries/entitlements";
 import { useCurrentOrganization } from "@/queries/organizations";
 
@@ -96,40 +97,66 @@ describe("PricingPage", () => {
   it("shows team registration link for eligible users", () => {
     renderPage();
 
-    expect(screen.getByRole("link", { name: "Team登録を開始" })).toHaveAttribute(
-      "href",
-      "/team/onboarding?flow=register",
-    );
+    if (env.billingEnabled) {
+      expect(screen.getByRole("link", { name: "チーム設定へ進む" })).toHaveAttribute(
+        "href",
+        "/team/onboarding",
+      );
+      return;
+    }
+
+    expect(screen.getByText("課金機能を一時停止中")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "チーム設定を開始" })).toHaveAttribute("href", "/team/onboarding");
   });
 
-  it("disables team registration for non-manager role in an existing organization", () => {
+  it("keeps onboarding entry available for member role in existing organization", () => {
     mockCurrentOrganization("member");
     renderPage();
 
-    expect(screen.getByRole("button", { name: "Team登録を開始" })).toBeDisabled();
-    expect(screen.getByText("Teamチェックアウトは owner / admin / manager のみ実行できます。")).toBeInTheDocument();
+    if (env.billingEnabled) {
+      expect(screen.getByRole("link", { name: "チーム設定へ進む" })).toHaveAttribute(
+        "href",
+        "/team/onboarding",
+      );
+      expect(screen.queryByText("Teamチェックアウトは owner / admin / manager のみ実行できます。")).not.toBeInTheDocument();
+      return;
+    }
+
+    expect(screen.getByText("課金機能を一時停止中")).toBeInTheDocument();
+    expect(screen.queryByText("Teamチェックアウトは owner / admin / manager のみ実行できます。")).not.toBeInTheDocument();
   });
 
-  it("allows team registration flow start without organization membership", () => {
+  it("allows onboarding start without organization membership", () => {
     mockNoOrganization();
     renderPage();
 
-    expect(screen.getByRole("link", { name: "Team登録を開始" })).toHaveAttribute(
-      "href",
-      "/team/onboarding?flow=register",
-    );
-    expect(screen.getByRole("link", { name: "招待で既存チームに参加する場合はこちら" })).toHaveAttribute(
-      "href",
-      "/team/onboarding",
-    );
+    if (env.billingEnabled) {
+      expect(screen.getByRole("link", { name: "チーム設定へ進む" })).toHaveAttribute(
+        "href",
+        "/team/onboarding",
+      );
+      expect(screen.getByRole("link", { name: "招待で既存チームに参加する場合はこちら" })).toHaveAttribute(
+        "href",
+        "/team/onboarding",
+      );
+      return;
+    }
+
+    expect(screen.getByRole("link", { name: "チーム設定を開始" })).toHaveAttribute("href", "/team/onboarding");
+    expect(screen.queryByRole("link", { name: "Team管理を開く" })).not.toBeInTheDocument();
   });
 
   it("shows checkout success message when returning from stripe", () => {
     window.history.replaceState({}, "", "/pricing?checkout=success&plan=team");
     renderPage("/pricing");
 
-    expect(
-      screen.getByText("Teamチェックアウトが完了しました。プラン反映まで少し時間がかかる場合があります。"),
-    ).toBeInTheDocument();
+    if (env.billingEnabled) {
+      expect(
+        screen.getByText("Teamチェックアウトが完了しました。プラン反映まで少し時間がかかる場合があります。"),
+      ).toBeInTheDocument();
+      return;
+    }
+
+    expect(screen.getByText("課金機能を一時停止中")).toBeInTheDocument();
   });
 });

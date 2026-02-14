@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { env } from "@/config/env";
+import { canViewTeamManagement } from "@/lib/teamAccess";
 import { useEntitlements } from "@/queries/entitlements";
 import {
   useCurrentOrganization,
@@ -27,10 +29,6 @@ const memberStatusOptions: Array<NonNullable<UpdateOrganizationMemberRequest["st
   "deactivated",
 ];
 
-const canManageMembers = (role?: string | null): boolean => {
-  return role === "owner" || role === "admin" || role === "manager";
-};
-
 const roleLabel = (role: OrganizationMember["role"]) => {
   const labels: Record<OrganizationMember["role"], string> = {
     owner: "owner",
@@ -49,6 +47,35 @@ const statusLabel = (status: OrganizationMember["status"]) => {
     deactivated: "deactivated",
   };
   return labels[status];
+};
+
+const normalizeOptionalText = (value?: string | null): string | null => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
+
+const memberDisplayName = (member: OrganizationMember): string => {
+  return normalizeOptionalText(member.userName) ?? normalizeOptionalText(member.userEmail) ?? "ユーザー";
+};
+
+const memberSecondaryLabel = (member: OrganizationMember): string | null => {
+  const name = normalizeOptionalText(member.userName);
+  const email = normalizeOptionalText(member.userEmail);
+  if (name) {
+    return email;
+  }
+  return null;
+};
+
+const progressDisplayName = (progress: OrganizationMemberProgress): string => {
+  return normalizeOptionalText(progress.name) ?? normalizeOptionalText(progress.email) ?? "ユーザー";
+};
+
+const progressSecondaryLabel = (progress: OrganizationMemberProgress): string | null => {
+  if (!normalizeOptionalText(progress.name)) {
+    return null;
+  }
+  return normalizeOptionalText(progress.email);
 };
 
 const progressCompletionLabel = (progress: OrganizationMemberProgress) => {
@@ -78,27 +105,28 @@ export function TeamManagementPage() {
     error: currentOrganizationError,
     refetch: refetchCurrentOrganization,
   } = useCurrentOrganization();
+  const currentUserRole = currentOrganization?.membership.role ?? null;
+  const canViewTeamPage = canViewTeamManagement(currentUserRole);
 
   const currentPlanCode = entitlements?.planCode ?? "FREE";
   const isTeamPlan = currentPlanCode === "TEAM";
+  const shouldAllowWithoutBilling = !env.billingEnabled;
+  const shouldFetchTeamData =
+    (isTeamPlan || shouldAllowWithoutBilling) && Boolean(currentOrganization) && canViewTeamPage;
 
   const {
     data: organizationMembers,
     isLoading: isMembersLoading,
     error: membersError,
     refetch: refetchMembers,
-  } = useCurrentOrganizationMembers(isTeamPlan && Boolean(currentOrganization));
+  } = useCurrentOrganizationMembers(shouldFetchTeamData);
 
   const {
     data: organizationProgress,
     isLoading: isProgressLoading,
     error: progressError,
     refetch: refetchProgress,
-  } = useCurrentOrganizationProgress(
-    isTeamPlan &&
-      Boolean(currentOrganization) &&
-      canManageMembers(currentOrganization?.membership.role ?? null),
-  );
+  } = useCurrentOrganizationProgress(shouldFetchTeamData && canViewTeamPage);
 
   const [teamActionError, setTeamActionError] = useState<string | null>(null);
   const [teamActionMessage, setTeamActionMessage] = useState<string | null>(null);
@@ -113,8 +141,7 @@ export function TeamManagementPage() {
     Record<string, OrganizationMember["status"]>
   >({});
 
-  const currentUserRole = currentOrganization?.membership.role ?? null;
-  const canManageTeam = canManageMembers(currentUserRole);
+  const canManageTeam = canViewTeamPage;
 
   const seatLimit = organizationMembers?.seatLimit ?? currentOrganization?.seatLimit;
   const activeMemberCount =
@@ -134,11 +161,8 @@ export function TeamManagementPage() {
     if (!currentOrganization) {
       return "組織に未参加のため、Team管理は利用できません。";
     }
-    if (!canManageTeam) {
-      return "閲覧のみ可能です。Team管理操作は owner / admin / manager に限定されています。";
-    }
     return null;
-  }, [canManageTeam, currentOrganization, isCurrentOrganizationLoading]);
+  }, [currentOrganization, isCurrentOrganizationLoading]);
 
   const refreshTeamData = async () => {
     await Promise.all([refetchCurrentOrganization(), refetchMembers(), refetchProgress()]);
@@ -164,20 +188,15 @@ export function TeamManagementPage() {
         email,
         role: inviteRole,
       });
-      const inviteLink =
-        response.inviteLink?.trim() ||
-        `${window.location.origin}/team/onboarding?invite=${encodeURIComponent(
-          response.inviteToken,
-        )}`;
       const deliveryStatus = response.emailDelivery?.status ?? "skipped";
       const deliveryMessage =
         deliveryStatus === "sent"
           ? "招待メールを送信しました。"
           : deliveryStatus === "failed"
             ? `招待メール送信に失敗しました（${response.emailDelivery?.message ?? "unknown error"}）。`
-            : "メール送信は未設定のため、招待リンクを手動で共有してください。";
+            : "メール送信が未設定のため、招待メールを送信できませんでした。設定を確認してください。";
       setInviteEmail("");
-      setTeamActionMessage(`招待を作成しました。${deliveryMessage} 招待リンク: ${inviteLink}`);
+      setTeamActionMessage(`招待を作成しました。${deliveryMessage}`);
       await refreshTeamData();
     } catch (error) {
       setTeamActionError(error instanceof Error ? error.message : "招待の作成に失敗しました。");
@@ -197,7 +216,7 @@ export function TeamManagementPage() {
     try {
       await api.updateCurrentOrganizationMember(member.id, { role: nextRole });
       setRoleDraftByMemberId((prev) => cleanupDraft(prev, member.id));
-      setTeamActionMessage(`メンバー ${member.userId} のロールを更新しました。`);
+      setTeamActionMessage(`メンバー ${memberDisplayName(member)} のロールを更新しました。`);
       await refreshTeamData();
     } catch (error) {
       setTeamActionError(error instanceof Error ? error.message : "ロール更新に失敗しました。");
@@ -217,7 +236,7 @@ export function TeamManagementPage() {
     try {
       await api.updateCurrentOrganizationMember(member.id, { status: nextStatus });
       setStatusDraftByMemberId((prev) => cleanupDraft(prev, member.id));
-      setTeamActionMessage(`メンバー ${member.userId} の状態を更新しました。`);
+      setTeamActionMessage(`メンバー ${memberDisplayName(member)} の状態を更新しました。`);
       await refreshTeamData();
     } catch (error) {
       setTeamActionError(error instanceof Error ? error.message : "状態更新に失敗しました。");
@@ -232,7 +251,7 @@ export function TeamManagementPage() {
     setPendingMemberActionId(`delete:${member.id}`);
     try {
       await api.deleteCurrentOrganizationMember(member.id);
-      setTeamActionMessage(`メンバー ${member.userId} を削除しました。`);
+      setTeamActionMessage(`メンバー ${memberDisplayName(member)} を削除しました。`);
       await refreshTeamData();
     } catch (error) {
       setTeamActionError(error instanceof Error ? error.message : "メンバー削除に失敗しました。");
@@ -257,8 +276,12 @@ export function TeamManagementPage() {
     );
   }
 
-  if (!isTeamPlan) {
+  if (!isTeamPlan && !shouldAllowWithoutBilling) {
     return <Navigate to="/settings/billing" replace />;
+  }
+
+  if (!isCurrentOrganizationLoading && currentOrganization && !canViewTeamPage) {
+    return <Navigate to="/settings/account" replace />;
   }
 
   return (
@@ -312,200 +335,230 @@ export function TeamManagementPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="font-semibold text-slate-900">メンバー一覧</h2>
-          <p className="text-xs text-slate-600">メンバー利用: {seatUsageText}</p>
+      <details open className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+          <div className="space-y-1">
+            <h2 className="font-semibold text-slate-900">メンバー管理</h2>
+            <p className="text-xs text-slate-600">メンバー利用: {seatUsageText}</p>
+          </div>
+          <span aria-hidden className="text-sm text-slate-500 transition group-open:rotate-180">
+            ⌄
+          </span>
+        </summary>
+        <div className="space-y-4 border-t border-slate-200 px-4 py-4">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-900">メンバー編集</h3>
+            {isMembersLoading ? (
+              <p className="text-sm text-slate-600">メンバー情報を読み込み中...</p>
+            ) : organizationMembers?.members?.length ? (
+              <div className="space-y-3">
+                {organizationMembers.members.map((member) => {
+                  const roleDraft = roleDraftByMemberId[member.id] ?? member.role;
+                  const statusDraft = statusDraftByMemberId[member.id] ?? member.status;
+                  const rolePending = pendingMemberActionId === `role:${member.id}`;
+                  const statusPending = pendingMemberActionId === `status:${member.id}`;
+                  const deletePending = pendingMemberActionId === `delete:${member.id}`;
+                  const displayName = memberDisplayName(member);
+                  const secondaryLabel = memberSecondaryLabel(member);
 
-          {isMembersLoading ? (
-            <p className="text-sm text-slate-600">メンバー情報を読み込み中...</p>
-          ) : organizationMembers?.members?.length ? (
-            <div className="space-y-3">
-              {organizationMembers.members.map((member) => {
-                const roleDraft = roleDraftByMemberId[member.id] ?? member.role;
-                const statusDraft = statusDraftByMemberId[member.id] ?? member.status;
-                const rolePending = pendingMemberActionId === `role:${member.id}`;
-                const statusPending = pendingMemberActionId === `status:${member.id}`;
-                const deletePending = pendingMemberActionId === `delete:${member.id}`;
-
-                return (
-                  <article
-                    key={member.id}
-                    className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <p className="font-semibold text-slate-900">{member.userId}</p>
-                      <p className="text-xs text-slate-600">
-                        role: {roleLabel(member.role)} / status: {statusLabel(member.status)}
-                      </p>
-                    </div>
-
-                    {canManageTeam ? (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <div className="flex gap-2">
-                          <select
-                            aria-label={`role-${member.id}`}
-                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
-                            value={roleDraft}
-                            onChange={(event) =>
-                              setRoleDraftByMemberId((prev) => ({
-                                ...prev,
-                                [member.id]: event.target.value as OrganizationMember["role"],
-                              }))
-                            }
-                            disabled={rolePending}
-                          >
-                            {memberRoleOptions.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="btn-secondary shrink-0"
-                            onClick={() => void handleUpdateMemberRole(member)}
-                            disabled={rolePending || roleDraft === member.role}
-                          >
-                            {rolePending ? "更新中..." : "ロール更新"}
-                          </button>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <select
-                            aria-label={`status-${member.id}`}
-                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
-                            value={statusDraft}
-                            onChange={(event) =>
-                              setStatusDraftByMemberId((prev) => ({
-                                ...prev,
-                                [member.id]: event.target.value as OrganizationMember["status"],
-                              }))
-                            }
-                            disabled={statusPending}
-                          >
-                            {memberStatusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="btn-secondary shrink-0"
-                            onClick={() => void handleUpdateMemberStatus(member)}
-                            disabled={statusPending || statusDraft === member.status}
-                          >
-                            {statusPending ? "更新中..." : "状態更新"}
-                          </button>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn-secondary sm:col-span-2"
-                          onClick={() => void handleDeleteMember(member)}
-                          disabled={deletePending || member.role === "owner"}
-                        >
-                          {deletePending ? "削除中..." : "メンバー削除"}
-                        </button>
+                  return (
+                    <article
+                      key={member.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <p className="font-semibold text-slate-900">{displayName}</p>
+                        {secondaryLabel ? <p className="text-xs text-slate-600">{secondaryLabel}</p> : null}
+                        <p className="text-xs text-slate-600">
+                          role: {roleLabel(member.role)} / status: {statusLabel(member.status)}
+                        </p>
                       </div>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-600">表示できるメンバー情報はありません。</p>
-          )}
-        </section>
 
-        <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="font-semibold text-slate-900">メンバー招待</h2>
-          <p className="text-xs text-slate-600">active + pending がメンバー上限を超える招待は作成できません。</p>
-          <label className="flex flex-col gap-1 text-xs text-slate-700">
-            メールアドレス
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(event) => setInviteEmail(event.target.value)}
-              placeholder="member@example.com"
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
-              disabled={!canManageTeam || isInvitePending}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-slate-700">
-            ロール
-            <select
-              value={inviteRole}
-              onChange={(event) =>
-                setInviteRole(event.target.value as CreateOrganizationInvitationRequest["role"])
-              }
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+                      {canManageTeam ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <div className="flex gap-2">
+                            <select
+                              aria-label={`role-${member.id}`}
+                              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+                              value={roleDraft}
+                              onChange={(event) =>
+                                setRoleDraftByMemberId((prev) => ({
+                                  ...prev,
+                                  [member.id]: event.target.value as OrganizationMember["role"],
+                                }))
+                              }
+                              disabled={rolePending}
+                            >
+                              {memberRoleOptions.map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn-secondary shrink-0"
+                              onClick={() => void handleUpdateMemberRole(member)}
+                              disabled={rolePending || roleDraft === member.role}
+                            >
+                              {rolePending ? "更新中..." : "ロール更新"}
+                            </button>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <select
+                              aria-label={`status-${member.id}`}
+                              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+                              value={statusDraft}
+                              onChange={(event) =>
+                                setStatusDraftByMemberId((prev) => ({
+                                  ...prev,
+                                  [member.id]: event.target.value as OrganizationMember["status"],
+                                }))
+                              }
+                              disabled={statusPending}
+                            >
+                              {memberStatusOptions.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn-secondary shrink-0"
+                              onClick={() => void handleUpdateMemberStatus(member)}
+                              disabled={statusPending || statusDraft === member.status}
+                            >
+                              {statusPending ? "更新中..." : "状態更新"}
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn-secondary sm:col-span-2"
+                            onClick={() => void handleDeleteMember(member)}
+                            disabled={deletePending || member.role === "owner"}
+                          >
+                            {deletePending ? "削除中..." : "メンバー削除"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">表示できるメンバー情報はありません。</p>
+            )}
+          </section>
+
+          <section className="space-y-3 border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-900">メンバー招待</h3>
+            <p className="text-xs text-slate-600">
+              active + pending がメンバー上限を超える招待は作成できません。
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-slate-700">
+              メールアドレス
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="member@example.com"
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+                disabled={!canManageTeam || isInvitePending}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-700">
+              ロール
+              <select
+                value={inviteRole}
+                onChange={(event) =>
+                  setInviteRole(event.target.value as CreateOrganizationInvitationRequest["role"])
+                }
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+                disabled={!canManageTeam || isInvitePending}
+              >
+                {memberRoleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="btn-secondary w-full"
+              onClick={() => void handleCreateInvitation()}
               disabled={!canManageTeam || isInvitePending}
             >
-              {memberRoleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="btn-secondary w-full"
-            onClick={() => void handleCreateInvitation()}
-            disabled={!canManageTeam || isInvitePending}
-          >
-            {isInvitePending ? "招待を作成中..." : "招待を作成"}
-          </button>
-        </section>
-      </div>
+              {isInvitePending ? "招待を作成中..." : "招待を作成"}
+            </button>
+          </section>
+        </div>
+      </details>
 
       {canManageTeam ? (
-        <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-semibold text-slate-900">メンバー進捗</h2>
-            <p className="text-xs text-slate-500">
-              最終更新: {organizationProgress?.generatedAt ?? "読み込み中..."}
-            </p>
-          </div>
-          {isProgressLoading ? (
-            <p className="text-sm text-slate-600">進捗情報を読み込み中...</p>
-          ) : organizationProgress?.members?.length ? (
-            <div className="space-y-2">
-              {organizationProgress.members.map((progress) => (
-                <article
-                  key={progress.memberId}
-                  className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 sm:grid-cols-5"
-                >
-                  <div className="sm:col-span-2">
-                    <p className="font-semibold text-slate-900">{progress.name || progress.userId}</p>
-                    <p className="text-xs text-slate-600">{progress.email || progress.userId}</p>
-                    <p className="text-xs text-slate-600">
-                      role: {progress.role} / status: {progress.status}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">完了率</p>
-                    <p className="font-semibold">{progressCompletionLabel(progress)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">評価済み</p>
-                    <p className="font-semibold">
-                      {progress.evaluatedSessions} / {progress.totalSessions}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">最終活動</p>
-                    <p className="font-semibold">{progress.lastActivityAt ?? "なし"}</p>
-                  </div>
-                </article>
-              ))}
+        <details open className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+            <div className="space-y-1">
+              <h2 className="font-semibold text-slate-900">メンバー進捗</h2>
+              <p className="text-xs text-slate-500">
+                最終更新: {organizationProgress?.generatedAt ?? "読み込み中..."}
+              </p>
             </div>
-          ) : (
-            <p className="text-sm text-slate-600">進捗表示対象のメンバーはまだいません。</p>
-          )}
-        </section>
+            <span aria-hidden className="text-sm text-slate-500 transition group-open:rotate-180">
+              ⌄
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-slate-200 px-4 py-4">
+            {isProgressLoading ? (
+              <p className="text-sm text-slate-600">進捗情報を読み込み中...</p>
+            ) : organizationProgress?.members?.length ? (
+              <div className="space-y-2">
+                {organizationProgress.members.map((progress) => {
+                  const secondaryLabel = progressSecondaryLabel(progress);
+                  return (
+                    <article
+                      key={progress.memberId}
+                      className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 sm:grid-cols-5"
+                    >
+                      <div className="sm:col-span-2">
+                        <p className="font-semibold text-slate-900">{progressDisplayName(progress)}</p>
+                        {secondaryLabel ? <p className="text-xs text-slate-600">{secondaryLabel}</p> : null}
+                        <p className="text-xs text-slate-600">
+                          role: {progress.role} / status: {progress.status}
+                        </p>
+                        <Link
+                          to={`/settings/team/members/${encodeURIComponent(progress.memberId)}/completed`}
+                          className="btn-secondary mt-2 inline-flex"
+                        >
+                          完了シナリオ詳細
+                        </Link>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">完了率</p>
+                        <p className="font-semibold">{progressCompletionLabel(progress)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">評価済み</p>
+                        <p className="font-semibold">
+                          {progress.evaluatedSessions} / {progress.totalSessions}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">最終活動</p>
+                        <p className="font-semibold">{progress.lastActivityAt ?? "なし"}</p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">進捗表示対象のメンバーはまだいません。</p>
+            )}
+          </div>
+        </details>
       ) : null}
     </div>
   );

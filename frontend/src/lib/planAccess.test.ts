@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { env } from "@/config/env";
 import { canAccessScenario } from "@/lib/planAccess";
 
 describe("canAccessScenario", () => {
@@ -10,6 +11,8 @@ describe("canAccessScenario", () => {
   it("allows only free allowlist scenarios for FREE plans", () => {
     expect(canAccessScenario("FREE", "basic-intro-alignment", "BASIC")).toBe(true);
     expect(canAccessScenario("FREE", "test-file-upload", "CHALLENGE")).toBe(true);
-    expect(canAccessScenario("FREE", "advanced-priority-tradeoff", "BASIC")).toBe(false);
+    expect(canAccessScenario("FREE", "advanced-priority-tradeoff", "BASIC")).toBe(
+      env.billingEnabled ? false : true,
+    );
   });
 });

@@ -2,6 +2,11 @@ use axum::http::StatusCode;
 use sqlx::PgPool;
 
 use crate::error::{anyhow_error, client_error, forbidden_error, AppError};
+use crate::features::comments::repository::CommentRepository;
+use crate::features::evaluations::repository::EvaluationRepository;
+use crate::features::messages::repository::MessageRepository;
+use crate::features::sessions::repository::SessionRepository;
+use crate::models::{HistoryItem, HistoryMetadata, MessageRole};
 use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::{
@@ -149,6 +154,73 @@ impl OrganizationService {
         })
     }
 
+    pub async fn list_member_completed_sessions(
+        &self,
+        user_id: &str,
+        member_id: &str,
+    ) -> Result<Vec<HistoryItem>, AppError> {
+        let (organization, membership) = self.resolve_current_org_context(user_id).await?;
+        if !can_manage_members(&membership.role) {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for organization member session view",
+            ));
+        }
+
+        let organization_repo = OrganizationRepository::new(self.pool.clone());
+        let target_member = organization_repo
+            .find_member_by_id(&organization.id, member_id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to load organization member: {}", e)))?
+            .ok_or_else(|| not_found("member not found"))?;
+
+        let session_repo = SessionRepository::new(self.pool.clone());
+        let message_repo = MessageRepository::new(self.pool.clone());
+        let evaluation_repo = EvaluationRepository::new(self.pool.clone());
+        let comment_repo = CommentRepository::new(self.pool.clone());
+
+        let sessions = session_repo
+            .list_completed_for_org_member(&organization.id, &target_member.user_id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to list member sessions: {}", e)))?;
+
+        let mut history_items = Vec::new();
+        for session in sessions {
+            let messages = message_repo
+                .list_by_session(&session.id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to list messages: {}", e)))?;
+            let evaluation = evaluation_repo
+                .get_by_session(&session.id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to get evaluation: {}", e)))?;
+            let comments = comment_repo
+                .list_by_session(&session.id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to list comments: {}", e)))?;
+
+            history_items.push(HistoryItem {
+                session_id: session.id.clone(),
+                scenario_id: Some(session.scenario_id.clone()),
+                scenario_discipline: session.scenario_discipline.clone(),
+                metadata: HistoryMetadata {
+                    duration: None,
+                    message_count: Some(messages.len() as u64),
+                    started_at: Some(session.started_at.clone()),
+                },
+                actions: messages
+                    .iter()
+                    .filter(|message| message.role != MessageRole::System)
+                    .cloned()
+                    .collect(),
+                evaluation,
+                storage_location: Some("api".to_string()),
+                comments: Some(comments),
+            });
+        }
+
+        Ok(history_items)
+    }
+
     pub async fn create_invitation(
         &self,
         user_id: &str,
@@ -199,13 +271,27 @@ impl OrganizationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to create invitation: {}", e)))?;
 
+        let inviter_label = membership
+            .user_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                membership
+                    .user_email
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            })
+            .or_else(|| Some(membership.user_id.as_str().trim()));
+
         let invite_link = build_invite_link(&invite_token);
         let email_delivery = self
             .send_invitation_email(
                 &created.email,
                 &organization.name,
-                &invite_link,
-                Some(&membership.user_id),
+                &invite_token,
+                inviter_label,
             )
             .await;
 
@@ -374,8 +460,8 @@ impl OrganizationService {
         &self,
         to_email: &str,
         organization_name: &str,
-        invite_link: &str,
-        inviter_user_id: Option<&str>,
+        invite_token: &str,
+        inviter_name: Option<&str>,
     ) -> InvitationEmailDelivery {
         if !env_flag("FF_INVITATION_EMAIL_ENABLED") {
             return InvitationEmailDelivery {
@@ -400,8 +486,7 @@ impl OrganizationService {
             return InvitationEmailDelivery {
                 status: "skipped".to_string(),
                 message: Some(
-                    "INVITATION_EMAIL_NOT_CONFIGURED: INVITATION_EMAIL_FROM is not set"
-                        .to_string(),
+                    "INVITATION_EMAIL_NOT_CONFIGURED: INVITATION_EMAIL_FROM is not set".to_string(),
                 ),
             };
         };
@@ -418,13 +503,13 @@ impl OrganizationService {
             };
         }
 
-        let inviter_label = inviter_user_id.unwrap_or("team-owner");
+        let inviter_label = inviter_name.unwrap_or("team-owner");
         let subject = format!("{organization_name} への招待");
         let text = format!(
             "あなたは {organization_name} に招待されました。\n\
-             招待リンク: {invite_link}\n\
+             招待トークン: {invite_token}\n\
              招待者: {inviter_label}\n\
-             このリンクからログインまたは新規登録するとチーム参加を完了できます。"
+             このトークンをコピーして、チーム参加画面に貼り付けてください。"
         );
 
         let mut payload = serde_json::json!({
@@ -434,9 +519,10 @@ impl OrganizationService {
             "text": text,
             "html": format!(
                 "<p>{organization_name} に招待されました。</p>\
-                 <p><a href=\"{invite_link}\">招待リンクを開く</a></p>\
+                 <p>招待トークン（コピーして利用してください）:</p>\
+                 <p><code>{invite_token}</code></p>\
                  <p>招待者: {inviter_label}</p>\
-                 <p>このリンクからログインまたは新規登録するとチーム参加を完了できます。</p>"
+                 <p>このトークンをチーム参加画面に貼り付けると参加を完了できます。</p>"
             ),
         });
         if let Some(reply_to) = env_non_empty("INVITATION_EMAIL_REPLY_TO") {
@@ -607,7 +693,11 @@ fn resolve_app_base_url() -> String {
 }
 
 fn build_invite_link(invite_token: &str) -> String {
-    format!("{}/team/onboarding?invite={}", resolve_app_base_url(), invite_token)
+    format!(
+        "{}/team/onboarding?invite={}",
+        resolve_app_base_url(),
+        invite_token
+    )
 }
 
 fn can_manage_members(role: &str) -> bool {

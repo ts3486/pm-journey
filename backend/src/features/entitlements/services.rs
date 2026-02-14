@@ -27,6 +27,28 @@ fn normalize_plan_for_launch(plan_code: PlanCode, team_features_enabled: bool) -
     plan_code
 }
 
+fn default_team_plan_for_testing_enabled() -> bool {
+    std::env::var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING")
+        .ok()
+        .and_then(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            match normalized.as_str() {
+                "1" | "true" => Some(true),
+                "0" | "false" => Some(false),
+                _ => None,
+            }
+        })
+        .unwrap_or(cfg!(debug_assertions))
+}
+
+fn default_fallback_plan_for_user(team_features_enabled: bool) -> PlanCode {
+    if team_features_enabled && default_team_plan_for_testing_enabled() {
+        return PlanCode::Team;
+    }
+
+    PlanCode::Free
+}
+
 #[derive(Clone)]
 pub struct EntitlementService {
     pool: PgPool,
@@ -93,12 +115,13 @@ impl EntitlementService {
             }
         }
 
-        // Fallback: auto-provision FREE entitlement
-        let free_entitlement = super::models::Entitlement {
+        // Fallback: auto-provision a default entitlement for first-time users.
+        let default_plan = default_fallback_plan_for_user(team_features_enabled);
+        let fallback_entitlement = super::models::Entitlement {
             id: next_id("entitlement"),
             scope_type: "user".to_string(),
             scope_id: user_id.to_string(),
-            plan_code: PlanCode::Free,
+            plan_code: default_plan,
             status: "active".to_string(),
             valid_from: now_ts(),
             valid_until: None,
@@ -106,12 +129,12 @@ impl EntitlementService {
         };
 
         let created = entitlement_repo
-            .create(&free_entitlement)
+            .create(&fallback_entitlement)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to create free entitlement: {}", e)))?;
+            .map_err(|e| anyhow_error(&format!("Failed to create fallback entitlement: {}", e)))?;
 
         Ok(EffectivePlan {
-            plan_code: created.plan_code,
+            plan_code: normalize_plan_for_launch(created.plan_code, team_features_enabled),
             source_entitlement_id: created.id,
             organization_id: None,
         })
@@ -172,11 +195,18 @@ impl EntitlementService {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Mutex, OnceLock};
+
     use crate::features::entitlements::models::PlanCode;
     use crate::features::entitlements::services::EntitlementService;
     use crate::models::ScenarioDiscipline;
 
-    use super::normalize_plan_for_launch;
+    use super::{default_fallback_plan_for_user, normalize_plan_for_launch};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn team_can_access_all_scenarios() {
@@ -203,7 +233,10 @@ mod tests {
 
     #[test]
     fn team_plan_downgrades_when_team_features_disabled() {
-        assert_eq!(normalize_plan_for_launch(PlanCode::Team, false), PlanCode::Free);
+        assert_eq!(
+            normalize_plan_for_launch(PlanCode::Team, false),
+            PlanCode::Free
+        );
     }
 
     #[test]
@@ -212,5 +245,45 @@ mod tests {
             normalize_plan_for_launch(PlanCode::Team, true),
             PlanCode::Team
         );
+    }
+
+    #[test]
+    fn fallback_default_is_team_when_testing_flag_enabled() {
+        let _guard = env_lock().lock().expect("fallback env lock");
+        let original = std::env::var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING").ok();
+        unsafe {
+            std::env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", "true");
+        }
+
+        assert_eq!(default_fallback_plan_for_user(true), PlanCode::Team);
+        assert_eq!(default_fallback_plan_for_user(false), PlanCode::Free);
+
+        unsafe {
+            if let Some(value) = original {
+                std::env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", value);
+            } else {
+                std::env::remove_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING");
+            }
+        }
+    }
+
+    #[test]
+    fn fallback_default_is_free_when_testing_flag_disabled() {
+        let _guard = env_lock().lock().expect("fallback env lock");
+        let original = std::env::var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING").ok();
+        unsafe {
+            std::env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", "false");
+        }
+
+        assert_eq!(default_fallback_plan_for_user(true), PlanCode::Free);
+        assert_eq!(default_fallback_plan_for_user(false), PlanCode::Free);
+
+        unsafe {
+            if let Some(value) = original {
+                std::env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", value);
+            } else {
+                std::env::remove_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING");
+            }
+        }
     }
 }

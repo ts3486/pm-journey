@@ -13,6 +13,7 @@ import type {
   MessageRole,
   MessageTag,
   MissionStatus,
+  MyAccountResponse,
   OutputSubmission,
   OutputSubmissionType,
   ProductConfig,
@@ -130,6 +131,12 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     async createSession(scenarioId: string): Promise<Session> {
       return request<Session>("/sessions", { method: "POST", body: { scenarioId } });
     },
+    async getMyAccount(): Promise<MyAccountResponse> {
+      return request<MyAccountResponse>("/me");
+    },
+    async deleteMyAccount(): Promise<void> {
+      await request("/me", { method: "DELETE" });
+    },
     async getMyEntitlements(): Promise<EntitlementResponse> {
       return request<EntitlementResponse>("/me/entitlements");
     },
@@ -161,6 +168,9 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     },
     async getCurrentOrganizationProgress(): Promise<OrganizationProgressResponse> {
       return request<OrganizationProgressResponse>("/organizations/current/progress");
+    },
+    async listCurrentOrganizationMemberCompletedSessions(memberId: string): Promise<HistoryItem[]> {
+      return request<HistoryItem[]>(`/organizations/current/members/${memberId}/sessions/completed`);
     },
     async createOrganizationInvitation(
       payload: CreateOrganizationInvitationRequest

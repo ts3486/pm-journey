@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { env } from "@/config/env";
+import { canViewTeamManagement } from "@/lib/teamAccess";
 import { useEntitlements } from "@/queries/entitlements";
 import { useCurrentOrganization, useCurrentOrganizationMembers } from "@/queries/organizations";
 import { api } from "@/services/api";
@@ -46,10 +48,12 @@ export function BillingSettingsPage() {
     data: currentOrganization,
     error: currentOrganizationError,
   } = useCurrentOrganization();
+  const currentUserRole = currentOrganization?.membership.role ?? null;
+  const canAccessTeamManagement = canViewTeamManagement(currentUserRole);
   const {
     data: organizationMembers,
     error: membersError,
-  } = useCurrentOrganizationMembers(Boolean(currentOrganization));
+  } = useCurrentOrganizationMembers(Boolean(currentOrganization) && canAccessTeamManagement);
 
   const currentPlanCode = entitlements?.planCode ?? "FREE";
   const billingStatus = billingStatusForPlan(currentPlanCode);
@@ -59,7 +63,6 @@ export function BillingSettingsPage() {
 
   const organizationId = currentOrganization?.organization.id ?? null;
   const organizationName = currentOrganization?.organization.name ?? null;
-  const currentUserRole = currentOrganization?.membership.role ?? null;
 
   const seatLimit = organizationMembers?.seatLimit ?? currentOrganization?.seatLimit;
   const activeMemberCount =
@@ -91,6 +94,32 @@ export function BillingSettingsPage() {
       setIsPortalPending(false);
     }
   };
+
+  if (!env.billingEnabled) {
+    return (
+      <div className="space-y-6">
+        <header className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">請求設定</p>
+          <h1 className="font-display text-2xl text-slate-900">Billing Disabled</h1>
+          <p className="text-sm text-slate-600">
+            課金機能は一時停止中です。チーム作成・招待・管理フローの動作確認を続けてください。
+          </p>
+        </header>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap gap-3">
+            <Link to="/team/onboarding" className="btn-secondary">
+              チーム作成 / 招待へ
+            </Link>
+            {canAccessTeamManagement ? (
+              <Link to="/settings/team" className="btn-secondary">
+                Team管理を開く
+              </Link>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -166,7 +195,7 @@ export function BillingSettingsPage() {
                 {isPortalPending ? "請求ポータルを開いています..." : "請求情報を管理"}
               </button>
             ) : null}
-            {currentPlanCode === "TEAM" ? (
+            {currentPlanCode === "TEAM" && canAccessTeamManagement ? (
               <Link to="/settings/team" className="btn-secondary">
                 Team管理を開く
               </Link>
