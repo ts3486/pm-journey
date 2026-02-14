@@ -25,10 +25,6 @@ fn resolve_daily_limit(plan_code: &PlanCode) -> DailyFairUseLimit {
             agent_replies_per_day: env_i64("FAIR_USE_FREE_AGENT_REPLIES_PER_DAY", 20),
             evaluations_per_day: env_i64("FAIR_USE_FREE_EVALUATIONS_PER_DAY", 3),
         },
-        PlanCode::Individual => DailyFairUseLimit {
-            agent_replies_per_day: env_i64("FAIR_USE_INDIVIDUAL_AGENT_REPLIES_PER_DAY", 80),
-            evaluations_per_day: env_i64("FAIR_USE_INDIVIDUAL_EVALUATIONS_PER_DAY", 12),
-        },
         PlanCode::Team => DailyFairUseLimit {
             // Simplified v1 behavior: flat team fair-use limits (no seat-scaling math).
             agent_replies_per_day: env_i64("FAIR_USE_TEAM_AGENT_REPLIES_PER_DAY", 800),
@@ -174,7 +170,7 @@ pub async fn enforce_evaluation_daily_limit(
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_daily_limit;
+    use super::{resolve_daily_limit, resolve_scope};
     use crate::features::entitlements::models::PlanCode;
 
     #[test]
@@ -199,5 +195,19 @@ mod tests {
             std::env::remove_var("FAIR_USE_FREE_AGENT_REPLIES_PER_DAY");
             std::env::remove_var("FAIR_USE_FREE_EVALUATIONS_PER_DAY");
         }
+    }
+
+    #[test]
+    fn team_plan_uses_org_scope_when_org_id_present() {
+        let (scope_type, scope_id) = resolve_scope(&PlanCode::Team, "user-1", Some("org-1"));
+        assert_eq!(scope_type, "organization");
+        assert_eq!(scope_id, "org-1");
+    }
+
+    #[test]
+    fn team_plan_without_org_scope_falls_back_to_user_scope() {
+        let (scope_type, scope_id) = resolve_scope(&PlanCode::Team, "user-1", None);
+        assert_eq!(scope_type, "user");
+        assert_eq!(scope_id, "user-1");
     }
 }

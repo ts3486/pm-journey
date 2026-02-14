@@ -103,4 +103,37 @@ pub struct OrganizationMembersResponse {
 pub struct InvitationResponse {
     pub invitation: OrganizationInvitation,
     pub invite_token: String,
+    pub invite_link: String,
+    pub email_delivery: InvitationEmailDelivery,
+}
+
+#[derive(Debug, Serialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InvitationEmailDelivery {
+    pub status: String,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMemberProgress {
+    pub member_id: String,
+    pub user_id: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub role: String,
+    pub status: String,
+    pub total_sessions: i64,
+    pub active_sessions: i64,
+    pub completed_sessions: i64,
+    pub evaluated_sessions: i64,
+    pub progress_item_completions: i64,
+    pub last_activity_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationProgressResponse {
+    pub members: Vec<OrganizationMemberProgress>,
+    pub generated_at: String,
 }

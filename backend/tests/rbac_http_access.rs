@@ -459,18 +459,6 @@ async fn http_all_registered_api_endpoints_surface() {
         .expect("credits request should succeed");
     assert_eq!(credits_response.status(), StatusCode::OK);
 
-    let checkout_response = app
-        .clone()
-        .oneshot(build_request(
-            Method::POST,
-            "/billing/checkout/individual",
-            &owner_token,
-            Some(json!({})),
-        ))
-        .await
-        .expect("checkout request should succeed");
-    assert_eq!(checkout_response.status(), StatusCode::SERVICE_UNAVAILABLE);
-
     let portal_response = app
         .clone()
         .oneshot(build_request(
@@ -481,7 +469,14 @@ async fn http_all_registered_api_endpoints_surface() {
         ))
         .await
         .expect("portal request should succeed");
-    assert_eq!(portal_response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        matches!(
+            portal_response.status(),
+            StatusCode::OK | StatusCode::UNPROCESSABLE_ENTITY | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "unexpected portal status: {}",
+        portal_response.status()
+    );
 
     let webhook_response = app
         .clone()
@@ -492,7 +487,16 @@ async fn http_all_registered_api_endpoints_surface() {
         ))
         .await
         .expect("webhook request should succeed");
-    assert_eq!(webhook_response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        matches!(
+            webhook_response.status(),
+            StatusCode::UNAUTHORIZED
+                | StatusCode::UNPROCESSABLE_ENTITY
+                | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "unexpected webhook status: {}",
+        webhook_response.status()
+    );
 
     let evaluate_response = app
         .clone()
@@ -725,6 +729,37 @@ async fn http_all_registered_api_endpoints_surface() {
         .await
         .expect("create org request should succeed");
     assert_eq!(create_org_response.status(), StatusCode::CREATED);
+    let create_org_body = to_bytes(create_org_response.into_body(), usize::MAX)
+        .await
+        .expect("create org body");
+    let create_org_json: Value = serde_json::from_slice(&create_org_body).expect("create org json");
+    let org_id = create_org_json
+        .get("id")
+        .and_then(Value::as_str)
+        .expect("org id")
+        .to_string();
+
+    let checkout_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::POST,
+            "/billing/checkout/team",
+            &owner_token,
+            Some(json!({
+                "organizationId": org_id,
+                "seatQuantity": 4
+            })),
+        ))
+        .await
+        .expect("checkout request should succeed");
+    assert!(
+        matches!(
+            checkout_response.status(),
+            StatusCode::OK | StatusCode::UNPROCESSABLE_ENTITY | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "unexpected checkout status: {}",
+        checkout_response.status()
+    );
 
     let get_current_org_response = app
         .clone()
@@ -761,6 +796,18 @@ async fn http_all_registered_api_endpoints_surface() {
         .await
         .expect("list members request should succeed");
     assert_eq!(list_members_response.status(), StatusCode::OK);
+
+    let progress_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::GET,
+            "/organizations/current/progress",
+            &owner_token,
+            None,
+        ))
+        .await
+        .expect("progress request should succeed");
+    assert_eq!(progress_response.status(), StatusCode::OK);
 
     let create_invite_response = app
         .clone()

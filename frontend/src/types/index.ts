@@ -144,6 +144,7 @@ export type Scenario = {
   id: string;
   title: string;
   description: string;
+  guideMessage?: string;
   discipline: ScenarioDiscipline;
   scenarioType?: ScenarioType;
   featureMockup?: FeatureMockup;
@@ -226,7 +227,7 @@ export type UpdateProductConfigRequest = Omit<
   "id" | "isDefault" | "createdAt" | "updatedAt"
 >;
 
-export type PlanCode = "FREE" | "INDIVIDUAL" | "TEAM";
+export type PlanCode = "FREE" | "TEAM";
 
 export type EntitlementResponse = {
   planCode: PlanCode;
@@ -242,12 +243,14 @@ export type CreditBalanceResponse = {
   purchasedRemaining: number;
 };
 
-export type CreateIndividualCheckoutRequest = {
+export type CreateTeamCheckoutRequest = {
+  organizationId: string;
+  seatQuantity: number;
   successUrl?: string;
   cancelUrl?: string;
 };
 
-export type IndividualCheckoutResponse = {
+export type TeamCheckoutResponse = {
   mode: string;
   checkoutUrl?: string | null;
   alreadyEntitled: boolean;
@@ -260,6 +263,99 @@ export type CreateBillingPortalSessionRequest = {
 
 export type BillingPortalSessionResponse = {
   url: string;
+};
+
+export type Organization = {
+  id: string;
+  name: string;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrganizationMember = {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: "owner" | "admin" | "manager" | "member" | "reviewer";
+  status: "active" | "invited" | "deactivated";
+  invitedByUserId?: string;
+  joinedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CurrentOrganizationResponse = {
+  organization: Organization;
+  membership: OrganizationMember;
+  seatLimit?: number;
+  activeMemberCount: number;
+  pendingInvitationCount: number;
+};
+
+export type OrganizationMembersResponse = {
+  members: OrganizationMember[];
+  seatLimit?: number;
+  activeMemberCount: number;
+  pendingInvitationCount: number;
+};
+
+export type OrganizationInvitation = {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: "admin" | "manager" | "member" | "reviewer";
+  inviteTokenHash: string;
+  expiresAt: string;
+  status: "pending" | "accepted" | "expired" | "revoked";
+  createdByUserId: string;
+  createdAt: string;
+};
+
+export type InvitationResponse = {
+  invitation: OrganizationInvitation;
+  inviteToken: string;
+  inviteLink: string;
+  emailDelivery: InvitationEmailDelivery;
+};
+
+export type InvitationEmailDelivery = {
+  status: "sent" | "skipped" | "failed" | string;
+  message?: string;
+};
+
+export type OrganizationMemberProgress = {
+  memberId: string;
+  userId: string;
+  email?: string;
+  name?: string;
+  role: OrganizationMember["role"] | string;
+  status: OrganizationMember["status"] | string;
+  totalSessions: number;
+  activeSessions: number;
+  completedSessions: number;
+  evaluatedSessions: number;
+  progressItemCompletions: number;
+  lastActivityAt?: string;
+};
+
+export type OrganizationProgressResponse = {
+  members: OrganizationMemberProgress[];
+  generatedAt: string;
+};
+
+export type CreateOrganizationRequest = {
+  name: string;
+};
+
+export type CreateOrganizationInvitationRequest = {
+  email: string;
+  role: "admin" | "manager" | "member" | "reviewer";
+};
+
+export type UpdateOrganizationMemberRequest = {
+  role?: "owner" | "admin" | "manager" | "member" | "reviewer";
+  status?: "active" | "invited" | "deactivated";
 };
 
 export type ScenarioCatalogSubcategory = {

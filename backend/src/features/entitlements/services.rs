@@ -2,6 +2,7 @@ use sqlx::PgPool;
 
 use crate::error::{anyhow_error, AppError};
 use crate::features::feature_flags::services::FeatureFlagService;
+use crate::features::organizations::repository::OrganizationRepository;
 use crate::models::ScenarioDiscipline;
 use crate::shared::admin_override::is_admin_override_user;
 use crate::shared::helpers::{next_id, now_ts};
@@ -18,12 +19,9 @@ const FREE_SCENARIO_IDS: &[&str] = &[
     "test-file-upload",
 ];
 
-fn normalize_plan_for_launch(plan_code: PlanCode) -> PlanCode {
-    if matches!(plan_code, PlanCode::Team) && !FeatureFlagService::new().is_team_features_enabled()
-    {
-        // Ultra-simple launch mode: treat TEAM subscriptions as INDIVIDUAL capabilities
-        // until team workflows are released.
-        return PlanCode::Individual;
+fn normalize_plan_for_launch(plan_code: PlanCode, team_features_enabled: bool) -> PlanCode {
+    if matches!(plan_code, PlanCode::Team) && !team_features_enabled {
+        return PlanCode::Free;
     }
 
     plan_code
@@ -41,6 +39,8 @@ impl EntitlementService {
 
     /// Resolve the effective plan for a user, considering organization memberships
     pub async fn resolve_effective_plan(&self, user_id: &str) -> Result<EffectivePlan, AppError> {
+        let team_features_enabled = FeatureFlagService::new().is_team_features_enabled();
+
         if is_admin_override_user(user_id) {
             return Ok(EffectivePlan {
                 plan_code: PlanCode::Team,
@@ -58,10 +58,39 @@ impl EntitlementService {
             .map_err(|e| anyhow_error(&format!("Failed to fetch user entitlement: {}", e)))?
         {
             return Ok(EffectivePlan {
-                plan_code: normalize_plan_for_launch(entitlement.plan_code),
+                plan_code: normalize_plan_for_launch(entitlement.plan_code, team_features_enabled),
                 source_entitlement_id: entitlement.id,
                 organization_id: None,
             });
+        }
+
+        // Next priority: active org membership with active org entitlement.
+        let org_repo = OrganizationRepository::new(self.pool.clone());
+        let active_memberships = org_repo
+            .list_active_orgs_for_user(user_id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to fetch active memberships: {}", e)))?;
+
+        for membership in active_memberships {
+            if let Some(entitlement) = entitlement_repo
+                .find_active_for_org(&membership.organization_id)
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to fetch org entitlement: {}", e)))?
+            {
+                let plan_code =
+                    normalize_plan_for_launch(entitlement.plan_code, team_features_enabled);
+                let organization_id = if matches!(plan_code, PlanCode::Team) {
+                    Some(membership.organization_id)
+                } else {
+                    None
+                };
+
+                return Ok(EffectivePlan {
+                    plan_code,
+                    source_entitlement_id: entitlement.id,
+                    organization_id,
+                });
+            }
         }
 
         // Fallback: auto-provision FREE entitlement
@@ -96,7 +125,6 @@ impl EntitlementService {
     ) -> bool {
         match plan_code {
             PlanCode::Free => FREE_SCENARIO_IDS.contains(&scenario_id),
-            PlanCode::Individual => true,
             PlanCode::Team => true,
         }
     }
@@ -109,13 +137,6 @@ impl EntitlementService {
                 max_daily_credits: None,
                 scenario_access: ScenarioAccess::FreeOnly,
                 history_retention_days: Some(30),
-                team_features: false,
-            },
-            PlanCode::Individual => PlanLimits {
-                monthly_credits: 0,
-                max_daily_credits: None,
-                scenario_access: ScenarioAccess::All,
-                history_retention_days: None,
                 team_features: false,
             },
             PlanCode::Team => PlanLimits {
@@ -158,12 +179,7 @@ mod tests {
     use super::normalize_plan_for_launch;
 
     #[test]
-    fn individual_and_team_can_access_all_scenarios() {
-        assert!(EntitlementService::can_access_scenario(
-            &PlanCode::Individual,
-            "challenge-critical-tradeoff",
-            Some(&ScenarioDiscipline::Challenge)
-        ));
+    fn team_can_access_all_scenarios() {
         assert!(EntitlementService::can_access_scenario(
             &PlanCode::Team,
             "challenge-critical-tradeoff",
@@ -187,23 +203,14 @@ mod tests {
 
     #[test]
     fn team_plan_downgrades_when_team_features_disabled() {
-        unsafe {
-            std::env::remove_var("FF_TEAM_FEATURES_ENABLED");
-        }
-        assert_eq!(
-            normalize_plan_for_launch(PlanCode::Team),
-            PlanCode::Individual
-        );
+        assert_eq!(normalize_plan_for_launch(PlanCode::Team, false), PlanCode::Free);
     }
 
     #[test]
     fn team_plan_preserved_when_team_features_enabled() {
-        unsafe {
-            std::env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
-        }
-        assert_eq!(normalize_plan_for_launch(PlanCode::Team), PlanCode::Team);
-        unsafe {
-            std::env::remove_var("FF_TEAM_FEATURES_ENABLED");
-        }
+        assert_eq!(
+            normalize_plan_for_launch(PlanCode::Team, true),
+            PlanCode::Team
+        );
     }
 }

@@ -6,8 +6,9 @@ use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::{
     CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
-    InvitationResponse, Organization, OrganizationInvitation, OrganizationMember,
-    OrganizationMembersResponse, UpdateMemberRequest, UpdateOrganizationRequest,
+    InvitationEmailDelivery, InvitationResponse, Organization, OrganizationInvitation,
+    OrganizationMember, OrganizationMembersResponse, OrganizationProgressResponse,
+    UpdateMemberRequest, UpdateOrganizationRequest,
 };
 use super::repository::OrganizationRepository;
 
@@ -15,6 +16,9 @@ use super::repository::OrganizationRepository;
 pub struct OrganizationService {
     pool: PgPool,
 }
+
+const DEFAULT_APP_BASE_URL: &str = "http://localhost:5173";
+const DEFAULT_RESEND_API_BASE_URL: &str = "https://api.resend.com";
 
 impl OrganizationService {
     pub fn new(pool: PgPool) -> Self {
@@ -122,6 +126,29 @@ impl OrganizationService {
         })
     }
 
+    pub async fn get_current_progress(
+        &self,
+        user_id: &str,
+    ) -> Result<OrganizationProgressResponse, AppError> {
+        let (organization, membership) = self.resolve_current_org_context(user_id).await?;
+        if !can_manage_members(&membership.role) {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for organization progress view",
+            ));
+        }
+
+        let repo = OrganizationRepository::new(self.pool.clone());
+        let members = repo
+            .list_member_progress(&organization.id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to list organization progress: {}", e)))?;
+
+        Ok(OrganizationProgressResponse {
+            members,
+            generated_at: now_ts(),
+        })
+    }
+
     pub async fn create_invitation(
         &self,
         user_id: &str,
@@ -172,9 +199,21 @@ impl OrganizationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to create invitation: {}", e)))?;
 
+        let invite_link = build_invite_link(&invite_token);
+        let email_delivery = self
+            .send_invitation_email(
+                &created.email,
+                &organization.name,
+                &invite_link,
+                Some(&membership.user_id),
+            )
+            .await;
+
         Ok(InvitationResponse {
             invitation: created,
             invite_token,
+            invite_link,
+            email_delivery,
         })
     }
 
@@ -331,6 +370,118 @@ impl OrganizationService {
         Ok(())
     }
 
+    async fn send_invitation_email(
+        &self,
+        to_email: &str,
+        organization_name: &str,
+        invite_link: &str,
+        inviter_user_id: Option<&str>,
+    ) -> InvitationEmailDelivery {
+        if !env_flag("FF_INVITATION_EMAIL_ENABLED") {
+            return InvitationEmailDelivery {
+                status: "skipped".to_string(),
+                message: Some(
+                    "INVITATION_EMAIL_DISABLED: set FF_INVITATION_EMAIL_ENABLED=true to enable sending"
+                        .to_string(),
+                ),
+            };
+        }
+
+        let Some(resend_api_key) = env_non_empty("RESEND_API_KEY") else {
+            return InvitationEmailDelivery {
+                status: "skipped".to_string(),
+                message: Some(
+                    "INVITATION_EMAIL_NOT_CONFIGURED: RESEND_API_KEY is not set".to_string(),
+                ),
+            };
+        };
+
+        let Some(from_email) = env_non_empty("INVITATION_EMAIL_FROM") else {
+            return InvitationEmailDelivery {
+                status: "skipped".to_string(),
+                message: Some(
+                    "INVITATION_EMAIL_NOT_CONFIGURED: INVITATION_EMAIL_FROM is not set"
+                        .to_string(),
+                ),
+            };
+        };
+
+        let api_base_url = env_non_empty("INVITATION_EMAIL_API_BASE_URL")
+            .unwrap_or_else(|| DEFAULT_RESEND_API_BASE_URL.to_string());
+        if !is_http_url(&api_base_url) {
+            return InvitationEmailDelivery {
+                status: "failed".to_string(),
+                message: Some(
+                    "INVITATION_EMAIL_CONFIG_INVALID: INVITATION_EMAIL_API_BASE_URL must start with http:// or https://"
+                        .to_string(),
+                ),
+            };
+        }
+
+        let inviter_label = inviter_user_id.unwrap_or("team-owner");
+        let subject = format!("{organization_name} への招待");
+        let text = format!(
+            "あなたは {organization_name} に招待されました。\n\
+             招待リンク: {invite_link}\n\
+             招待者: {inviter_label}\n\
+             このリンクからログインまたは新規登録するとチーム参加を完了できます。"
+        );
+
+        let mut payload = serde_json::json!({
+            "from": from_email,
+            "to": [to_email],
+            "subject": subject,
+            "text": text,
+            "html": format!(
+                "<p>{organization_name} に招待されました。</p>\
+                 <p><a href=\"{invite_link}\">招待リンクを開く</a></p>\
+                 <p>招待者: {inviter_label}</p>\
+                 <p>このリンクからログインまたは新規登録するとチーム参加を完了できます。</p>"
+            ),
+        });
+        if let Some(reply_to) = env_non_empty("INVITATION_EMAIL_REPLY_TO") {
+            payload["reply_to"] = serde_json::json!(reply_to);
+        }
+
+        let endpoint = format!("{}/emails", api_base_url.trim_end_matches('/'));
+        let response = reqwest::Client::new()
+            .post(&endpoint)
+            .bearer_auth(resend_api_key)
+            .json(&payload)
+            .send()
+            .await;
+
+        let response = match response {
+            Ok(response) => response,
+            Err(error) => {
+                return InvitationEmailDelivery {
+                    status: "failed".to_string(),
+                    message: Some(format!("INVITATION_EMAIL_SEND_FAILED: {}", error)),
+                };
+            }
+        };
+
+        if response.status().is_success() {
+            return InvitationEmailDelivery {
+                status: "sent".to_string(),
+                message: Some("INVITATION_EMAIL_SENT".to_string()),
+            };
+        }
+
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "failed to read response body".to_string());
+        InvitationEmailDelivery {
+            status: "failed".to_string(),
+            message: Some(format!(
+                "INVITATION_EMAIL_SEND_FAILED: provider responded with {}: {}",
+                status, body
+            )),
+        }
+    }
+
     async fn resolve_current_org_context(
         &self,
         user_id: &str,
@@ -423,6 +574,40 @@ impl OrganizationService {
 
 fn can_manage_organization(role: &str) -> bool {
     matches!(role, "owner" | "admin")
+}
+
+fn env_non_empty(key: &str) -> Option<String> {
+    std::env::var(key).ok().and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+fn env_flag(key: &str) -> bool {
+    std::env::var(key)
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE"))
+        .unwrap_or(false)
+}
+
+fn is_http_url(value: &str) -> bool {
+    value.starts_with("http://") || value.starts_with("https://")
+}
+
+fn resolve_app_base_url() -> String {
+    let raw = env_non_empty("APP_BASE_URL").unwrap_or_else(|| DEFAULT_APP_BASE_URL.to_string());
+    if is_http_url(&raw) {
+        raw.trim_end_matches('/').to_string()
+    } else {
+        DEFAULT_APP_BASE_URL.to_string()
+    }
+}
+
+fn build_invite_link(invite_token: &str) -> String {
+    format!("{}/team/onboarding?invite={}", resolve_app_base_url(), invite_token)
 }
 
 fn can_manage_members(role: &str) -> bool {

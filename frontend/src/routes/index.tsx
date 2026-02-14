@@ -5,9 +5,11 @@ import { HistoryPage } from "@/routes/history/HistoryPage";
 import { HistoryDetailPage } from "@/routes/history/HistoryDetailPage";
 import { SettingsPage } from "@/routes/settings/SettingsPage";
 import { BillingSettingsPage } from "@/routes/settings/BillingSettingsPage";
+import { TeamManagementPage } from "@/routes/settings/TeamManagementPage";
 import { ScenarioPage } from "@/routes/scenario/ScenarioPage";
 import { AchievementsPage } from "@/routes/achievements/AchievementsPage";
 import { PricingPage } from "@/routes/pricing/PricingPage";
+import { TeamOnboardingPage } from "@/routes/team/TeamOnboardingPage";
 import { ErrorPage } from "@/routes/ErrorPage";
 
 export const router = createBrowserRouter([
@@ -45,8 +47,16 @@ export const router = createBrowserRouter([
         element: <BillingSettingsPage />,
       },
       {
+        path: "settings/team",
+        element: <TeamManagementPage />,
+      },
+      {
         path: "pricing",
         element: <PricingPage />,
+      },
+      {
+        path: "team/onboarding",
+        element: <TeamOnboardingPage />,
       },
     ],
   },

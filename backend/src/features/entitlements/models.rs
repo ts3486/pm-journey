@@ -5,8 +5,6 @@ use utoipa::ToSchema;
 pub enum PlanCode {
     #[serde(rename = "FREE")]
     Free,
-    #[serde(rename = "INDIVIDUAL")]
-    Individual,
     #[serde(rename = "TEAM")]
     Team,
 }
@@ -15,7 +13,6 @@ impl PlanCode {
     pub fn as_str(&self) -> &str {
         match self {
             PlanCode::Free => "FREE",
-            PlanCode::Individual => "INDIVIDUAL",
             PlanCode::Team => "TEAM",
         }
     }
@@ -23,7 +20,8 @@ impl PlanCode {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "FREE" => Some(PlanCode::Free),
-            "INDIVIDUAL" => Some(PlanCode::Individual),
+            // Backward compatibility for historical rows before Individual removal.
+            "INDIVIDUAL" => Some(PlanCode::Free),
             "TEAM" => Some(PlanCode::Team),
             _ => None,
         }

@@ -84,7 +84,7 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
 
     let owner_token = jwt_for_user(&owner);
     let invitee_token = jwt_for_user(&invitee);
-    let app = test_app(pool);
+    let app = test_app(pool.clone());
 
     let create_org_response = app
         .clone()
@@ -153,6 +153,15 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
         .and_then(|v| v.as_str())
         .expect("invite token")
         .to_string();
+    assert!(invite_json
+        .get("inviteLink")
+        .and_then(|v| v.as_str())
+        .is_some_and(|text| text.contains("/team/onboarding?invite=")));
+    assert!(invite_json
+        .get("emailDelivery")
+        .and_then(|v| v.get("status"))
+        .and_then(|v| v.as_str())
+        .is_some());
 
     let accept_response = app
         .clone()
@@ -165,6 +174,83 @@ async fn organization_endpoints_create_invite_accept_update_and_delete_member() 
         .await
         .expect("accept invitation request");
     assert_eq!(accept_response.status(), StatusCode::OK);
+
+    insert_session(
+        &pool,
+        &id("session-progress-active"),
+        &invitee,
+        current_org_json
+            .get("organization")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str())
+            .expect("organization id"),
+        "active",
+        json!({
+            "requirements": true,
+            "priorities": false,
+            "risks": false,
+            "acceptance": false
+        }),
+    )
+    .await;
+    insert_session(
+        &pool,
+        &id("session-progress-completed"),
+        &invitee,
+        current_org_json
+            .get("organization")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str())
+            .expect("organization id"),
+        "completed",
+        json!({
+            "requirements": true,
+            "priorities": true,
+            "risks": true,
+            "acceptance": false
+        }),
+    )
+    .await;
+
+    let progress_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::GET,
+            "/organizations/current/progress",
+            &owner_token,
+            None,
+        ))
+        .await
+        .expect("progress request");
+    assert_eq!(progress_response.status(), StatusCode::OK);
+    let progress_body = to_bytes(progress_response.into_body(), usize::MAX)
+        .await
+        .expect("progress body");
+    let progress_json: serde_json::Value =
+        serde_json::from_slice(&progress_body).expect("progress json");
+    let invitee_progress = progress_json
+        .get("members")
+        .and_then(|v| v.as_array())
+        .and_then(|members| {
+            members.iter().find(|member| {
+                member.get("userId").and_then(|v| v.as_str()) == Some(invitee.as_str())
+            })
+        })
+        .expect("invitee progress row");
+    assert_eq!(invitee_progress.get("totalSessions"), Some(&json!(2)));
+    assert_eq!(invitee_progress.get("completedSessions"), Some(&json!(1)));
+
+    let progress_for_member_response = app
+        .clone()
+        .oneshot(build_request(
+            Method::GET,
+            "/organizations/current/progress",
+            &invitee_token,
+            None,
+        ))
+        .await
+        .expect("member progress request");
+    assert_eq!(progress_for_member_response.status(), StatusCode::FORBIDDEN);
 
     let owner_members_response = app
         .clone()
@@ -503,4 +589,36 @@ async fn insert_pending_invitation(
     .execute(pool)
     .await
     .expect("insert pending invitation");
+}
+
+async fn insert_session(
+    pool: &PgPool,
+    session_id: &str,
+    user_id: &str,
+    organization_id: &str,
+    status: &str,
+    progress_flags: serde_json::Value,
+) {
+    sqlx::query(
+        r#"
+        INSERT INTO sessions (
+            id, scenario_id, scenario_discipline, status,
+            started_at, ended_at, last_activity_at, user_name,
+            evaluation_requested, progress_flags, mission_status, user_id, organization_id
+        )
+        VALUES (
+            $1, 'scenario_placeholder', 'BASIC', $2,
+            NOW(), NULL, NOW(), NULL,
+            FALSE, $3, '[]'::jsonb, $4, $5
+        )
+        "#,
+    )
+    .bind(session_id)
+    .bind(status)
+    .bind(progress_flags)
+    .bind(user_id)
+    .bind(organization_id)
+    .execute(pool)
+    .await
+    .expect("insert session");
 }

@@ -12,6 +12,8 @@ describe("router", () => {
     expect(childPaths).toContain("scenario");
     expect(childPaths).toContain("settings");
     expect(childPaths).toContain("settings/billing");
+    expect(childPaths).toContain("settings/team");
     expect(childPaths).toContain("pricing");
+    expect(childPaths).toContain("team/onboarding");
   });
 });

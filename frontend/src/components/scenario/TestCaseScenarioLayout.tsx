@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { Scenario, TestCase } from "@/types";
-import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { TestCaseForm } from "@/components/scenario/TestCaseForm";
 import {
   FileUploadMockup,
@@ -109,8 +108,6 @@ export function TestCaseScenarioLayout({
           </div>
         </div>
       </section>
-
-      <ProjectOverviewSection scenario={scenario} />
 
       <div className="card p-4">
         <h3 className="mb-4 text-sm font-semibold text-slate-900">機能デザイン</h3>

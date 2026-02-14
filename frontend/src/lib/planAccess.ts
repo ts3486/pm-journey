@@ -14,6 +14,6 @@ export function canAccessScenario(
   scenarioId: string,
   _discipline?: ScenarioDiscipline
 ): boolean {
-  if (planCode === "TEAM" || planCode === "INDIVIDUAL") return true;
+  if (planCode === "TEAM") return true;
   return freeScenarioIds.has(scenarioId);
 }

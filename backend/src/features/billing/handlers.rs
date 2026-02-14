@@ -6,24 +6,24 @@ use crate::state::SharedState;
 
 use super::models::{
     BillingPortalSessionResponse, CreateBillingPortalSessionRequest,
-    CreateIndividualCheckoutRequest, IndividualCheckoutResponse, StripeWebhookResponse,
+    CreateTeamCheckoutRequest, StripeWebhookResponse, TeamCheckoutResponse,
 };
 
 #[utoipa::path(
     post,
-    path = "/billing/checkout/individual",
-    request_body = CreateIndividualCheckoutRequest,
-    responses((status = 200, body = IndividualCheckoutResponse))
+    path = "/billing/checkout/team",
+    request_body = CreateTeamCheckoutRequest,
+    responses((status = 200, body = TeamCheckoutResponse))
 )]
-pub async fn checkout_individual(
+pub async fn checkout_team(
     State(state): State<SharedState>,
     auth: AuthUser,
-    Json(body): Json<CreateIndividualCheckoutRequest>,
-) -> Result<Json<IndividualCheckoutResponse>, AppError> {
+    Json(body): Json<CreateTeamCheckoutRequest>,
+) -> Result<Json<TeamCheckoutResponse>, AppError> {
     let response = state
         .services()
         .billing()
-        .create_individual_checkout(&auth.user_id, body)
+        .create_team_checkout(&auth.user_id, body)
         .await?;
     Ok(Json(response))
 }

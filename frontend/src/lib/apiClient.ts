@@ -1,11 +1,13 @@
 import type {
   BillingPortalSessionResponse,
+  CreateOrganizationRequest,
+  CreateOrganizationInvitationRequest,
+  CreateTeamCheckoutRequest,
   CreateBillingPortalSessionRequest,
-  CreateIndividualCheckoutRequest,
+  CurrentOrganizationResponse,
   EntitlementResponse,
   Evaluation,
   HistoryItem,
-  IndividualCheckoutResponse,
   ManagerComment,
   Message,
   MessageRole,
@@ -17,12 +19,19 @@ import type {
   RatingCriterion,
   Scenario,
   Session,
+  Organization,
+  OrganizationProgressResponse,
+  OrganizationMembersResponse,
+  InvitationResponse,
+  OrganizationMember,
+  TeamCheckoutResponse,
   TestCase,
+  UpdateOrganizationMemberRequest,
   UpdateProductConfigRequest,
 } from "@/types";
 
 type FetchOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
 };
 
@@ -124,10 +133,8 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     async getMyEntitlements(): Promise<EntitlementResponse> {
       return request<EntitlementResponse>("/me/entitlements");
     },
-    async createIndividualCheckout(
-      payload: CreateIndividualCheckoutRequest = {}
-    ): Promise<IndividualCheckoutResponse> {
-      return request<IndividualCheckoutResponse>("/billing/checkout/individual", {
+    async createTeamCheckout(payload: CreateTeamCheckoutRequest): Promise<TeamCheckoutResponse> {
+      return request<TeamCheckoutResponse>("/billing/checkout/team", {
         method: "POST",
         body: payload,
       });
@@ -139,6 +146,46 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
         method: "POST",
         body: payload,
       });
+    },
+    async createOrganization(payload: CreateOrganizationRequest): Promise<Organization> {
+      return request<Organization>("/organizations", {
+        method: "POST",
+        body: payload,
+      });
+    },
+    async getCurrentOrganization(): Promise<CurrentOrganizationResponse> {
+      return request<CurrentOrganizationResponse>("/organizations/current");
+    },
+    async listCurrentOrganizationMembers(): Promise<OrganizationMembersResponse> {
+      return request<OrganizationMembersResponse>("/organizations/current/members");
+    },
+    async getCurrentOrganizationProgress(): Promise<OrganizationProgressResponse> {
+      return request<OrganizationProgressResponse>("/organizations/current/progress");
+    },
+    async createOrganizationInvitation(
+      payload: CreateOrganizationInvitationRequest
+    ): Promise<InvitationResponse> {
+      return request<InvitationResponse>("/organizations/current/invitations", {
+        method: "POST",
+        body: payload,
+      });
+    },
+    async acceptOrganizationInvitation(token: string): Promise<CurrentOrganizationResponse> {
+      return request<CurrentOrganizationResponse>(`/organizations/current/invitations/${token}/accept`, {
+        method: "POST",
+      });
+    },
+    async updateCurrentOrganizationMember(
+      memberId: string,
+      payload: UpdateOrganizationMemberRequest
+    ): Promise<OrganizationMember> {
+      return request<OrganizationMember>(`/organizations/current/members/${memberId}`, {
+        method: "PATCH",
+        body: payload,
+      });
+    },
+    async deleteCurrentOrganizationMember(memberId: string): Promise<void> {
+      await request(`/organizations/current/members/${memberId}`, { method: "DELETE" });
     },
     async listSessions(): Promise<HistoryItem[]> {
       return request<HistoryItem[]>("/sessions");

@@ -384,13 +384,9 @@ export function HomePage() {
               <p className="text-sm text-slate-700">
                 プラン: <span className="font-semibold">FREE</span> / AI利用は日次フェアユース上限で制御
               </p>
-            ) : currentPlanCode === "INDIVIDUAL" ? (
-              <p className="text-sm text-slate-700">
-                プラン: <span className="font-semibold">INDIVIDUAL</span> / AI利用は日次フェアユース上限で制御（クレジット表示なし）
-              </p>
             ) : (
               <p className="text-sm text-slate-700">
-                プラン: <span className="font-semibold">TEAM</span> / TEAM機能は準備中（管理者プレビュー）
+                プラン: <span className="font-semibold">TEAM</span> / 組織単位の日次フェアユース上限で制御
               </p>
             )}
           </div>

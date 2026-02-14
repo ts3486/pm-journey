@@ -7,7 +7,7 @@ import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import {
-  getScenarioCategoryGuide,
+  buildScenarioGuide,
   getScenarioGuideSeenStorageKey,
   ScenarioCategoryGuideModal,
 } from "@/components/scenario/ScenarioCategoryGuideModal";
@@ -43,8 +43,8 @@ export function ScenarioPage() {
     if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
     return defaultScenario;
   }, [scenarioIdParam, state?.session?.scenarioId]);
-  const activeGuide = useMemo(() => getScenarioCategoryGuide(activeScenario.id), [activeScenario.id]);
-  const activeGuideCategoryId = activeGuide?.categoryId;
+  const activeGuide = useMemo(() => buildScenarioGuide(activeScenario), [activeScenario]);
+  const activeGuideScenarioId = activeGuide.scenarioId;
   const canAccessCurrentScenario = useMemo(() => {
     if (!entitlements) return isEntitlementsError;
     return canAccessScenario(entitlements.planCode, activeScenario.id, activeScenario.discipline);
@@ -95,10 +95,8 @@ export function ScenarioPage() {
         ...snapshot,
         session: { ...snapshot.session, scenarioDiscipline: scenario.discipline },
       };
-      const isBasic = scenario.scenarioType === "basic";
-      const kickoff = snapshot.messages[0];
-      const opening = snapshot.messages[1];
-      const shouldDelayInitialOpening = isBasic && kickoff?.role === "system" && opening?.role === "agent";
+      const opening = snapshot.messages[0];
+      const shouldDelayInitialOpening = scenario.scenarioType === "basic" && opening?.role === "agent";
 
       if (shouldDelayInitialOpening) {
         const initialMessages = snapshot.messages.filter((message) => message.id !== opening.id);
@@ -184,15 +182,14 @@ export function ScenarioPage() {
   };
 
   const handleOpenGuide = () => {
-    if (!activeGuide) return;
     setIsGuideOpen(true);
   };
 
   const handleCloseGuide = () => {
     setIsGuideOpen(false);
-    if (!activeGuideCategoryId || typeof window === "undefined") return;
+    if (!activeGuideScenarioId || typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId), "1");
+      window.localStorage.setItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId), "1");
     } catch {
       // localStorage unavailable: keep guide behavior functional without persistence.
     }
@@ -233,19 +230,15 @@ export function ScenarioPage() {
   }, [canAccessCurrentScenario, isEntitlementsLoading, scenarioIdParam, restart]);
 
   useEffect(() => {
-    if (!activeGuideCategoryId) {
-      setIsGuideOpen(false);
-      return;
-    }
     if (typeof window === "undefined") return;
     try {
       const hasSeenGuide =
-        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId)) === "1";
+        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId)) === "1";
       if (!hasSeenGuide) setIsGuideOpen(true);
     } catch {
       setIsGuideOpen(true);
     }
-  }, [activeGuideCategoryId]);
+  }, [activeGuideScenarioId]);
 
   useEffect(() => {
     return () => {
@@ -256,9 +249,9 @@ export function ScenarioPage() {
     };
   }, []);
 
-  const guideModal = activeGuide ? (
+  const guideModal = (
     <ScenarioCategoryGuideModal guide={activeGuide} isOpen={isGuideOpen} onClose={handleCloseGuide} />
-  ) : null;
+  );
 
   if (isEntitlementsLoading && !state?.session) {
     return (
@@ -289,7 +282,7 @@ export function ScenarioPage() {
           state={state}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
-          onOpenGuide={activeGuide ? handleOpenGuide : undefined}
+          onOpenGuide={handleOpenGuide}
         />
         {guideModal}
       </>
@@ -314,15 +307,13 @@ export function ScenarioPage() {
                 <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
                 <p className="text-sm text-slate-600">{activeScenario.description}</p>
               </div>
-              {activeGuide ? (
-                <button
-                  type="button"
-                  className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
-                  onClick={handleOpenGuide}
-                >
-                  進め方ガイドを開く
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
+                onClick={handleOpenGuide}
+              >
+                進め方ガイドを開く
+              </button>
             </div>
           </div>
         </section>

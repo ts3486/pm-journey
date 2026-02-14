@@ -11,7 +11,7 @@ use crate::state::SharedState;
 use super::models::{
     CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
     InvitationResponse, Organization, OrganizationMember, OrganizationMembersResponse,
-    UpdateMemberRequest, UpdateOrganizationRequest,
+    OrganizationProgressResponse, UpdateMemberRequest, UpdateOrganizationRequest,
 };
 
 #[utoipa::path(
@@ -84,6 +84,23 @@ pub async fn list_current_members(
         .list_current_members(&auth.user_id)
         .await?;
     Ok(Json(members))
+}
+
+#[utoipa::path(
+    get,
+    path = "/organizations/current/progress",
+    responses((status = 200, body = OrganizationProgressResponse))
+)]
+pub async fn get_current_progress(
+    State(state): State<SharedState>,
+    auth: AuthUser,
+) -> Result<Json<OrganizationProgressResponse>, AppError> {
+    let progress = state
+        .services()
+        .organizations()
+        .get_current_progress(&auth.user_id)
+        .await?;
+    Ok(Json(progress))
 }
 
 #[utoipa::path(

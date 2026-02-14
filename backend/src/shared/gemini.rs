@@ -27,7 +27,7 @@ pub fn resolve_chat_credentials(
             "GEMINI_API_KEY",
             "NEXT_PUBLIC_GEMINI_API_KEY",
         ]),
-        PlanCode::Free | PlanCode::Individual => first_non_empty_env(&[
+        PlanCode::Free => first_non_empty_env(&[
             "GEMINI_API_KEY_FREE_TIER",
             "GEMINI_API_KEY",
             "NEXT_PUBLIC_GEMINI_API_KEY",
@@ -39,7 +39,7 @@ pub fn resolve_chat_credentials(
         PlanCode::Team => {
             first_non_empty_env(&["GEMINI_DEFAULT_MODEL_TEAM", "GEMINI_DEFAULT_MODEL"])
         }
-        PlanCode::Free | PlanCode::Individual => {
+        PlanCode::Free => {
             first_non_empty_env(&["GEMINI_DEFAULT_MODEL_FREE_TIER", "GEMINI_DEFAULT_MODEL"])
         }
     }
@@ -60,7 +60,7 @@ pub fn resolve_eval_credentials(
             "GEMINI_API_KEY",
             "NEXT_PUBLIC_GEMINI_API_KEY",
         ]),
-        PlanCode::Free | PlanCode::Individual => first_non_empty_env(&[
+        PlanCode::Free => first_non_empty_env(&[
             "GEMINI_API_KEY_FREE_TIER",
             "GEMINI_API_KEY",
             "NEXT_PUBLIC_GEMINI_API_KEY",
@@ -70,7 +70,7 @@ pub fn resolve_eval_credentials(
 
     let default_model = match plan_code {
         PlanCode::Team => first_non_empty_env(&["GEMINI_EVAL_MODEL_TEAM", "GEMINI_EVAL_MODEL"]),
-        PlanCode::Free | PlanCode::Individual => {
+        PlanCode::Free => {
             first_non_empty_env(&["GEMINI_EVAL_MODEL_FREE_TIER", "GEMINI_EVAL_MODEL"])
         }
     }

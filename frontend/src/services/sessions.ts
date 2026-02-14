@@ -29,30 +29,11 @@ export const createLocalMessage = (
   tags,
 });
 
-const kickoffMessage = (sessionId: string, prompt?: string): Message[] => {
-  if (!prompt) return [];
-  return [
-    {
-      id: randomId("msg"),
-      sessionId,
-      role: "system",
-      content: prompt,
-      createdAt: new Date().toISOString(),
-      tags: ["summary"],
-    },
-  ];
-};
-
 const seededMessagesForBasicScenario = async (sessionId: string, scenario: Scenario): Promise<Message[]> => {
   const messages: Message[] = [];
   const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
-  const systemKickoff = scenario.kickoffPrompt?.trim();
   const agentOpening = agentResponseEnabled ? scenario.agentOpeningMessage?.trim() : undefined;
 
-  if (systemKickoff) {
-    const posted = await api.postMessage(sessionId, "system", systemKickoff, ["summary"]);
-    messages.push(posted.reply);
-  }
   if (agentOpening) {
     const posted = await api.postMessage(sessionId, "agent", agentOpening, ["summary"]);
     messages.push(posted.reply);
@@ -180,10 +161,7 @@ export async function startSession(scenario: Scenario): Promise<SessionState> {
     ...session,
     scenarioDiscipline: session.scenarioDiscipline ?? scenario.discipline,
   };
-  const messages =
-    scenario.scenarioType === "basic"
-      ? await seededMessagesForBasicScenario(session.id, scenario)
-      : kickoffMessage(session.id, scenario.kickoffPrompt);
+  const messages = scenario.scenarioType === "basic" ? await seededMessagesForBasicScenario(session.id, scenario) : [];
   storage.setLastSession(session.id, scenario.id);
   return { session, messages, evaluation: undefined, history: [], loading: false };
 }

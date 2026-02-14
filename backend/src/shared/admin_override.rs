@@ -17,9 +17,17 @@ pub fn is_admin_override_user(user_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::is_admin_override_user;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn matches_user_from_comma_separated_list() {
+        let _guard = env_lock().lock().expect("admin override env lock");
+        let original = std::env::var("ADMIN_OVERRIDE_USER_IDS").ok();
         unsafe {
             std::env::set_var(
                 "ADMIN_OVERRIDE_USER_IDS",
@@ -28,10 +36,20 @@ mod tests {
         }
         assert!(is_admin_override_user("auth0|admin-2"));
         assert!(!is_admin_override_user("auth0|other"));
+
+        unsafe {
+            if let Some(value) = original {
+                std::env::set_var("ADMIN_OVERRIDE_USER_IDS", value);
+            } else {
+                std::env::remove_var("ADMIN_OVERRIDE_USER_IDS");
+            }
+        }
     }
 
     #[test]
     fn handles_empty_or_missing_env() {
+        let _guard = env_lock().lock().expect("admin override env lock");
+        let original = std::env::var("ADMIN_OVERRIDE_USER_IDS").ok();
         unsafe {
             std::env::remove_var("ADMIN_OVERRIDE_USER_IDS");
         }
@@ -41,5 +59,13 @@ mod tests {
             std::env::set_var("ADMIN_OVERRIDE_USER_IDS", " ,  , ");
         }
         assert!(!is_admin_override_user("auth0|admin"));
+
+        unsafe {
+            if let Some(value) = original {
+                std::env::set_var("ADMIN_OVERRIDE_USER_IDS", value);
+            } else {
+                std::env::remove_var("ADMIN_OVERRIDE_USER_IDS");
+            }
+        }
     }
 }

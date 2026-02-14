@@ -1,4 +1,6 @@
-use super::models::{Organization, OrganizationInvitation, OrganizationMember};
+use super::models::{
+    Organization, OrganizationInvitation, OrganizationMember, OrganizationMemberProgress,
+};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use sqlx::{postgres::PgRow, PgPool, Postgres, Row, Transaction};
@@ -520,6 +522,61 @@ impl OrganizationRepository {
             .ok_or_else(|| anyhow::anyhow!("Failed to fetch created organization member"))
     }
 
+    pub async fn list_member_progress(
+        &self,
+        org_id: &str,
+    ) -> Result<Vec<OrganizationMemberProgress>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                m.id AS member_id,
+                m.user_id,
+                m.role,
+                m.status,
+                u.email,
+                u.name,
+                COALESCE(progress.total_sessions, 0)::BIGINT AS total_sessions,
+                COALESCE(progress.active_sessions, 0)::BIGINT AS active_sessions,
+                COALESCE(progress.completed_sessions, 0)::BIGINT AS completed_sessions,
+                COALESCE(progress.evaluated_sessions, 0)::BIGINT AS evaluated_sessions,
+                COALESCE(progress.progress_item_completions, 0)::BIGINT AS progress_item_completions,
+                to_char(progress.last_activity_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_activity_at
+            FROM organization_members m
+            LEFT JOIN users u
+              ON u.id = m.user_id
+            LEFT JOIN (
+                SELECT
+                    s.user_id,
+                    COUNT(*)::BIGINT AS total_sessions,
+                    COUNT(*) FILTER (WHERE s.status = 'active')::BIGINT AS active_sessions,
+                    COUNT(*) FILTER (WHERE s.status = 'completed')::BIGINT AS completed_sessions,
+                    COUNT(*) FILTER (WHERE s.status = 'evaluated' OR e.session_id IS NOT NULL)::BIGINT AS evaluated_sessions,
+                    MAX(s.last_activity_at) AS last_activity_at,
+                    SUM(
+                        (CASE WHEN COALESCE((s.progress_flags ->> 'requirements')::boolean, FALSE) THEN 1 ELSE 0 END) +
+                        (CASE WHEN COALESCE((s.progress_flags ->> 'priorities')::boolean, FALSE) THEN 1 ELSE 0 END) +
+                        (CASE WHEN COALESCE((s.progress_flags ->> 'risks')::boolean, FALSE) THEN 1 ELSE 0 END) +
+                        (CASE WHEN COALESCE((s.progress_flags ->> 'acceptance')::boolean, FALSE) THEN 1 ELSE 0 END)
+                    )::BIGINT AS progress_item_completions
+                FROM sessions s
+                LEFT JOIN evaluations e
+                  ON e.session_id = s.id
+                WHERE s.organization_id = $1
+                GROUP BY s.user_id
+            ) progress
+              ON progress.user_id = m.user_id
+            WHERE m.organization_id = $1
+            ORDER BY m.created_at ASC
+            "#,
+        )
+        .bind(org_id)
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to list organization member progress")?;
+
+        Ok(rows.into_iter().map(Self::map_member_progress_row).collect())
+    }
+
     fn map_member_row(r: PgRow) -> OrganizationMember {
         OrganizationMember {
             id: r.get("id"),
@@ -575,6 +632,25 @@ impl OrganizationRepository {
                 .try_get::<Option<String>, _>("created_at")
                 .unwrap_or(None)
                 .unwrap_or_default(),
+        }
+    }
+
+    fn map_member_progress_row(r: PgRow) -> OrganizationMemberProgress {
+        OrganizationMemberProgress {
+            member_id: r.get("member_id"),
+            user_id: r.get("user_id"),
+            email: r.try_get::<Option<String>, _>("email").unwrap_or(None),
+            name: r.try_get::<Option<String>, _>("name").unwrap_or(None),
+            role: r.get("role"),
+            status: r.get("status"),
+            total_sessions: r.try_get::<i64, _>("total_sessions").unwrap_or(0),
+            active_sessions: r.try_get::<i64, _>("active_sessions").unwrap_or(0),
+            completed_sessions: r.try_get::<i64, _>("completed_sessions").unwrap_or(0),
+            evaluated_sessions: r.try_get::<i64, _>("evaluated_sessions").unwrap_or(0),
+            progress_item_completions: r
+                .try_get::<i64, _>("progress_item_completions")
+                .unwrap_or(0),
+            last_activity_at: r.try_get::<Option<String>, _>("last_activity_at").unwrap_or(None),
         }
     }
 }

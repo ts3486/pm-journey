@@ -137,7 +137,7 @@ export function SettingsPage() {
             ))}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4">
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">利用ヒント</p>
               <ul className="space-y-2 text-sm text-slate-600">

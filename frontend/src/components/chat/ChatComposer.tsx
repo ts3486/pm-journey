@@ -11,11 +11,15 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
-    if (!value.trim() || sending) return;
+    const trimmed = value.trim();
+    if (!trimmed || sending) return;
     setSending(true);
-    await onSend(value.trim());
     setValue("");
-    setSending(false);
+    try {
+      await onSend(trimmed);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (

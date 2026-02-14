@@ -6,12 +6,12 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::features::billing::handlers::{
-    __path_checkout_individual, __path_create_portal_session, __path_stripe_webhook,
-    checkout_individual, create_portal_session, stripe_webhook,
+    __path_checkout_team, __path_create_portal_session, __path_stripe_webhook, checkout_team,
+    create_portal_session, stripe_webhook,
 };
 use crate::features::billing::models::{
-    BillingPortalSessionResponse, CreateBillingPortalSessionRequest,
-    CreateIndividualCheckoutRequest, IndividualCheckoutResponse, StripeWebhookResponse,
+    BillingPortalSessionResponse, CreateBillingPortalSessionRequest, CreateTeamCheckoutRequest,
+    StripeWebhookResponse, TeamCheckoutResponse,
 };
 use crate::features::comments::handlers::{
     __path_create_comment, __path_list_comments, create_comment, list_comments,
@@ -32,14 +32,16 @@ use crate::features::messages::handlers::{
 use crate::features::messages::models::AgentContext;
 use crate::features::organizations::handlers::{
     __path_accept_invitation, __path_create_invitation, __path_create_organization,
-    __path_delete_member, __path_get_current_organization, __path_list_current_members,
-    __path_update_current_organization, __path_update_member, accept_invitation, create_invitation,
-    create_organization, delete_member, get_current_organization, list_current_members,
+    __path_delete_member, __path_get_current_organization, __path_get_current_progress,
+    __path_list_current_members, __path_update_current_organization, __path_update_member,
+    accept_invitation, create_invitation, create_organization, delete_member,
+    get_current_organization, get_current_progress, list_current_members,
     update_current_organization, update_member,
 };
 use crate::features::organizations::models::{
     CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
-    InvitationResponse, Organization, OrganizationMember, OrganizationMembersResponse,
+    InvitationEmailDelivery, InvitationResponse, Organization, OrganizationMember,
+    OrganizationMemberProgress, OrganizationMembersResponse, OrganizationProgressResponse,
     UpdateMemberRequest, UpdateOrganizationRequest,
 };
 use crate::features::outputs::handlers::{
@@ -98,13 +100,14 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         get_current_organization,
         update_current_organization,
         list_current_members,
+        get_current_progress,
         create_invitation,
         accept_invitation,
         update_member,
         delete_member,
         get_my_entitlements,
         get_my_credits,
-        checkout_individual,
+        checkout_team,
         create_portal_session,
         stripe_webhook,
         import_sessions,
@@ -142,6 +145,9 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         OrganizationMember,
         CurrentOrganizationResponse,
         OrganizationMembersResponse,
+        OrganizationProgressResponse,
+        OrganizationMemberProgress,
+        InvitationEmailDelivery,
         InvitationResponse,
         CreateOrganizationRequest,
         UpdateOrganizationRequest,
@@ -159,8 +165,8 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         CreditBalanceResponse,
         CreateBillingPortalSessionRequest,
         BillingPortalSessionResponse,
-        CreateIndividualCheckoutRequest,
-        IndividualCheckoutResponse,
+        CreateTeamCheckoutRequest,
+        TeamCheckoutResponse,
         StripeWebhookResponse
     ))
 )]
@@ -176,7 +182,7 @@ pub fn router_with_state(state: SharedState) -> Router {
         .route("/sessions/:id", get(get_session).delete(delete_session))
         .route("/me/entitlements", get(get_my_entitlements))
         .route("/me/credits", get(get_my_credits))
-        .route("/billing/checkout/individual", post(checkout_individual))
+        .route("/billing/checkout/team", post(checkout_team))
         .route("/billing/portal/session", post(create_portal_session))
         .route("/billing/webhook/stripe", post(stripe_webhook))
         .route(
@@ -202,6 +208,7 @@ pub fn router_with_state(state: SharedState) -> Router {
             get(get_current_organization).patch(update_current_organization),
         )
         .route("/organizations/current/members", get(list_current_members))
+        .route("/organizations/current/progress", get(get_current_progress))
         .route(
             "/organizations/current/invitations",
             post(create_invitation),

@@ -3,14 +3,16 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateIndividualCheckoutRequest {
+pub struct CreateTeamCheckoutRequest {
+    pub organization_id: String,
+    pub seat_quantity: i32,
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IndividualCheckoutResponse {
+pub struct TeamCheckoutResponse {
     pub mode: String,
     pub checkout_url: Option<String>,
     pub already_entitled: bool,
