@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 
 import { getScenarioById } from "@/config";
-import { useProductConfig } from "@/queries/productConfig";
+import { canViewTeamManagement } from "@/lib/teamAccess";
+import { useCurrentOrganization } from "@/queries/organizations";
 import { api } from "@/services/api";
 import { getHistoryItem } from "@/services/history";
 import { addOutput, deleteOutput, listOutputs } from "@/services/outputs";
@@ -194,6 +195,7 @@ export function HistoryDetailPage() {
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { data: currentOrganization } = useCurrentOrganization();
 
   const autoEvaluate = searchParams.get("autoEvaluate") === "1";
   const autoTriggeredRef = useRef(false);
@@ -207,6 +209,11 @@ export function HistoryDetailPage() {
   const [commentAuthor, setCommentAuthor] = useState("");
   const [commentText, setCommentText] = useState("");
   const [commentError, setCommentError] = useState<string | null>(null);
+  const currentUserRole = currentOrganization?.membership.role ?? null;
+  const canPostManagerComment = canViewTeamManagement(currentUserRole);
+  const currentOrganizationName = currentOrganization?.organization.name ?? null;
+  const currentOrganizationId = currentOrganization?.organization.id ?? null;
+  const showMemberTeamInfo = currentUserRole === "member" && currentOrganizationName;
 
   const [outputKind, setOutputKind] = useState<OutputSubmissionType>("text");
   const [outputValue, setOutputValue] = useState("");
@@ -222,7 +229,6 @@ export function HistoryDetailPage() {
     queryFn: () => getHistoryItem(sessionId ?? ""),
     enabled: Boolean(sessionId),
   });
-  const { data: productConfig } = useProductConfig();
 
   const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
   const isTestCaseScenario = scenario?.scenarioType === "test-case";
@@ -235,13 +241,13 @@ export function HistoryDetailPage() {
   const { data: outputs = [] } = useQuery({
     queryKey: ["outputs", sessionId ?? "unknown"],
     queryFn: () => listOutputs(sessionId ?? ""),
-    enabled: Boolean(sessionId),
+    enabled: Boolean(sessionId && item),
   });
 
   const { data: testCases = [] } = useQuery({
     queryKey: ["testCases", sessionId ?? "unknown"],
     queryFn: () => api.listTestCases(sessionId ?? ""),
-    enabled: Boolean(sessionId) && isTestCaseScenario,
+    enabled: Boolean(sessionId && item) && isTestCaseScenario,
   });
 
   const addOutputMutation = useMutation({
@@ -390,6 +396,10 @@ export function HistoryDetailPage() {
 
   const handleAddComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canPostManagerComment) {
+      setCommentError("上長コメントの投稿権限がありません。owner / admin / manager のみ投稿できます。");
+      return;
+    }
     const trimmed = commentText.trim();
     if (!trimmed) return;
     await addCommentMutation.mutateAsync({
@@ -551,10 +561,18 @@ export function HistoryDetailPage() {
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600">{item.scenarioDiscipline ?? "Scenario"}</p>
                     <h1 className="mt-1 text-lg font-bold text-slate-900">{scenario && scenario.title}</h1>
+                    {showMemberTeamInfo ? (
+                      <p className="mt-2 text-xs font-medium text-slate-600">
+                        所属チーム: <span className="font-semibold text-slate-900">{currentOrganizationName}</span>
+                        {currentOrganizationId ? (
+                          <span className="ml-1 text-[11px] text-slate-500">({currentOrganizationId})</span>
+                        ) : null}
+                      </p>
+                    ) : null}
                     {missionList && missionList.length > 0 ? (
                       <details className="mt-2">
                         <summary className="cursor-pointer text-xs font-medium text-slate-600 underline-offset-2 hover:underline">
-                          ミッション一覧を表示
+                          ミッションを表示
                         </summary>
                         <ol className="mt-2 space-y-1.5 text-xs text-slate-700">
                           {missionList.map((mission) => (
@@ -1005,41 +1023,47 @@ export function HistoryDetailPage() {
           <p className="mb-4 py-4 text-center text-xs text-slate-500">まだコメントはありません。</p>
         )}
 
-        <form onSubmit={handleAddComment} className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4">
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-600">新しいコメントを追加</p>
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="お名前（任意）… 例: 上長"
-              value={commentAuthor}
-              aria-label="お名前"
-              name="commentAuthor"
-              autoComplete="name"
-              onChange={(event) => setCommentAuthor(event.target.value)}
-              className="input-base text-sm"
-              disabled={addCommentMutation.isPending}
-            />
-            <textarea
-              placeholder="コメントを入力… 例: 次回はここを改善してみましょう"
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              aria-label="コメント"
-              name="comment"
-              autoComplete="off"
-              className="input-base text-sm"
-              rows={3}
-              disabled={addCommentMutation.isPending}
-            />
-            {commentError ? <p className="text-sm text-red-600">{commentError}</p> : null}
-            <button
-              type="submit"
-              disabled={!commentText.trim() || addCommentMutation.isPending}
-              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {addCommentMutation.isPending ? "送信中..." : "コメントを追加"}
-            </button>
-          </div>
-        </form>
+        {canPostManagerComment ? (
+          <form onSubmit={handleAddComment} className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-600">新しいコメントを追加</p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="お名前（任意）… 例: 上長"
+                value={commentAuthor}
+                aria-label="お名前"
+                name="commentAuthor"
+                autoComplete="name"
+                onChange={(event) => setCommentAuthor(event.target.value)}
+                className="input-base text-sm"
+                disabled={addCommentMutation.isPending}
+              />
+              <textarea
+                placeholder="コメントを入力… 例: 次回はここを改善してみましょう"
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                aria-label="コメント"
+                name="comment"
+                autoComplete="off"
+                className="input-base text-sm"
+                rows={3}
+                disabled={addCommentMutation.isPending}
+              />
+              {commentError ? <p className="text-sm text-red-600">{commentError}</p> : null}
+              <button
+                type="submit"
+                disabled={!commentText.trim() || addCommentMutation.isPending}
+                className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {addCommentMutation.isPending ? "送信中..." : "コメントを追加"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="rounded-xl border border-slate-200/70 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+            上長コメントは閲覧のみ可能です。投稿は owner / admin / manager のみ実行できます。
+          </p>
+        )}
       </div>
     </div>
   );

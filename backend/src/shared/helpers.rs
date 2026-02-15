@@ -17,6 +17,7 @@ pub fn normalize_model_id(model_id: &str) -> String {
 }
 
 /// Verify that a session belongs to the specified user
+#[allow(dead_code)]
 pub async fn verify_session_ownership(
     pool: &sqlx::PgPool,
     session_id: &str,

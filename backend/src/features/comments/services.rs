@@ -1,8 +1,9 @@
 use sqlx::PgPool;
 
-use crate::error::{anyhow_error, AppError};
+use crate::error::{anyhow_error, forbidden_error, AppError};
+use crate::features::sessions::authorization::authorize_session_access;
 use crate::models::ManagerComment;
-use crate::shared::helpers::{next_id, now_ts, verify_session_ownership};
+use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::CreateCommentRequest;
 use super::repository::CommentRepository;
@@ -22,7 +23,12 @@ impl CommentService {
         session_id: &str,
         user_id: &str,
     ) -> Result<Vec<ManagerComment>, AppError> {
-        verify_session_ownership(&self.pool, session_id, user_id).await?;
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_view() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for comment view",
+            ));
+        }
 
         let comment_repo = CommentRepository::new(self.pool.clone());
         let comments = comment_repo
@@ -38,7 +44,12 @@ impl CommentService {
         user_id: &str,
         body: CreateCommentRequest,
     ) -> Result<ManagerComment, AppError> {
-        verify_session_ownership(&self.pool, session_id, user_id).await?;
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_comment() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for manager comment",
+            ));
+        }
 
         let comment_repo = CommentRepository::new(self.pool.clone());
 
@@ -46,6 +57,8 @@ impl CommentService {
             id: next_id("comment"),
             session_id: session_id.to_string(),
             author_name: body.author_name,
+            author_user_id: Some(user_id.to_string()),
+            author_role: access.comment_author_role().map(str::to_string),
             content: body.content,
             created_at: now_ts(),
         };

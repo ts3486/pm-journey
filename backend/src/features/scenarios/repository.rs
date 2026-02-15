@@ -130,6 +130,7 @@ impl ScenarioRepository {
                 .try_get::<Option<String>, _>("supplemental_info")
                 .ok()
                 .flatten(),
+            pmbok_knowledge_areas: None,
         }
     }
 

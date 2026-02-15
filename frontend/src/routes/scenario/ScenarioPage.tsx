@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { defaultScenario, getScenarioById } from "@/config";
 import type { Scenario } from "@/types";
+import { FeatureGate } from "@/components/FeatureGate";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import {
-  getScenarioCategoryGuide,
+  buildScenarioGuide,
   getScenarioGuideSeenStorageKey,
   ScenarioCategoryGuideModal,
 } from "@/components/scenario/ScenarioCategoryGuideModal";
@@ -21,24 +22,33 @@ import {
   type SessionState,
 } from "@/services/sessions";
 import { logEvent } from "@/services/telemetry";
+import { useEntitlements } from "@/queries/entitlements";
+import { canAccessScenario } from "@/lib/planAccess";
 
 export function ScenarioPage() {
   const [state, setState] = useState<SessionState | null>(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const pendingInitialReplyTimeout = useRef<number | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const restart = searchParams.get("restart") === "1";
   const scenarioIdParam = searchParams.get("scenarioId");
+  const { data: entitlements, isLoading: isEntitlementsLoading, isError: isEntitlementsError } =
+    useEntitlements();
 
   const activeScenario = useMemo<Scenario>(() => {
     if (scenarioIdParam) return getScenarioById(scenarioIdParam) ?? defaultScenario;
     if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
     return defaultScenario;
   }, [scenarioIdParam, state?.session?.scenarioId]);
-  const activeGuide = useMemo(() => getScenarioCategoryGuide(activeScenario.id), [activeScenario.id]);
-  const activeGuideCategoryId = activeGuide?.categoryId;
+  const activeGuide = useMemo(() => buildScenarioGuide(activeScenario), [activeScenario]);
+  const activeGuideScenarioId = activeGuide.scenarioId;
+  const canAccessCurrentScenario = useMemo(() => {
+    if (!entitlements) return isEntitlementsError;
+    return canAccessScenario(entitlements.planCode, activeScenario.id, activeScenario.discipline);
+  }, [activeScenario.discipline, activeScenario.id, entitlements, isEntitlementsError]);
 
   const hasActive = Boolean(state?.session);
   const messages = state?.messages ?? [];
@@ -77,41 +87,44 @@ export function ScenarioPage() {
 
   const handleStart = async (scenario = activeScenario) => {
     clearPendingInitialReply();
+    setStartupError(null);
     setAwaitingReply(false);
-    const snapshot = await startSession(scenario);
-    const seededState = {
-      ...snapshot,
-      session: { ...snapshot.session, scenarioDiscipline: scenario.discipline },
-    };
-    const isBasic = scenario.scenarioType === "basic";
-    const kickoff = snapshot.messages[0];
-    const opening = snapshot.messages[1];
-    const shouldDelayInitialOpening = isBasic && kickoff?.role === "system" && opening?.role === "agent";
+    try {
+      const snapshot = await startSession(scenario);
+      const seededState = {
+        ...snapshot,
+        session: { ...snapshot.session, scenarioDiscipline: scenario.discipline },
+      };
+      const opening = snapshot.messages[0];
+      const shouldDelayInitialOpening = scenario.scenarioType === "basic" && opening?.role === "agent";
 
-    if (shouldDelayInitialOpening) {
-      const initialMessages = snapshot.messages.filter((message) => message.id !== opening.id);
-      setState({ ...seededState, messages: initialMessages });
-      setAwaitingReply(true);
-      const delayMs = Math.floor(700 + Math.random() * 500);
-      pendingInitialReplyTimeout.current = window.setTimeout(() => {
-        setState((current) => {
-          if (!current || current.session.id !== seededState.session.id) return current;
-          const alreadyDisplayed = current.messages.some((message) => message.id === opening.id);
-          if (alreadyDisplayed) return current;
-          return { ...current, messages: [...current.messages, opening] };
-        });
-        setAwaitingReply(false);
-        pendingInitialReplyTimeout.current = null;
-      }, delayMs);
-    } else {
-      setState(seededState);
+      if (shouldDelayInitialOpening) {
+        const initialMessages = snapshot.messages.filter((message) => message.id !== opening.id);
+        setState({ ...seededState, messages: initialMessages });
+        setAwaitingReply(true);
+        const delayMs = Math.floor(700 + Math.random() * 500);
+        pendingInitialReplyTimeout.current = window.setTimeout(() => {
+          setState((current) => {
+            if (!current || current.session.id !== seededState.session.id) return current;
+            const alreadyDisplayed = current.messages.some((message) => message.id === opening.id);
+            if (alreadyDisplayed) return current;
+            return { ...current, messages: [...current.messages, opening] };
+          });
+          setAwaitingReply(false);
+          pendingInitialReplyTimeout.current = null;
+        }, delayMs);
+      } else {
+        setState(seededState);
+      }
+      logEvent({
+        type: "session_start",
+        sessionId: snapshot.session.id,
+        scenarioId: scenario.id,
+        scenarioDiscipline: scenario.discipline,
+      });
+    } catch (error) {
+      setStartupError(error instanceof Error ? error.message : "シナリオを開始できませんでした。");
     }
-    logEvent({
-      type: "session_start",
-      sessionId: snapshot.session.id,
-      scenarioId: scenario.id,
-      scenarioDiscipline: scenario.discipline,
-    });
   };
 
   const handleReset = async () => {
@@ -169,15 +182,14 @@ export function ScenarioPage() {
   };
 
   const handleOpenGuide = () => {
-    if (!activeGuide) return;
     setIsGuideOpen(true);
   };
 
   const handleCloseGuide = () => {
     setIsGuideOpen(false);
-    if (!activeGuideCategoryId || typeof window === "undefined") return;
+    if (!activeGuideScenarioId || typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId), "1");
+      window.localStorage.setItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId), "1");
     } catch {
       // localStorage unavailable: keep guide behavior functional without persistence.
     }
@@ -185,6 +197,12 @@ export function ScenarioPage() {
 
   useEffect(() => {
     async function initializeSession() {
+      if (isEntitlementsLoading) return;
+      if (!canAccessCurrentScenario) {
+        setState(null);
+        return;
+      }
+
       const targetScenario = getScenarioById(scenarioIdParam) ?? activeScenario ?? defaultScenario;
       if (!restart) {
         const existing = await resumeSession(targetScenario.id);
@@ -209,22 +227,18 @@ export function ScenarioPage() {
     }
     void initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenarioIdParam, restart]);
+  }, [canAccessCurrentScenario, isEntitlementsLoading, scenarioIdParam, restart]);
 
   useEffect(() => {
-    if (!activeGuideCategoryId) {
-      setIsGuideOpen(false);
-      return;
-    }
     if (typeof window === "undefined") return;
     try {
       const hasSeenGuide =
-        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideCategoryId)) === "1";
+        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId)) === "1";
       if (!hasSeenGuide) setIsGuideOpen(true);
     } catch {
       setIsGuideOpen(true);
     }
-  }, [activeGuideCategoryId]);
+  }, [activeGuideScenarioId]);
 
   useEffect(() => {
     return () => {
@@ -235,9 +249,30 @@ export function ScenarioPage() {
     };
   }, []);
 
-  const guideModal = activeGuide ? (
+  const guideModal = (
     <ScenarioCategoryGuideModal guide={activeGuide} isOpen={isGuideOpen} onClose={handleCloseGuide} />
-  ) : null;
+  );
+
+  if (isEntitlementsLoading && !state?.session) {
+    return (
+      <div className="card p-6">
+        <p className="text-sm text-slate-600">プラン情報を確認しています...</p>
+      </div>
+    );
+  }
+
+  if (!canAccessCurrentScenario && !state?.session) {
+    const gateDescription = "このシナリオは現在のプランでは利用できません。";
+    return (
+      <FeatureGate
+        allowed={false}
+        title="このシナリオはロックされています"
+        description={gateDescription}
+        ctaLabel="料金プランを確認"
+        ctaTo="/pricing"
+      />
+    );
+  }
 
   if (activeScenario.scenarioType === "test-case") {
     return (
@@ -247,7 +282,7 @@ export function ScenarioPage() {
           state={state}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
-          onOpenGuide={activeGuide ? handleOpenGuide : undefined}
+          onOpenGuide={handleOpenGuide}
         />
         {guideModal}
       </>
@@ -257,6 +292,11 @@ export function ScenarioPage() {
   return (
     <>
       <div className="space-y-6">
+        {startupError ? (
+          <section className="rounded-2xl border border-red-200/70 bg-red-50/80 p-4 text-sm text-red-700">
+            {startupError}
+          </section>
+        ) : null}
         <section className="card p-6 reveal">
           <div className="space-y-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -267,15 +307,13 @@ export function ScenarioPage() {
                 <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
                 <p className="text-sm text-slate-600">{activeScenario.description}</p>
               </div>
-              {activeGuide ? (
-                <button
-                  type="button"
-                  className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
-                  onClick={handleOpenGuide}
-                >
-                  進め方ガイドを開く
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
+                onClick={handleOpenGuide}
+              >
+                進め方ガイドを開く
+              </button>
             </div>
           </div>
         </section>

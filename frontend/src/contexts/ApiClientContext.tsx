@@ -47,7 +47,7 @@ export function ApiClientProvider({ children }: ApiClientProviderProps) {
   }, [isAuthenticated]);
 
   const apiClient = useMemo(() => {
-    return createApiClient(env.apiBase, {
+    const client = createApiClient(env.apiBase, {
       getAccessToken: async () => {
         try {
           const token = await getAccessTokenSilently({
@@ -67,11 +67,10 @@ export function ApiClientProvider({ children }: ApiClientProviderProps) {
       },
       onUnauthorized: redirectToLogin,
     });
+    // Keep module-level API client in sync before children start running queries.
+    setApiClient(client);
+    return client;
   }, [getAccessTokenSilently, redirectToLogin]);
-
-  useEffect(() => {
-    setApiClient(apiClient);
-  }, [apiClient]);
 
   return <ApiClientContext.Provider value={apiClient}>{children}</ApiClientContext.Provider>;
 }

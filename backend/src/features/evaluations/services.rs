@@ -4,14 +4,17 @@ use serde_json::json;
 use sqlx::PgPool;
 use tracing::warn;
 
-use crate::error::{anyhow_error, client_error, AppError};
+use crate::error::{anyhow_error, client_error, forbidden_error, AppError};
+use crate::features::entitlements::fair_use::enforce_evaluation_daily_limit;
+use crate::features::entitlements::models::PlanCode;
+use crate::features::entitlements::services::EntitlementService;
 use crate::features::evaluations::repository::EvaluationRepository;
+use crate::features::feature_flags::services::FeatureFlagService;
 use crate::features::messages::repository::MessageRepository;
+use crate::features::sessions::authorization::authorize_session_access;
 use crate::features::sessions::repository::SessionRepository;
-use crate::models::{
-    default_scenarios, Evaluation, EvaluationCategory, Message, MessageRole, SessionStatus,
-};
-use crate::shared::helpers::{normalize_model_id, now_ts};
+use crate::models::{default_scenarios, Evaluation, EvaluationCategory, Message, MessageRole};
+use crate::shared::gemini::resolve_eval_credentials;
 
 use super::models::{EvaluationCriterion, EvaluationRequest, ScoringGuidelines};
 
@@ -31,6 +34,13 @@ impl EvaluationService {
         user_id: &str,
         request: EvaluationRequest,
     ) -> Result<Evaluation, AppError> {
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_edit_session() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for evaluation request",
+            ));
+        }
+
         let session_repo = SessionRepository::new(self.pool.clone());
         let eval_repo = EvaluationRepository::new(self.pool.clone());
         let message_repo = MessageRepository::new(self.pool.clone());
@@ -42,12 +52,7 @@ impl EvaluationService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to begin transaction: {}", e)))?;
 
-        // Get session
-        let mut session = session_repo
-            .get_for_user(session_id, user_id)
-            .await
-            .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
-            .ok_or_else(|| anyhow_error("session not found"))?;
+        let session = access.session;
 
         let criteria = if let Some(criteria) = request.criteria.clone() {
             if criteria.is_empty() {
@@ -105,19 +110,37 @@ impl EvaluationService {
             ));
         }
 
+        let entitlement_service = EntitlementService::new(self.pool.clone());
+        let effective_plan = entitlement_service.resolve_effective_plan(user_id).await?;
+        let entitlement_enforced = FeatureFlagService::new().is_entitlement_enforced();
+
+        if entitlement_enforced {
+            enforce_evaluation_daily_limit(
+                &self.pool,
+                &effective_plan.plan_code,
+                user_id,
+                effective_plan.organization_id.as_deref(),
+            )
+            .await?;
+        }
+
         // Create evaluation via Gemini
-        let eval = generate_ai_evaluation(&request, &criteria, &messages, session_id).await?;
+        let eval = generate_ai_evaluation(
+            &request,
+            &criteria,
+            &messages,
+            session_id,
+            &effective_plan.plan_code,
+        )
+        .await?;
         eval_repo
             .create_in_tx(&mut tx, &eval)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to create evaluation: {}", e)))?;
 
-        // Update session status
-        session.status = SessionStatus::Evaluated;
-        session.evaluation_requested = true;
-        session.last_activity_at = now_ts();
+        // Persist evaluated state so Team Management can detect completion.
         session_repo
-            .update_last_activity_in_tx(&mut tx, session_id)
+            .mark_evaluated_in_tx(&mut tx, session_id)
             .await
             .map_err(|e| anyhow_error(&format!("Failed to update session: {}", e)))?;
 
@@ -382,10 +405,11 @@ async fn generate_ai_evaluation(
     criteria: &[EvaluationCriterion],
     messages: &[Message],
     session_id: &str,
+    plan_code: &PlanCode,
 ) -> Result<Evaluation, AppError> {
-    let gemini_key = std::env::var("GEMINI_API_KEY")
-        .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
-        .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
+    let credentials = resolve_eval_credentials(plan_code, None)?;
+    let gemini_key = credentials.api_key;
+    let eval_model = credentials.model_id;
 
     let system_instruction = build_evaluation_instruction(request, criteria, false);
 
@@ -402,10 +426,6 @@ async fn generate_ai_evaluation(
         })
         .collect::<Vec<_>>()
         .join("\n");
-
-    let eval_model =
-        std::env::var("GEMINI_EVAL_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
-    let eval_model = normalize_model_id(&eval_model);
 
     let reply_text = call_gemini_evaluation(
         system_instruction,

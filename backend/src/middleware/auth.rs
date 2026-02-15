@@ -67,6 +67,18 @@ pub async fn fetch_jwks(domain: &str) -> Result<JwksKeys> {
 }
 
 impl JwksKeys {
+    #[allow(dead_code)]
+    pub fn from_keys(keys: HashMap<String, DecodingKey>) -> Self {
+        Self { keys }
+    }
+
+    #[allow(dead_code)]
+    pub fn from_single(kid: &str, decoding_key: DecodingKey) -> Self {
+        let mut keys = HashMap::new();
+        keys.insert(kid.to_string(), decoding_key);
+        Self { keys }
+    }
+
     /// Get a decoding key by kid
     pub fn get(&self, kid: &str) -> Option<&DecodingKey> {
         self.keys.get(kid)

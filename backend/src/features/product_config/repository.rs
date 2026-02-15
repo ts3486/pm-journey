@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use sqlx::{PgPool, Row};
 
-use super::models::{ProductConfig, UpdateProductConfigRequest};
+use super::models::{ProductConfig, ScenarioEvaluationCriteriaConfig, UpdateProductConfigRequest};
 
 /// Repository for product configuration CRUD operations
 #[derive(Clone)]
@@ -25,7 +25,7 @@ impl ProductConfigRepository {
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
-                product_prompt,
+                product_prompt, scenario_evaluation_criteria,
                 created_at, updated_at
             FROM product_config
             WHERE user_id = $1
@@ -84,6 +84,13 @@ impl ProductConfigRepository {
                 .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
+            let scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig = r
+                .try_get::<Option<serde_json::Value>, _>("scenario_evaluation_criteria")
+                .ok()
+                .flatten()
+                .and_then(|v| serde_json::from_value(v).ok())
+                .unwrap_or_else(ScenarioEvaluationCriteriaConfig::default_criteria)
+                .normalized();
 
             ProductConfig {
                 id: Some(r.get("id")),
@@ -104,6 +111,7 @@ impl ProductConfigRepository {
                     .try_get::<Option<String>, _>("product_prompt")
                     .ok()
                     .flatten(),
+                scenario_evaluation_criteria,
                 is_default: false,
                 created_at: r
                     .try_get::<chrono::DateTime<chrono::Utc>, _>("created_at")
@@ -131,6 +139,8 @@ impl ProductConfigRepository {
         let success_criteria = serde_json::to_value(&config.success_criteria)?;
         let tech_stack = serde_json::to_value(&config.tech_stack)?;
         let core_features = serde_json::to_value(&config.core_features)?;
+        let scenario_evaluation_criteria =
+            serde_json::to_value(&config.scenario_evaluation_criteria)?;
         let product_prompt = config.product_prompt.clone();
 
         let row = sqlx::query(
@@ -141,9 +151,9 @@ impl ProductConfigRepository {
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
-                product_prompt
+                product_prompt, scenario_evaluation_criteria
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             ON CONFLICT (user_id)
             DO UPDATE SET
                 name = EXCLUDED.name,
@@ -160,6 +170,7 @@ impl ProductConfigRepository {
                 tech_stack = EXCLUDED.tech_stack,
                 core_features = EXCLUDED.core_features,
                 product_prompt = EXCLUDED.product_prompt,
+                scenario_evaluation_criteria = EXCLUDED.scenario_evaluation_criteria,
                 updated_at = NOW()
             RETURNING
                 id::text,
@@ -167,7 +178,7 @@ impl ProductConfigRepository {
                 problems, goals, differentiators,
                 scope, constraints, timeline,
                 success_criteria, unique_edge, tech_stack, core_features,
-                product_prompt,
+                product_prompt, scenario_evaluation_criteria,
                 created_at, updated_at
             "#,
         )
@@ -186,6 +197,7 @@ impl ProductConfigRepository {
         .bind(tech_stack)
         .bind(core_features)
         .bind(product_prompt)
+        .bind(scenario_evaluation_criteria)
         .fetch_one(&self.pool)
         .await
         .context("Failed to upsert product config")?;
@@ -236,6 +248,13 @@ impl ProductConfigRepository {
             .flatten()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
+        let scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig = row
+            .try_get::<Option<serde_json::Value>, _>("scenario_evaluation_criteria")
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_else(ScenarioEvaluationCriteriaConfig::default_criteria)
+            .normalized();
 
         Ok(ProductConfig {
             id: Some(row.get("id")),
@@ -259,6 +278,7 @@ impl ProductConfigRepository {
                 .try_get::<Option<String>, _>("product_prompt")
                 .ok()
                 .flatten(),
+            scenario_evaluation_criteria,
             is_default: false,
             created_at: row
                 .try_get::<chrono::DateTime<chrono::Utc>, _>("created_at")

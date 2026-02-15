@@ -2707,6 +2707,110 @@ const scenarioList: Scenario[] = [
   },
 ];
 
+const scenarioGuideMessages: Record<string, string> = {
+  "basic-intro-alignment":
+    "あなたは新しくプロジェクトに参加したPMです。チームの信頼を得るため、まずは簡潔に自己紹介をしましょう。",
+  "basic-meeting-minutes":
+    "会議内容を振り返り、決定事項と次のアクションが伝わる議事メモを作成して共有しましょう。",
+  "basic-schedule-share":
+    "関係者が参加しやすいように、目的と候補日時を明確にしたミーティング調整メッセージを作成しましょう。",
+  "basic-docs-refine":
+    "既存資料の目的と読み手を意識して、伝わりにくい表現をわかりやすく修正しましょう。",
+  "basic-ticket-refine":
+    "実装前の認識をそろえるため、チケットの目的・受入条件・懸念点を整理しましょう。",
+  "basic-ticket-splitting":
+    "大きなチケットを実行しやすい単位に分割し、優先度の高い順に並べましょう。",
+  "basic-acceptance-review":
+    "要件の抜け漏れを防ぐため、受入条件をレビューして改善案を提示しましょう。",
+  "basic-unknowns-discovery":
+    "着手前の不確実性を減らすため、未確定事項と確認方法を明確にしましょう。",
+  "basic-testcase-design":
+    "品質を担保するため、正常系・異常系・境界値を含むテストケースを整理しましょう。",
+  "test-login":
+    "ログイン機能の挙動を確認し、必要なテストケースを作成して提出しましょう。",
+  "test-form":
+    "フォーム機能の入力検証とエラー表示を確認し、必要なテストケースを作成して提出しましょう。",
+  "test-file-upload":
+    "ファイルアップロード機能の制約とエラー動作を確認し、必要なテストケースを作成して提出しましょう。",
+  "test-password-reset":
+    "パスワード再設定フローを確認し、正常系と異常系のテストケースを作成して提出しましょう。",
+  "test-search-filter":
+    "検索・絞り込み機能の条件組み合わせを確認し、必要なテストケースを作成して提出しましょう。",
+  "test-notification-settings":
+    "通知設定機能の保存・反映・権限まわりを確認し、必要なテストケースを作成して提出しましょう。",
+  "test-profile-edit":
+    "プロフィール編集機能の入力制約と保存処理を確認し、必要なテストケースを作成して提出しましょう。",
+  "basic-test-viewpoints":
+    "漏れのない検証のため、テスト観点を洗い出して優先度を整理しましょう。",
+  "basic-test-risk-review":
+    "テスト計画の弱点を早期に見つけるため、リスク観点でレビューして改善案を示しましょう。",
+  "basic-regression-smoke":
+    "限られた時間で品質を守るため、回帰テストの最小セットを整理しましょう。",
+  "basic-requirement-definition-doc":
+    "ログイン機能の価値が伝わるように、ユーザーストーリーと受入条件を具体化しましょう。",
+  "basic-requirement-hearing-plan":
+    "問い合わせフォーム機能の要件を明確にするため、ユーザーストーリーと受入条件を整理しましょう。",
+  "basic-requirement-user-story":
+    "ファイルアップロード機能の利用シーンを踏まえ、ユーザーストーリーと受入条件を定義しましょう。",
+  "basic-requirement-nfr":
+    "パスワード再設定機能に必要な品質要件も含めて、ユーザーストーリーと受入条件を定義しましょう。",
+  "basic-requirement-priority-matrix":
+    "検索・絞り込み機能の要件を優先度付きで整理し、受入条件まで明確にしましょう。",
+  "basic-requirement-risk-check":
+    "通知設定機能の要件を整理し、リスクを踏まえた受入条件を定義しましょう。",
+  "basic-requirement-consensus":
+    "プロフィール編集機能の要件について、関係者が合意できるユーザーストーリーと受入条件をまとめましょう。",
+  "coming-stakeholder-negotiation":
+    "営業と開発の要求が対立する状況で、優先度の根拠を示しながら合意形成を進めましょう。",
+  "coming-priority-tradeoff-workshop":
+    "複数要望を価値・工数・リスクで比較し、納得感のある段階リリース方針をまとめましょう。",
+  "coming-decision-log-alignment":
+    "過去の意思決定ログをもとに認識のズレを整理し、同じ理解で前進できる状態を作りましょう。",
+  "coming-incident-response":
+    "ログイン不能の重大障害に対して、初動対応・報告方針・次アクションを迅速に確定しましょう。",
+  "coming-incident-triage-escalation":
+    "決済遅延の重大不具合について、影響範囲を見極めて適切なトリアージとエスカレーションを行いましょう。",
+  "coming-postmortem-followup":
+    "軽微障害の再発を防ぐため、原因分析と実行可能な再発防止策を合意しましょう。",
+  "coming-sprint-retrospective":
+    "スプリントを振り返り、次回に効く改善アクションを具体的に決めましょう。",
+  "coming-release-readiness-review":
+    "リリース判断に必要な情報をそろえ、Go/No-Goの根拠を明確にしましょう。",
+  "coming-kpi-review-action":
+    "KPIの変化要因を整理し、次に実行する改善施策を定義しましょう。",
+  "challenge-project-rescue":
+    "遅延プロジェクトを立て直すため、スコープ再交渉とリカバリ計画を短時間でまとめましょう。",
+  "challenge-deadline-advance":
+    "期限前倒しの状況で影響を分析し、実現可能な打ち手を提案して合意を得ましょう。",
+  "challenge-progress-visibility":
+    "進捗が見えない状況を改善するため、可視化方法と具体的な打ち手を設計しましょう。",
+  "challenge-quality-fire":
+    "品質問題の緊急対応を進めつつ、優先度を再整理して実行計画を立てましょう。",
+  "challenge-ambiguous-request":
+    "曖昧な依頼を具体化し、合意できるスコープと次アクションを定めましょう。",
+  "challenge-scope-addition":
+    "追加スコープ要求に対して、制約を踏まえた調整案を示し合意形成を進めましょう。",
+  "challenge-scope-negotiation":
+    "スコープ削減かリソース増加かを比較し、関係者と現実的な合意を作りましょう。",
+  "challenge-impossible-request":
+    "技術的制約を丁寧に確認し、実現可能な代替案で合意を目指しましょう。",
+  "challenge-conflict-mediation":
+    "開発・QA・ビジネスの対立を整理し、全員が前進できる合意点を導きましょう。",
+  "challenge-priority-conflict":
+    "優先度対立の論点を可視化し、納得感のある優先順位に収束させましょう。",
+  "challenge-stakeholder-misalignment":
+    "ステークホルダー間の期待値のズレを解消し、再発防止まで含めて合意しましょう。",
+  "challenge-user-perspective":
+    "抜けているユーザー視点を取り戻し、価値に基づいた改善案を合意しましょう。",
+};
+
+const applyScenarioGuideMessages = (list: Scenario[]) => {
+  list.forEach((scenario) => {
+    const guideMessage = scenarioGuideMessages[scenario.id];
+    scenario.guideMessage = guideMessage ?? `${scenario.description}このシナリオに取り組みましょう。`;
+  });
+};
+
 const requireScenarioSummary = (id: string): ScenarioSummary => {
   const scenario = scenarioList.find((item) => item.id === id);
   if (!scenario) {
@@ -2749,6 +2853,7 @@ export const scenarioCatalog: ScenarioCatalogSection[] = [
 
 applyBasicPromptRoles(scenarioList);
 applyMissionBasedCriteriaToScenarios(scenarioList);
+applyScenarioGuideMessages(scenarioList);
 
 export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
   {
@@ -2776,10 +2881,6 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
           requireScenarioSummary("test-login"),
           requireScenarioSummary("test-form"),
           requireScenarioSummary("test-file-upload"),
-          requireScenarioSummary("test-password-reset"),
-          requireScenarioSummary("test-search-filter"),
-          requireScenarioSummary("test-notification-settings"),
-          requireScenarioSummary("test-profile-edit"),
         ],
       },
     ],
@@ -2795,10 +2896,6 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
           requireScenarioSummary("basic-requirement-definition-doc"),
           requireScenarioSummary("basic-requirement-hearing-plan"),
           requireScenarioSummary("basic-requirement-user-story"),
-          requireScenarioSummary("basic-requirement-nfr"),
-          requireScenarioSummary("basic-requirement-priority-matrix"),
-          requireScenarioSummary("basic-requirement-risk-check"),
-          requireScenarioSummary("basic-requirement-consensus"),
         ],
       },
     ],

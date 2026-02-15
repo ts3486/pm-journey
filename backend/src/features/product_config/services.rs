@@ -55,6 +55,7 @@ impl ProductConfigService {
                 payload.product_prompt = Some(trimmed.to_string());
             }
         }
+        payload.scenario_evaluation_criteria = payload.scenario_evaluation_criteria.normalized();
 
         let repo = ProductConfigRepository::new(self.pool.clone());
         let config = repo.upsert(user_id, &payload).await?;

@@ -9,9 +9,22 @@ import {
   type PromptSectionKey,
   type PromptSections,
 } from "@/lib/productPromptSections";
+import {
+  createDefaultScenarioEvaluationCriteriaConfig,
+  normalizeScenarioEvaluationCriteriaConfig,
+  parseScenarioCriteriaTextareaValue,
+  scenarioCriteriaListToTextareaValue,
+  scenarioEvaluationCategorySections,
+  serializeScenarioEvaluationCriteriaConfig,
+  type ScenarioEvaluationCategoryKey,
+} from "@/lib/scenarioEvaluationCriteria";
 import { useProductConfig, useResetProductConfig, useUpdateProductConfig } from "@/queries/productConfig";
 import { invalidateProductPromptCache } from "@/services/sessions";
-import type { ProductConfig, UpdateProductConfigRequest } from "@/types";
+import type {
+  ProductConfig,
+  ScenarioEvaluationCriteriaConfig,
+  UpdateProductConfigRequest,
+} from "@/types";
 
 const buildUpdatePayload = (
   config: ProductConfig,
@@ -30,6 +43,7 @@ const buildUpdatePayload = (
   uniqueEdge: config.uniqueEdge,
   techStack: config.techStack ?? [],
   coreFeatures: config.coreFeatures ?? [],
+  scenarioEvaluationCriteria: normalizeScenarioEvaluationCriteriaConfig(config.scenarioEvaluationCriteria),
   ...overrides,
 });
 
@@ -38,34 +52,46 @@ export function SettingsPage() {
   const updateMutation = useUpdateProductConfig();
   const resetMutation = useResetProductConfig();
   const [sections, setSections] = useState<PromptSections>(createEmptyPromptSections);
+  const [scenarioEvaluationCriteria, setScenarioEvaluationCriteria] = useState<ScenarioEvaluationCriteriaConfig>(
+    createDefaultScenarioEvaluationCriteriaConfig
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
       setSections(getInitialSections(data));
+      setScenarioEvaluationCriteria(normalizeScenarioEvaluationCriteriaConfig(data.scenarioEvaluationCriteria));
     }
   }, [data]);
 
   const prompt = useMemo(() => buildPromptFromSections(sections), [sections]);
 
   const isDirty = useMemo(() => {
-    return normalizePrompt(getBaselinePrompt(data)) !== normalizePrompt(prompt);
-  }, [data, prompt]);
+    const promptDirty = normalizePrompt(getBaselinePrompt(data)) !== normalizePrompt(prompt);
+    const baselineCriteria = normalizeScenarioEvaluationCriteriaConfig(data?.scenarioEvaluationCriteria);
+    const criteriaDirty =
+      serializeScenarioEvaluationCriteriaConfig(baselineCriteria) !==
+      serializeScenarioEvaluationCriteriaConfig(normalizeScenarioEvaluationCriteriaConfig(scenarioEvaluationCriteria));
+    return promptDirty || criteriaDirty;
+  }, [data, prompt, scenarioEvaluationCriteria]);
 
   const handleSave = async () => {
     if (!data) return;
     setSuccessMessage(null);
     setFormError(null);
     try {
+      const normalizedCriteria = normalizeScenarioEvaluationCriteriaConfig(scenarioEvaluationCriteria);
       const next = await updateMutation.mutateAsync(
         buildUpdatePayload(data, {
           productPrompt: prompt.trim() ? prompt.trim() : undefined,
+          scenarioEvaluationCriteria: normalizedCriteria,
         })
       );
       invalidateProductPromptCache();
       setSections(getInitialSections(next));
-      setSuccessMessage("プロジェクトプロンプトを保存しました");
+      setScenarioEvaluationCriteria(normalizeScenarioEvaluationCriteriaConfig(next.scenarioEvaluationCriteria));
+      setSuccessMessage("プロンプト設定を保存しました");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "保存に失敗しました");
     }
@@ -78,7 +104,8 @@ export function SettingsPage() {
       const next = await resetMutation.mutateAsync();
       invalidateProductPromptCache();
       setSections(getInitialSections(next));
-      setSuccessMessage("デフォルトのプロンプトに戻しました");
+      setScenarioEvaluationCriteria(normalizeScenarioEvaluationCriteriaConfig(next.scenarioEvaluationCriteria));
+      setSuccessMessage("デフォルト設定に戻しました");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "リセットに失敗しました");
     }
@@ -86,6 +113,14 @@ export function SettingsPage() {
 
   const updateSection = (key: PromptSectionKey, value: string) => {
     setSections((prev) => ({ ...prev, [key]: value }));
+    setSuccessMessage(null);
+  };
+
+  const updateScenarioEvaluationCriteria = (key: ScenarioEvaluationCategoryKey, value: string) => {
+    setScenarioEvaluationCriteria((prev) => ({
+      ...prev,
+      [key]: parseScenarioCriteriaTextareaValue(value),
+    }));
     setSuccessMessage(null);
   };
 
@@ -137,7 +172,34 @@ export function SettingsPage() {
             ))}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">シナリオ評価基準（カテゴリ別）</p>
+              <p className="text-sm text-slate-600">
+                各カテゴリの評価観点を1行1項目で編集できます。空欄の場合はデフォルト基準を使用します。
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {scenarioEvaluationCategorySections.map((category) => (
+                <div key={category.key} className="flex flex-col gap-2">
+                  <label htmlFor={`criteria-${category.key}`} className="text-sm font-semibold text-slate-800">
+                    {category.label}
+                  </label>
+                  <p className="text-xs text-slate-500">{category.hint}</p>
+                  <Textarea
+                    id={`criteria-${category.key}`}
+                    value={scenarioCriteriaListToTextareaValue(scenarioEvaluationCriteria[category.key])}
+                    onChange={(event) => updateScenarioEvaluationCriteria(category.key, event.target.value)}
+                    placeholder={category.placeholder}
+                    className="min-h-32"
+                    disabled={updateMutation.isPending || resetMutation.isPending}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4">
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">利用ヒント</p>
               <ul className="space-y-2 text-sm text-slate-600">

@@ -3,12 +3,18 @@ use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 
-use crate::error::{anyhow_error, AppError};
+use crate::error::{anyhow_error, forbidden_error, AppError};
+use crate::features::entitlements::fair_use::enforce_chat_daily_limit;
+use crate::features::entitlements::models::PlanCode;
+use crate::features::entitlements::services::EntitlementService;
+use crate::features::feature_flags::services::FeatureFlagService;
+use crate::features::sessions::authorization::authorize_session_access;
 use crate::features::sessions::repository::SessionRepository;
 use crate::models::{
     default_scenarios, Message, MessageRole, MessageTag, Mission, MissionStatus, ScenarioType,
 };
-use crate::shared::helpers::{next_id, normalize_model_id, now_ts, verify_session_ownership};
+use crate::shared::gemini::resolve_chat_credentials;
+use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::{AgentContext, CreateMessageRequest, MessageResponse};
 use super::repository::MessageRepository;
@@ -49,23 +55,15 @@ async fn infer_completed_mission_ids(
     context: &AgentContext,
     latest_user_message: &str,
     missions: &[Mission],
+    plan_code: &PlanCode,
 ) -> Result<Vec<String>, AppError> {
     if missions.is_empty() {
         return Ok(Vec::new());
     }
 
-    let gemini_key = std::env::var("GEMINI_API_KEY")
-        .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
-        .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
-
-    let default_model = std::env::var("GEMINI_DEFAULT_MODEL")
-        .unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
-    let model_id = normalize_model_id(
-        context
-            .model_id
-            .as_deref()
-            .unwrap_or(default_model.as_str()),
-    );
+    let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
+    let gemini_key = credentials.api_key;
+    let model_id = credentials.model_id;
 
     let mission_lines = missions
         .iter()
@@ -130,10 +128,12 @@ async fn infer_completed_mission_ids(
         )));
     }
 
-    let data: serde_json::Value = res
-        .json()
-        .await
-        .map_err(|e| anyhow_error(format!("Failed to parse mission completion response: {}", e)))?;
+    let data: serde_json::Value = res.json().await.map_err(|e| {
+        anyhow_error(format!(
+            "Failed to parse mission completion response: {}",
+            e
+        ))
+    })?;
 
     let reply_text = data
         .get("candidates")
@@ -226,7 +226,12 @@ impl MessageService {
         session_id: &str,
         user_id: &str,
     ) -> Result<Vec<Message>, AppError> {
-        verify_session_ownership(&self.pool, session_id, user_id).await?;
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_view() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for message view",
+            ));
+        }
 
         let message_repo = MessageRepository::new(self.pool.clone());
         let messages = message_repo
@@ -242,6 +247,13 @@ impl MessageService {
         user_id: &str,
         body: CreateMessageRequest,
     ) -> Result<MessageResponse, AppError> {
+        let access = authorize_session_access(&self.pool, session_id, user_id).await?;
+        if !access.can_edit_session() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for message post",
+            ));
+        }
+
         let session_repo = SessionRepository::new(self.pool.clone());
         let message_repo = MessageRepository::new(self.pool.clone());
 
@@ -252,12 +264,7 @@ impl MessageService {
             .await
             .map_err(|e| anyhow_error(&format!("Failed to begin transaction: {}", e)))?;
 
-        // Get session
-        let mut session = session_repo
-            .get_for_user(session_id, user_id)
-            .await
-            .map_err(|e| anyhow_error(&format!("Failed to get session: {}", e)))?
-            .ok_or_else(|| anyhow_error("session not found"))?;
+        let mut session = access.session;
 
         let is_user = body.role == MessageRole::User;
         let scenario = default_scenarios()
@@ -305,6 +312,11 @@ impl MessageService {
         let mut reply = message.clone();
 
         if is_user {
+            let entitlement_service = EntitlementService::new(self.pool.clone());
+            let effective_plan = entitlement_service.resolve_effective_plan(user_id).await?;
+            let plan_code = effective_plan.plan_code.clone();
+            let organization_id = effective_plan.organization_id.clone();
+
             let context = body
                 .agent_context
                 .as_ref()
@@ -321,17 +333,30 @@ impl MessageService {
                 .unwrap_or(false);
             let is_basic_scenario = matches!(scenario_type, Some(ScenarioType::Basic));
             let should_append_completion_message = behavior_single_response;
+            let should_invoke_ai =
+                agent_response_enabled || (is_basic_scenario && !scenario_missions.is_empty());
 
-            let mut reply_tx = self.pool.begin().await.map_err(|e| {
-                anyhow_error(&format!("Failed to begin reply transaction: {}", e))
-            })?;
+            if FeatureFlagService::new().is_entitlement_enforced() && should_invoke_ai {
+                enforce_chat_daily_limit(
+                    &self.pool,
+                    &plan_code,
+                    user_id,
+                    organization_id.as_deref(),
+                )
+                .await?;
+            }
+
+            let mut reply_tx =
+                self.pool.begin().await.map_err(|e| {
+                    anyhow_error(&format!("Failed to begin reply transaction: {}", e))
+                })?;
 
             if agent_response_enabled {
                 let history = message_repo
                     .list_by_session(session_id)
                     .await
                     .map_err(|e| anyhow_error(&format!("Failed to load message history: {}", e)))?;
-                let reply_text = generate_agent_reply(context, &history).await?;
+                let reply_text = generate_agent_reply(context, &history, &plan_code).await?;
 
                 let agent_message = Message {
                     id: next_id("msg"),
@@ -365,15 +390,22 @@ impl MessageService {
                 message_repo
                     .create_in_tx(&mut reply_tx, &system_message)
                     .await
-                    .map_err(|e| anyhow_error(&format!("Failed to create system message: {}", e)))?;
+                    .map_err(|e| {
+                        anyhow_error(&format!("Failed to create system message: {}", e))
+                    })?;
                 if !agent_response_enabled {
                     reply = system_message;
                 }
             }
 
             if is_basic_scenario && !scenario_missions.is_empty() {
-                if let Ok(completed_ids) =
-                    infer_completed_mission_ids(context, &message.content, &scenario_missions).await
+                if let Ok(completed_ids) = infer_completed_mission_ids(
+                    context,
+                    &message.content,
+                    &scenario_missions,
+                    &plan_code,
+                )
+                .await
                 {
                     let (next_status, changed) =
                         merge_completed_missions(session.mission_status.clone(), &completed_ids);
@@ -400,16 +432,17 @@ impl MessageService {
                 .update_last_activity_in_tx(&mut reply_tx, session_id)
                 .await
                 .map_err(|e| anyhow_error(&format!("Failed to update session activity: {}", e)))?;
-            reply_tx.commit().await.map_err(|e| {
-                anyhow_error(&format!("Failed to commit reply transaction: {}", e))
-            })?;
+            reply_tx
+                .commit()
+                .await
+                .map_err(|e| anyhow_error(&format!("Failed to commit reply transaction: {}", e)))?;
         }
 
         // Fetch updated session
         let updated_session = session_repo
-            .get_for_user(session_id, user_id)
+            .get_by_id(session_id)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to get updated session: {}", e)))?
+            .map_err(|e| anyhow_error(&format!("Failed to get updated session by id: {}", e)))?
             .ok_or_else(|| anyhow_error("session not found"))?;
 
         Ok(MessageResponse {
@@ -518,19 +551,11 @@ fn build_system_instruction(ctx: &AgentContext) -> String {
 async fn generate_agent_reply(
     context: &AgentContext,
     messages: &[Message],
+    plan_code: &PlanCode,
 ) -> Result<String, AppError> {
-    let gemini_key = std::env::var("GEMINI_API_KEY")
-        .or_else(|_| std::env::var("NEXT_PUBLIC_GEMINI_API_KEY"))
-        .map_err(|_| anyhow_error("GEMINI_API_KEY is not set"))?;
-
-    let default_model = std::env::var("GEMINI_DEFAULT_MODEL")
-        .unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
-    let model_id = normalize_model_id(
-        context
-            .model_id
-            .as_deref()
-            .unwrap_or(default_model.as_str()),
-    );
+    let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
+    let gemini_key = credentials.api_key;
+    let model_id = credentials.model_id;
     let system_instruction = build_system_instruction(context);
 
     let context_messages = if messages.len() > 20 {

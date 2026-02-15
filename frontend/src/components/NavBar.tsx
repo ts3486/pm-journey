@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
+import { env } from "@/config/env";
 import { useStorage } from "@/contexts/StorageContext";
+import { canViewTeamManagement } from "@/lib/teamAccess";
+import { useCurrentOrganization } from "@/queries/organizations";
 import { SESSION_POINTER_CHANGED_EVENT } from "@/storage/sessionPointer";
 
 export function NavBar() {
   const { user, logout } = useAuth0();
+  const { data: currentOrganization } = useCurrentOrganization();
   const storage = useStorage();
   const location = useLocation();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const currentOrganizationRole = currentOrganization?.membership.role ?? null;
+  const showTeamManagementButton = canViewTeamManagement(currentOrganizationRole);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -88,6 +94,14 @@ export function NavBar() {
           >
             ロードマップ
           </Link>
+                    {user && showTeamManagementButton ? (
+            <Link
+              to="/settings/team"
+              className="rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]"
+            >
+              チーム管理
+            </Link>
+          ) : null}
           <Link
             to="/scenario"
             className={`rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec] ${
@@ -135,6 +149,34 @@ export function NavBar() {
                   >
                     プロンプト設定
                   </Link>
+                  <Link
+                    to="/settings/account"
+                    role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                  >
+                    アカウント情報
+                  </Link>
+                  {env.billingEnabled ? (
+                    <>
+                      <Link
+                        to="/settings/billing"
+                        role="menuitem"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                      >
+                        請求設定
+                      </Link>
+                      <Link
+                        to="/pricing"
+                        role="menuitem"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                      >
+                        料金
+                      </Link>
+                    </>
+                  ) : null}
                   <button
                     type="button"
                     role="menuitem"
