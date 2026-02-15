@@ -173,13 +173,11 @@ impl SessionRepository {
         tx: &mut Transaction<'_, Postgres>,
         id: &str,
     ) -> Result<()> {
-        sqlx::query!(
-            "UPDATE sessions SET last_activity_at = NOW() WHERE id = $1",
-            id
-        )
-        .execute(&mut **tx)
-        .await
-        .context("Failed to update last_activity_at")?;
+        sqlx::query("UPDATE sessions SET last_activity_at = NOW() WHERE id = $1")
+            .bind(id)
+            .execute(&mut **tx)
+            .await
+            .context("Failed to update last_activity_at")?;
 
         Ok(())
     }
@@ -189,10 +187,10 @@ impl SessionRepository {
         tx: &mut Transaction<'_, Postgres>,
         id: &str,
     ) -> Result<()> {
-        sqlx::query!(
+        sqlx::query(
             "UPDATE sessions SET status = 'evaluated', evaluation_requested = TRUE, last_activity_at = NOW() WHERE id = $1",
-            id
         )
+        .bind(id)
         .execute(&mut **tx)
         .await
         .context("Failed to mark session as evaluated")?;

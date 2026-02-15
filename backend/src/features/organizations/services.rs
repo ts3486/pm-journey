@@ -463,16 +463,6 @@ impl OrganizationService {
         invite_token: &str,
         inviter_name: Option<&str>,
     ) -> InvitationEmailDelivery {
-        if !env_flag("FF_INVITATION_EMAIL_ENABLED") {
-            return InvitationEmailDelivery {
-                status: "skipped".to_string(),
-                message: Some(
-                    "INVITATION_EMAIL_DISABLED: set FF_INVITATION_EMAIL_ENABLED=true to enable sending"
-                        .to_string(),
-                ),
-            };
-        }
-
         let Some(resend_api_key) = env_non_empty("RESEND_API_KEY") else {
             return InvitationEmailDelivery {
                 status: "skipped".to_string(),
@@ -671,12 +661,6 @@ fn env_non_empty(key: &str) -> Option<String> {
             Some(trimmed.to_string())
         }
     })
-}
-
-fn env_flag(key: &str) -> bool {
-    std::env::var(key)
-        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE"))
-        .unwrap_or(false)
 }
 
 fn is_http_url(value: &str) -> bool {

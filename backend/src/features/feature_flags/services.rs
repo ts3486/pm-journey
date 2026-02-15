@@ -3,6 +3,9 @@ use super::models::FeatureFlags;
 #[derive(Clone)]
 pub struct FeatureFlagService;
 
+const TEAM_FEATURES_ENABLED: bool = true;
+const ENTITLEMENT_ENFORCEMENT_ENABLED: bool = true;
+
 impl FeatureFlagService {
     pub fn new() -> Self {
         Self
@@ -12,14 +15,14 @@ impl FeatureFlagService {
     pub fn flags(&self) -> FeatureFlags {
         FeatureFlags {
             billing_enabled: env_flag("FF_BILLING_ENABLED"),
-            team_features_enabled: env_flag("FF_TEAM_FEATURES_ENABLED"),
-            entitlement_enforcement_enabled: env_flag("FF_ENTITLEMENT_ENFORCEMENT_ENABLED"),
+            team_features_enabled: TEAM_FEATURES_ENABLED,
+            entitlement_enforcement_enabled: ENTITLEMENT_ENFORCEMENT_ENABLED,
             team_dashboard_enabled: env_flag("FF_TEAM_DASHBOARD_ENABLED"),
         }
     }
 
     pub fn is_entitlement_enforced(&self) -> bool {
-        env_flag("FF_ENTITLEMENT_ENFORCEMENT_ENABLED")
+        ENTITLEMENT_ENFORCEMENT_ENABLED
     }
 
     pub fn is_billing_enabled(&self) -> bool {
@@ -28,7 +31,7 @@ impl FeatureFlagService {
 
     #[allow(dead_code)]
     pub fn is_team_features_enabled(&self) -> bool {
-        env_flag("FF_TEAM_FEATURES_ENABLED")
+        TEAM_FEATURES_ENABLED
     }
 }
 

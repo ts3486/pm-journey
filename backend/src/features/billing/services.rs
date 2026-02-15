@@ -1510,12 +1510,6 @@ impl BillingService {
                 anyhow::anyhow!("BILLING_DISABLED: billing feature is disabled"),
             ));
         }
-        if !FeatureFlagService::new().is_team_features_enabled() {
-            return Err(AppError::new(
-                StatusCode::SERVICE_UNAVAILABLE,
-                anyhow::anyhow!("TEAM_FEATURES_DISABLED: team billing is disabled"),
-            ));
-        }
 
         let organization_id = trim_non_empty(&body.organization_id)
             .ok_or_else(|| client_error("ORGANIZATION_ID_REQUIRED: organizationId is required"))?;

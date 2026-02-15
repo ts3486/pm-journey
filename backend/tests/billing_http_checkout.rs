@@ -113,7 +113,6 @@ async fn team_checkout_endpoint_behaviors() {
 
     unsafe {
         env::remove_var("FF_BILLING_ENABLED");
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
         env::remove_var("BILLING_PROVIDER");
         env::remove_var("BILLING_MOCK_CHECKOUT_BASE_URL");
     }
@@ -149,37 +148,6 @@ async fn team_checkout_endpoint_behaviors() {
             "BILLING_MOCK_CHECKOUT_BASE_URL",
             "https://mock-billing.example/checkout",
         );
-    }
-
-    let team_disabled_response = app
-        .clone()
-        .oneshot(build_request(
-            Method::POST,
-            "/billing/checkout/team",
-            &manager_token,
-            Some(json!({
-                "organizationId": org_id.clone(),
-                "seatQuantity": 4
-            })),
-        ))
-        .await
-        .expect("team checkout when disabled");
-    assert_eq!(
-        team_disabled_response.status(),
-        StatusCode::SERVICE_UNAVAILABLE
-    );
-    let team_disabled_body = to_bytes(team_disabled_response.into_body(), usize::MAX)
-        .await
-        .expect("team disabled body");
-    let team_disabled_json: serde_json::Value =
-        serde_json::from_slice(&team_disabled_body).expect("team disabled json");
-    assert!(team_disabled_json
-        .get("error")
-        .and_then(|v| v.as_str())
-        .is_some_and(|text| text.contains("TEAM_FEATURES_DISABLED")));
-
-    unsafe {
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
     }
 
     let team_forbidden_response = app
@@ -412,7 +380,6 @@ async fn team_checkout_endpoint_behaviors() {
 
     unsafe {
         env::remove_var("FF_BILLING_ENABLED");
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
         env::remove_var("BILLING_PROVIDER");
         env::remove_var("BILLING_MOCK_CHECKOUT_BASE_URL");
         env::remove_var("STRIPE_SECRET_KEY");
@@ -450,7 +417,6 @@ async fn team_webhook_syncs_org_subscription_and_entitlement() {
 
     unsafe {
         env::set_var("FF_BILLING_ENABLED", "true");
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
         env::set_var("BILLING_PROVIDER", "stripe");
         env::set_var("STRIPE_WEBHOOK_SECRET", &webhook_secret);
     }
@@ -700,7 +666,6 @@ async fn team_webhook_syncs_org_subscription_and_entitlement() {
 
     unsafe {
         env::remove_var("FF_BILLING_ENABLED");
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
         env::remove_var("BILLING_PROVIDER");
         env::remove_var("STRIPE_WEBHOOK_SECRET");
     }
@@ -753,7 +718,6 @@ async fn team_webhook_seat_changes_enforce_invites_and_reactivation() {
 
     unsafe {
         env::set_var("FF_BILLING_ENABLED", "true");
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
         env::set_var("BILLING_PROVIDER", "stripe");
         env::set_var("STRIPE_WEBHOOK_SECRET", &webhook_secret);
     }
@@ -982,7 +946,6 @@ async fn team_webhook_seat_changes_enforce_invites_and_reactivation() {
 
     unsafe {
         env::remove_var("FF_BILLING_ENABLED");
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
         env::remove_var("BILLING_PROVIDER");
         env::remove_var("STRIPE_WEBHOOK_SECRET");
     }

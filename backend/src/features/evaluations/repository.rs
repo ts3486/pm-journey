@@ -1,6 +1,6 @@
 use crate::models::{Evaluation, EvaluationCategory};
 use anyhow::{Context, Result};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Row, Transaction};
 
 #[derive(Clone)]
 pub struct EvaluationRepository {
@@ -30,7 +30,7 @@ impl EvaluationRepository {
     ) -> Result<()> {
         let categories = serde_json::to_value(&evaluation.categories)?;
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO evaluations (
                 session_id, overall_score, passing, categories, summary, improvement_advice
@@ -44,13 +44,13 @@ impl EvaluationRepository {
                 improvement_advice = EXCLUDED.improvement_advice,
                 created_at = NOW()
             "#,
-            evaluation.session_id,
-            evaluation.overall_score,
-            evaluation.passing,
-            categories,
-            evaluation.summary,
-            evaluation.improvement_advice,
         )
+        .bind(&evaluation.session_id)
+        .bind(evaluation.overall_score)
+        .bind(evaluation.passing)
+        .bind(categories)
+        .bind(&evaluation.summary)
+        .bind(&evaluation.improvement_advice)
         .execute(&mut **tx)
         .await
         .context("Failed to insert evaluation")?;
@@ -59,36 +59,37 @@ impl EvaluationRepository {
     }
 
     pub async fn get_by_session(&self, session_id: &str) -> Result<Option<Evaluation>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT session_id, overall_score, passing, categories, summary, improvement_advice
             FROM evaluations
             WHERE session_id = $1
             "#,
-            session_id
         )
+        .bind(session_id)
         .fetch_optional(&self.pool)
         .await
         .context("Failed to fetch evaluation")?;
 
         Ok(row.map(|r| {
             let categories: Vec<EvaluationCategory> =
-                serde_json::from_value(r.categories).unwrap_or_default();
+                serde_json::from_value(r.get("categories")).unwrap_or_default();
 
             Evaluation {
-                session_id: r.session_id,
-                overall_score: r.overall_score,
-                passing: r.passing,
+                session_id: r.get("session_id"),
+                overall_score: r.get("overall_score"),
+                passing: r.get("passing"),
                 categories,
-                summary: r.summary,
-                improvement_advice: r.improvement_advice,
+                summary: r.get("summary"),
+                improvement_advice: r.get("improvement_advice"),
             }
         }))
     }
 
     #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
-        sqlx::query!("DELETE FROM evaluations WHERE session_id = $1", session_id)
+        sqlx::query("DELETE FROM evaluations WHERE session_id = $1")
+            .bind(session_id)
             .execute(&self.pool)
             .await
             .context("Failed to delete evaluation")?;

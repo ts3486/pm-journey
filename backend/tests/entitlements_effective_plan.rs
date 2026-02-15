@@ -30,10 +30,6 @@ async fn active_org_team_entitlement_resolves_team_with_org_scope() {
         }
     };
 
-    unsafe {
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
-    }
-
     let user_id = user_id("team-member");
     let org_id = id("team-org");
     insert_user(&pool, &user_id).await;
@@ -49,14 +45,10 @@ async fn active_org_team_entitlement_resolves_team_with_org_scope() {
     assert_eq!(effective.plan_code, PlanCode::Team);
     assert_eq!(effective.organization_id, Some(org_id));
     assert_eq!(effective.source_entitlement_id, org_entitlement_id);
-
-    unsafe {
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
-    }
 }
 
 #[tokio::test]
-async fn org_team_entitlement_downgrades_to_free_when_team_features_disabled() {
+async fn org_team_entitlement_resolves_team_without_feature_flag_env() {
     let _env_guard = env_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -72,10 +64,6 @@ async fn org_team_entitlement_downgrades_to_free_when_team_features_disabled() {
         }
     };
 
-    unsafe {
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
-    }
-
     let user_id = user_id("team-disabled-member");
     let org_id = id("team-disabled-org");
     insert_user(&pool, &user_id).await;
@@ -88,8 +76,8 @@ async fn org_team_entitlement_downgrades_to_free_when_team_features_disabled() {
         .await
         .expect("resolve effective plan");
 
-    assert_eq!(effective.plan_code, PlanCode::Free);
-    assert_eq!(effective.organization_id, None);
+    assert_eq!(effective.plan_code, PlanCode::Team);
+    assert_eq!(effective.organization_id, Some(org_id));
     assert_eq!(effective.source_entitlement_id, org_entitlement_id);
 }
 
@@ -110,10 +98,6 @@ async fn direct_user_entitlement_has_priority_over_org_team_entitlement() {
         }
     };
 
-    unsafe {
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
-    }
-
     let user_id = user_id("direct-user-entitlement");
     let org_id = id("direct-user-org");
     insert_user(&pool, &user_id).await;
@@ -130,10 +114,6 @@ async fn direct_user_entitlement_has_priority_over_org_team_entitlement() {
     assert_eq!(effective.plan_code, PlanCode::Free);
     assert_eq!(effective.organization_id, None);
     assert_eq!(effective.source_entitlement_id, user_entitlement_id);
-
-    unsafe {
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
-    }
 }
 
 #[tokio::test]
@@ -154,7 +134,6 @@ async fn no_org_entitlement_falls_back_to_team_user_plan_for_testing() {
     };
 
     unsafe {
-        env::set_var("FF_TEAM_FEATURES_ENABLED", "true");
         env::set_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING", "true");
     }
 
@@ -190,7 +169,6 @@ async fn no_org_entitlement_falls_back_to_team_user_plan_for_testing() {
     assert_eq!(team_count, 1);
 
     unsafe {
-        env::remove_var("FF_TEAM_FEATURES_ENABLED");
         env::remove_var("FF_DEFAULT_TEAM_PLAN_FOR_TESTING");
     }
 }

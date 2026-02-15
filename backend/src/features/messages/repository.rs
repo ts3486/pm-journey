@@ -1,7 +1,7 @@
 use crate::models::{Message, MessageRole, MessageTag};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgPool, Postgres, Row, Transaction};
 
 #[derive(Clone)]
 pub struct MessageRepository {
@@ -55,21 +55,21 @@ impl MessageRepository {
             .parse()
             .context("Failed to parse created_at timestamp")?;
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO messages (
                 id, session_id, role, content, created_at, tags, queued_offline
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
-            message.id,
-            message.session_id,
-            role,
-            message.content,
-            created_at,
-            tags.as_deref(),
-            message.queued_offline,
         )
+        .bind(&message.id)
+        .bind(&message.session_id)
+        .bind(role)
+        .bind(&message.content)
+        .bind(created_at)
+        .bind(tags.as_deref())
+        .bind(message.queued_offline)
         .execute(&mut **tx)
         .await
         .context("Failed to insert message")?;
@@ -79,7 +79,7 @@ impl MessageRepository {
 
     #[allow(dead_code)]
     pub async fn get(&self, id: &str) -> Result<Option<Message>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT
                 id, session_id, role, content,
@@ -88,21 +88,21 @@ impl MessageRepository {
             FROM messages
             WHERE id = $1
             "#,
-            id
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await
         .context("Failed to fetch message")?;
 
         Ok(row.map(|r| {
-            let role = match r.role.as_str() {
+            let role = match r.get::<String, _>("role").as_str() {
                 "user" => MessageRole::User,
                 "agent" => MessageRole::Agent,
                 "system" => MessageRole::System,
                 _ => MessageRole::User,
             };
 
-            let tags = r.tags.map(|tag_strs| {
+            let tags = r.get::<Option<Vec<String>>, _>("tags").map(|tag_strs| {
                 tag_strs
                     .iter()
                     .filter_map(|t| match t.as_str() {
@@ -117,19 +117,23 @@ impl MessageRepository {
             });
 
             Message {
-                id: r.id,
-                session_id: r.session_id,
+                id: r.get("id"),
+                session_id: r.get("session_id"),
                 role,
-                content: r.content,
-                created_at: r.created_at.unwrap_or_default(),
+                content: r.get("content"),
+                created_at: r
+                    .try_get::<Option<String>, _>("created_at")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default(),
                 tags,
-                queued_offline: r.queued_offline,
+                queued_offline: r.get("queued_offline"),
             }
         }))
     }
 
     pub async fn list_by_session(&self, session_id: &str) -> Result<Vec<Message>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT
                 id, session_id, role, content,
@@ -139,8 +143,8 @@ impl MessageRepository {
             WHERE session_id = $1
             ORDER BY created_at ASC
             "#,
-            session_id
         )
+        .bind(session_id)
         .fetch_all(&self.pool)
         .await
         .context("Failed to list messages")?;
@@ -148,14 +152,14 @@ impl MessageRepository {
         Ok(rows
             .into_iter()
             .map(|r| {
-                let role = match r.role.as_str() {
+                let role = match r.get::<String, _>("role").as_str() {
                     "user" => MessageRole::User,
                     "agent" => MessageRole::Agent,
                     "system" => MessageRole::System,
                     _ => MessageRole::User,
                 };
 
-                let tags = r.tags.map(|tag_strs| {
+                let tags = r.get::<Option<Vec<String>>, _>("tags").map(|tag_strs| {
                     tag_strs
                         .iter()
                         .filter_map(|t| match t.as_str() {
@@ -170,13 +174,17 @@ impl MessageRepository {
                 });
 
                 Message {
-                    id: r.id,
-                    session_id: r.session_id,
+                    id: r.get("id"),
+                    session_id: r.get("session_id"),
                     role,
-                    content: r.content,
-                    created_at: r.created_at.unwrap_or_default(),
+                    content: r.get("content"),
+                    created_at: r
+                        .try_get::<Option<String>, _>("created_at")
+                        .ok()
+                        .flatten()
+                        .unwrap_or_default(),
                     tags,
-                    queued_offline: r.queued_offline,
+                    queued_offline: r.get("queued_offline"),
                 }
             })
             .collect())
@@ -184,7 +192,8 @@ impl MessageRepository {
 
     #[allow(dead_code)]
     pub async fn delete_by_session(&self, session_id: &str) -> Result<()> {
-        sqlx::query!("DELETE FROM messages WHERE session_id = $1", session_id)
+        sqlx::query("DELETE FROM messages WHERE session_id = $1")
+            .bind(session_id)
             .execute(&self.pool)
             .await
             .context("Failed to delete messages")?;
