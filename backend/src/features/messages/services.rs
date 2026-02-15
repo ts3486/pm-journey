@@ -11,7 +11,7 @@ use crate::features::feature_flags::services::FeatureFlagService;
 use crate::features::sessions::authorization::authorize_session_access;
 use crate::features::sessions::repository::SessionRepository;
 use crate::models::{
-    default_scenarios, Message, MessageRole, MessageTag, Mission, MissionStatus, ScenarioType,
+    default_scenarios, Message, MessageRole, MessageTag, Mission, MissionStatus,
 };
 use crate::shared::gemini::resolve_chat_credentials;
 use crate::shared::helpers::{next_id, now_ts};
@@ -270,7 +270,6 @@ impl MessageService {
         let scenario = default_scenarios()
             .into_iter()
             .find(|s| s.id == session.scenario_id);
-        let scenario_type = scenario.as_ref().and_then(|s| s.scenario_type.clone());
         let scenario_missions = scenario
             .as_ref()
             .and_then(|s| s.missions.clone())
@@ -331,10 +330,9 @@ impl MessageService {
                 .as_ref()
                 .and_then(|b| b.single_response)
                 .unwrap_or(false);
-            let is_basic_scenario = matches!(scenario_type, Some(ScenarioType::Basic));
             let should_append_completion_message = behavior_single_response;
             let should_invoke_ai =
-                agent_response_enabled || (is_basic_scenario && !scenario_missions.is_empty());
+                agent_response_enabled || !scenario_missions.is_empty();
 
             if FeatureFlagService::new().is_entitlement_enforced() && should_invoke_ai {
                 enforce_chat_daily_limit(
@@ -398,7 +396,7 @@ impl MessageService {
                 }
             }
 
-            if is_basic_scenario && !scenario_missions.is_empty() {
+            if !scenario_missions.is_empty() {
                 if let Ok(completed_ids) = infer_completed_mission_ids(
                     context,
                     &message.content,
