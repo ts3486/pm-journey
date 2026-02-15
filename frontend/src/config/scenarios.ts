@@ -1755,7 +1755,7 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "あなたは新しくプロジェクトに参加したPMです。チームの信頼を得るためにまずは自己紹介をしてみましょう。",
-    behavior: singleResponseBehavior,
+    behavior: { ...singleResponseBehavior, agentResponseEnabled: false },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "こんにちは！エンジニア兼デザイナーの鈴木です。よろしくお願いします！",
