@@ -312,7 +312,7 @@ export function ScenarioPage() {
                 className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
                 onClick={handleOpenGuide}
               >
-                進め方ガイドを開く
+                ブリーフィングを見る
               </button>
             </div>
           </div>
