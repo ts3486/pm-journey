@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { env } from "@/config/env";
-import type { Scenario } from "@/types";
+import { getScenarioDiscipline } from "@/config/scenarios";
+import type { Mission, Scenario, ScenarioDiscipline } from "@/types";
 
 export type ScenarioGuide = {
   scenarioId: string;
   scenarioTitle: string;
   guidanceSentence: string;
+  discipline: ScenarioDiscipline;
+  missions: Mission[];
 };
 
 type ScenarioCategoryGuideModalProps = {
@@ -20,12 +23,14 @@ const GUIDE_MODAL_CLOSE_DURATION_MS = 200;
 
 export function buildScenarioGuide(scenario: Scenario): ScenarioGuide {
   const fallbackMessage = `${scenario.description}このシナリオに取り組みましょう。`;
-  const guidanceSentence = scenario.guideMessage?.trim() || fallbackMessage;
+  const guidanceSentence = scenario.agentOpeningMessage?.trim() || fallbackMessage;
 
   return {
     scenarioId: scenario.id,
     scenarioTitle: scenario.title,
     guidanceSentence,
+    discipline: getScenarioDiscipline(scenario),
+    missions: scenario.missions ?? [],
   };
 }
 
@@ -125,7 +130,14 @@ export function ScenarioCategoryGuideModal({
         <header className="border-b border-orange-100/80 bg-linear-to-r from-orange-50/90 to-amber-50/80 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-700">シナリオガイド</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-700">
+                  シナリオガイド
+                </p>
+                <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[10px] font-semibold text-orange-600">
+                  {guide.discipline === "CHALLENGE" ? "実践" : "基本"}
+                </span>
+              </div>
               <h2 id={titleId} className="font-display text-2xl text-slate-900">
                 {guide.scenarioTitle}
               </h2>
@@ -141,13 +153,47 @@ export function ScenarioCategoryGuideModal({
           </div>
         </header>
 
-        <div className="px-6 py-7 sm:px-8">
-          <p className="mx-auto max-w-[42rem] text-[18px] leading-8 text-slate-800">{guide.guidanceSentence}</p>
+        <div className="max-h-[60vh] overflow-y-auto px-6 py-6 sm:px-8">
+          <div className="space-y-5">
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                あなたの状況
+              </p>
+              <p className="text-base leading-7 text-slate-800">{guide.guidanceSentence}</p>
+            </div>
+
+            {guide.missions.length > 0 && (
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                  達成目標
+                </p>
+                <ol className="space-y-1.5">
+                  {guide.missions
+                    .slice()
+                    .sort((a, b) => a.order - b.order)
+                    .map((mission, index) => (
+                      <li key={mission.id} className="flex items-start gap-2.5">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-700">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium leading-5 text-slate-800">{mission.title}</p>
+                          {mission.description && (
+                            <p className="mt-0.5 text-xs leading-4 text-slate-500">{mission.description}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                </ol>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex justify-end border-t border-orange-100/80 px-6 py-4 sm:px-8">
+        <div className="flex items-center justify-between border-t border-orange-100/80 px-6 py-4 sm:px-8">
+          <p className="text-xs text-slate-400">Esc で閉じる</p>
           <button type="button" className="btn-primary" onClick={onClose}>
-            開始する
+            シナリオを開始する
           </button>
         </div>
       </section>

@@ -452,14 +452,14 @@ export function HistoryDetailPage() {
   const persistedMessages = item?.actions ?? [];
   const kickoffPrompt = scenario?.kickoffPrompt?.trim();
   const hasKickoffPromptInLog = kickoffPrompt
-    ? persistedMessages.some((message) => message.role === "system" && message.content.trim() === kickoffPrompt)
+    ? persistedMessages.some((message) => (message.role === "system" || message.role === "agent") && message.content.trim() === kickoffPrompt)
     : false;
   const kickoffMessage: Message | null =
     kickoffPrompt && !hasKickoffPromptInLog
       ? {
           id: `kickoff-${item?.sessionId ?? "unknown"}`,
           sessionId: item?.sessionId ?? "unknown",
-          role: "system",
+          role: "agent",
           content: kickoffPrompt,
           createdAt: persistedMessages[0]?.createdAt ?? new Date().toISOString(),
           tags: ["summary"],
@@ -861,7 +861,7 @@ export function HistoryDetailPage() {
                     message.role === "user" ? "text-orange-600" : "text-slate-500"
                   }`}
                 >
-                  {message.role}
+                  {message.role === "user" ? "user" : "agent"}
                 </p>
                 <div className="mt-1 whitespace-pre-wrap text-slate-800">
                   <ReactMarkdown className="markdown-preview">{message.content}</ReactMarkdown>

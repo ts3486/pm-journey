@@ -31,9 +31,7 @@ export type Evaluation = {
   improvementAdvice?: string;
 };
 
-export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
-
-export type ScenarioType = "basic" | "test-case";
+export type ScenarioType = "soft-skills" | "test-cases" | "requirement-definition" | "incident-response" | "business-execution";
 
 export type FeatureMockup = {
   component:
@@ -57,21 +55,43 @@ export type TestCase = {
   createdAt: string;
 };
 
+export type DeliverableFormat =
+  | "free-text"
+  | "structured"
+  | "checklist"
+  | "table";
+
+export type AssistanceMode =
+  | "hands-off"
+  | "on-request"
+  | "guided"
+  | "review";
+
+export type TaskTemplate = {
+  format: DeliverableFormat;
+  sections?: string[];
+  example?: string;
+  checklist?: string[];
+};
+
+export type TaskDefinition = {
+  instruction: string;
+  deliverableFormat: DeliverableFormat;
+  template?: TaskTemplate;
+  referenceInfo?: string;
+  hints?: string[];
+};
+
 export type ScenarioBehavior = {
-  userLed?: boolean;
-  allowProactive?: boolean;
-  maxQuestions?: number;
-  responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
-  phase?: string;
   singleResponse?: boolean;
   agentResponseEnabled?: boolean;
+  assistanceMode?: AssistanceMode;
 };
 
 export type ScenarioSummary = {
   id: string;
   title: string;
   description: string;
-  discipline: ScenarioDiscipline;
 };
 
 export type ProgressFlags = {
@@ -144,9 +164,7 @@ export type Scenario = {
   id: string;
   title: string;
   description: string;
-  guideMessage?: string;
-  discipline: ScenarioDiscipline;
-  scenarioType?: ScenarioType;
+  scenarioType: ScenarioType;
   featureMockup?: FeatureMockup;
   behavior?: ScenarioBehavior;
   product: {
@@ -164,14 +182,13 @@ export type Scenario = {
     techStack?: string[];
     coreFeatures?: string[];
   };
-  mode: string;
   kickoffPrompt: string;
   agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];
-  supplementalInfo?: string;
-  customPrompt?: string;
+  task?: TaskDefinition;
+  assistanceMode?: AssistanceMode;
 };
 
 export type ManagerComment = {
@@ -194,12 +211,6 @@ export type OutputSubmission = {
   note?: string;
   createdByUserId?: string;
   createdAt: string;
-};
-
-export type ScenarioCatalogSection = {
-  discipline: ScenarioDiscipline;
-  title: string;
-  scenarios: ScenarioSummary[];
 };
 
 export type ScenarioEvaluationCriteriaConfig = {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Scenario, TestCase } from "@/types";
 import { TestCaseForm } from "@/components/scenario/TestCaseForm";
+import { ChatComposer } from "@/components/chat/ChatComposer";
+import { ChatStream } from "@/components/chat/ChatStream";
 import {
   FileUploadMockup,
   FormMockup,
@@ -16,14 +18,24 @@ import type { SessionState } from "@/services/sessions";
 type TestCaseScenarioLayoutProps = {
   scenario: Scenario;
   state: SessionState | null;
+  awaitingReply: boolean;
+  onSend: (content: string) => void;
   onComplete: () => void;
   onReset: () => void;
   onOpenGuide?: () => void;
 };
 
+const quickPrompts = [
+  "テスト観点を整理したい",
+  "境界値テストについて教えて",
+  "異常系で見落としがちな観点は？",
+];
+
 export function TestCaseScenarioLayout({
   scenario,
   state,
+  awaitingReply,
+  onSend,
   onComplete,
   onReset,
   onOpenGuide,
@@ -102,7 +114,7 @@ export function TestCaseScenarioLayout({
                 className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:border-orange-400 hover:bg-orange-50 hover:text-orange-800"
                 onClick={onOpenGuide}
               >
-                進め方ガイドを開く
+                シナリオガイドを見る
               </button>
             ) : null}
           </div>
@@ -114,43 +126,63 @@ export function TestCaseScenarioLayout({
         <div className="p-4">{renderMockup()}</div>
       </div>
 
-      <div className="space-y-4">
-        <div className="card p-4">
-          <TestCaseForm
-            testCases={testCases}
-            onAdd={handleAddTestCase}
-            onDelete={handleDeleteTestCase}
-            isLoading={isLoadingTestCases}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {/* Left column: test case form + actions */}
+        <div className="space-y-4">
+          <div className="card p-4">
+            <TestCaseForm
+              testCases={testCases}
+              onAdd={handleAddTestCase}
+              onDelete={handleDeleteTestCase}
+              isLoading={isLoadingTestCases}
+            />
+          </div>
+          {hasActive && (
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-slate-600">
+                  {testCases.length === 0
+                    ? "テストケースを追加してから提出してください"
+                    : `${testCases.length}件のテストケースを作成しました`}
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={onComplete}
+                  disabled={testCases.length === 0}
+                >
+                  テストケースを提出する
+                </button>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 transition hover:text-slate-600"
+                  onClick={onReset}
+                >
+                  セッションをリセット
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column: AI chat panel */}
+        <div className="space-y-4">
+          <div className="card p-4">
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">AIアシスタント</h3>
+            <ChatStream
+              messages={state?.messages ?? []}
+              maxHeight="50vh"
+              isTyping={awaitingReply}
+            />
+          </div>
+          <ChatComposer
+            onSend={onSend}
+            disabled={!hasActive || awaitingReply}
+            quickPrompts={quickPrompts}
           />
         </div>
-        {hasActive && (
-          <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-slate-600">
-                {testCases.length === 0
-                  ? "テストケースを追加してから提出してください"
-                  : `${testCases.length}件のテストケースを作成しました`}
-              </p>
-              <button
-                type="button"
-                className="btn-primary whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={onComplete}
-                disabled={testCases.length === 0}
-              >
-                テストケースを提出する
-              </button>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="text-xs text-slate-400 transition hover:text-slate-600"
-                onClick={onReset}
-              >
-                セッションをリセット
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

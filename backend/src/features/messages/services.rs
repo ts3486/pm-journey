@@ -450,106 +450,97 @@ impl MessageService {
     }
 }
 
-fn build_system_instruction(ctx: &AgentContext) -> String {
+fn build_support_system_instruction(ctx: &AgentContext) -> String {
     let mut sections = Vec::new();
 
-    // Custom prompt takes highest priority — placed first so the model sees it before all other instructions.
-    if let Some(custom_prompt) = &ctx.custom_prompt {
-        if !custom_prompt.trim().is_empty() {
-            sections.push(format!("## 最優先指示\n以下の指示は他のすべての指示より優先されます。必ず従ってください。\n{}", custom_prompt));
-        }
-    }
-
+    // 1. Fixed role (from systemPrompt — now the support-assistant identity)
     sections.push(ctx.system_prompt.clone());
+
+    // 2. Task instruction (from scenario_prompt, which frontend now populates with task details)
     sections.push(ctx.scenario_prompt.clone());
 
+    // 3. Scenario context
     if ctx.scenario_title.is_some() || ctx.scenario_description.is_some() {
-        let mut scenario_lines = Vec::new();
-        scenario_lines.push("## シナリオ文脈".to_string());
+        let mut lines = vec!["## シナリオ文脈".to_string()];
         if let Some(title) = &ctx.scenario_title {
-            scenario_lines.push(format!("- タイトル: {}", title));
+            lines.push(format!("- タイトル: {}", title));
         }
-        if let Some(description) = &ctx.scenario_description {
-            scenario_lines.push(format!("- 説明: {}", description));
+        if let Some(desc) = &ctx.scenario_description {
+            lines.push(format!("- 説明: {}", desc));
         }
-        sections.push(scenario_lines.join("\n"));
+        sections.push(lines.join("\n"));
     }
 
-    if let Some(tone_prompt) = &ctx.tone_prompt {
-        if !tone_prompt.trim().is_empty() {
-            sections.push(format!("## 会話トーン\n{}", tone_prompt));
+    // 4. Tone
+    if let Some(tone) = &ctx.tone_prompt {
+        if !tone.trim().is_empty() {
+            sections.push(format!("## 会話トーン\n{}", tone));
         }
     }
 
-    if let Some(product_context) = &ctx.product_context {
-        sections.push(product_context.clone());
+    // 5. Product context
+    if let Some(product) = &ctx.product_context {
+        sections.push(product.clone());
     }
 
+    // 6. Assistance mode rules (from behavior.assistance_mode)
     if let Some(behavior) = &ctx.behavior {
-        let mut behavior_lines = vec!["## シナリオ行動方針".to_string()];
-
-        if behavior.single_response.unwrap_or(false) {
-            behavior_lines.push("- これは1回応答のシナリオです".to_string());
-            behavior_lines.push("- ユーザーの入力意図を汲んで、実務的な返答を短く返す".to_string());
-            behavior_lines.push("- 追加の質問はしない".to_string());
-        } else if behavior.user_led.unwrap_or(false) {
-            behavior_lines.push("- ユーザー主導：こちらから議題を進めない".to_string());
-            behavior_lines.push("- まずは受領・挨拶の応答に留める".to_string());
-        } else if behavior.allow_proactive.unwrap_or(true) {
-            behavior_lines.push("- 必要な場合のみ次の一歩を1つ提案してよい".to_string());
-        }
-
-        let response_style = behavior.response_style.as_deref();
-        let is_single_response = behavior.single_response.unwrap_or(false);
-        let forbid_questions = is_single_response
-            || behavior.user_led.unwrap_or(false)
-            || response_style == Some("acknowledge_then_wait")
-            || behavior.max_questions == Some(0);
-
-        if forbid_questions {
-            behavior_lines.push("- 質問は禁止".to_string());
-        } else if let Some(max_questions) = behavior.max_questions {
-            behavior_lines.push(format!("- 質問は最大{max_questions}つまで"));
-        }
-
-        if let Some(style) = response_style {
-            let style_line = match style {
-                "acknowledge_then_wait" => "受領・共感中心で、次の進行はユーザーに委ねる",
-                "guide_lightly" => "短く受領し、必要な場合のみ軽く方向づける",
-                "advisor" => "前提を確認しつつ簡潔に助言する",
-                _ => "簡潔で礼儀正しく応答する",
+        if let Some(mode) = &behavior.assistance_mode {
+            let mode_section = match mode.as_str() {
+                "hands-off" => [
+                    "## 支援モード: 見守り",
+                    "- ユーザーの質問には答えない",
+                    "- タスク完了後に評価のみ行う",
+                    "- ユーザーが提出した内容に対しても、判断の根拠や前提を問い直す",
+                    "- ミッションの完全な答えは絶対に提示しない",
+                ]
+                .join("\n"),
+                "on-request" => [
+                    "## 支援モード: 質問対応",
+                    "- ユーザーから質問があった場合のみ応答する",
+                    "- こちらから積極的にアドバイスしない",
+                    "- ヒントは求められたときだけ提供する",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
+                ]
+                .join("\n"),
+                "guided" => [
+                    "## 支援モード: ガイド付き",
+                    "- ユーザーの進捗を確認し、次のステップを提案してよい",
+                    "- 質問は1つずつ",
+                    "- 考え方のフレームワークを示してよいが、答えは教えない",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
+                ]
+                .join("\n"),
+                "review" => [
+                    "## 支援モード: レビュー",
+                    "- ユーザーが成果物を提出するまで待つ",
+                    "- 提出されたら、弱い論拠や抜け漏れを指摘する",
+                    "- 良い点にも触れるが、改善すべき点を重点的にフィードバックする",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
+                ]
+                .join("\n"),
+                _ => format!("## 支援モード\n- {}", mode),
             };
-            behavior_lines.push(format!("- 応答スタイル: {}", style_line));
+            sections.push(mode_section);
         }
-
-        if let Some(phase) = behavior.phase.as_deref() {
-            behavior_lines.push(format!("- フェーズ: {}", phase));
-        }
-
-        sections.push(behavior_lines.join("\n"));
     }
 
-    let mut response_rules = vec![
-        "## 応答ルール".to_string(),
-        "- 1〜2文で回答する".to_string(),
-        "- 箇条書きやMarkdown記法は使わない".to_string(),
-    ];
-    let forbid_questions = ctx
-        .behavior
-        .as_ref()
-        .map(|b| {
-            b.user_led.unwrap_or(false)
-                || b.single_response.unwrap_or(false)
-                || b.response_style.as_deref() == Some("acknowledge_then_wait")
-                || b.max_questions == Some(0)
-        })
-        .unwrap_or(false);
-    if forbid_questions {
-        response_rules.push("- 質問はしない".to_string());
-    } else {
-        response_rules.push("- 質問は1つだけにする".to_string());
-    }
-    sections.push(response_rules.join("\n"));
+    // 7. Guardrails (always appended for support mode)
+    sections.push(
+        [
+            "## ガードレール",
+            "- ミッションの完全な答えを提示しない（最優先）",
+            "- ユーザーの判断や前提を積極的に問い直す",
+            "- チームメンバーを演じない（エンジニア、デザイナー、PO等の役割を装わない）",
+            "- ユーザーの代わりに成果物を書かない",
+            "- 1〜2文で簡潔に応答する（最大3文）",
+            "- テンプレート提示時以外は箇条書き・Markdownを使わない",
+        ]
+        .join("\n"),
+    );
 
     sections.join("\n\n")
 }
@@ -562,7 +553,7 @@ async fn generate_agent_reply(
     let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
     let gemini_key = credentials.api_key;
     let model_id = credentials.model_id;
-    let system_instruction = build_system_instruction(context);
+    let system_instruction = build_support_system_instruction(context);
 
     let context_messages = if messages.len() > 20 {
         &messages[messages.len() - 20..]
@@ -637,4 +628,126 @@ async fn generate_agent_reply(
         .unwrap_or_else(|| "（応答を生成できませんでした）".to_string());
 
     Ok(reply)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::messages::models::AgentBehavior;
+    use crate::models::{DeliverableFormat, TaskDefinition};
+
+    fn make_support_context() -> AgentContext {
+        AgentContext {
+            system_prompt: "あなたはPMスキル学習の支援アシスタントです。".to_string(),
+            tone_prompt: Some("簡潔で具体的に答える".to_string()),
+            scenario_prompt: "## タスク指示\nチケットの目的と受入条件を整理してください。".to_string(),
+            scenario_title: Some("チケット要件整理".to_string()),
+            scenario_description: Some("チケットの目的と受入条件を整理する。".to_string()),
+            product_context: Some("## プロダクト\n勤怠管理アプリ".to_string()),
+            model_id: None,
+            behavior: Some(AgentBehavior {
+                single_response: None,
+                agent_response_enabled: None,
+                assistance_mode: Some("on-request".to_string()),
+            }),
+            task: Some(TaskDefinition {
+                instruction: "チケットの目的と受入条件を整理してください。".to_string(),
+                deliverable_format: DeliverableFormat::Structured,
+                template: None,
+                reference_info: Some("背景情報です".to_string()),
+                hints: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn support_context_produces_support_instruction() {
+        let ctx = make_support_context();
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("PMスキル学習の支援アシスタント"), "should contain support identity");
+        assert!(result.contains("タスク指示"), "should contain task instruction");
+        assert!(result.contains("シナリオ文脈"), "should contain scenario context");
+        assert!(result.contains("会話トーン"), "should contain tone");
+        assert!(result.contains("ガードレール"), "should always contain guardrails");
+        assert!(result.contains("チームメンバーを演じない"), "guardrail should forbid role-play");
+        assert!(result.contains("成果物を書かない"), "guardrail should forbid producing deliverable");
+        assert!(result.contains("ミッションの完全な答えを提示しない"), "guardrail should prohibit complete answers");
+        assert!(result.contains("判断や前提を積極的に問い直す"), "guardrail should require challenging user");
+    }
+
+    #[test]
+    fn support_instruction_does_not_contain_role_play() {
+        let ctx = make_support_context();
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(!result.contains("最優先指示"), "should not have custom prompt priority section");
+        assert!(!result.contains("エンジニア兼デザイナー"), "should not have old role-play identity");
+    }
+
+    #[test]
+    fn support_instruction_includes_assistance_mode_on_request() {
+        let ctx = make_support_context();
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("支援モード: 質問対応"), "should include on-request mode rules");
+        assert!(result.contains("ユーザーから質問があった場合のみ応答する"), "should include on-request details");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "on-request mode should prohibit complete answers");
+    }
+
+    #[test]
+    fn support_instruction_includes_assistance_mode_guided() {
+        let mut ctx = make_support_context();
+        if let Some(behavior) = ctx.behavior.as_mut() {
+            behavior.assistance_mode = Some("guided".to_string());
+        }
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("支援モード: ガイド付き"), "should include guided mode rules");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "guided mode should prohibit complete answers");
+    }
+
+    #[test]
+    fn support_instruction_includes_assistance_mode_review() {
+        let mut ctx = make_support_context();
+        if let Some(behavior) = ctx.behavior.as_mut() {
+            behavior.assistance_mode = Some("review".to_string());
+        }
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("支援モード: レビュー"), "should include review mode rules");
+        assert!(result.contains("弱い論拠や抜け漏れを指摘する"), "review mode should focus on weak reasoning");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "review mode should prohibit complete answers");
+    }
+
+    #[test]
+    fn support_instruction_includes_assistance_mode_hands_off() {
+        let mut ctx = make_support_context();
+        if let Some(behavior) = ctx.behavior.as_mut() {
+            behavior.assistance_mode = Some("hands-off".to_string());
+        }
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("支援モード: 見守り"), "should include hands-off mode rules");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "hands-off mode should prohibit complete answers");
+    }
+
+    #[test]
+    fn support_instruction_without_behavior_still_has_guardrails() {
+        let mut ctx = make_support_context();
+        ctx.behavior = None;
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("ガードレール"), "guardrails should always be present");
+        assert!(!result.contains("支援モード"), "no assistance mode when behavior is absent");
+    }
+
+    #[test]
+    fn support_instruction_is_always_used() {
+        let ctx = make_support_context();
+        let result = build_support_system_instruction(&ctx);
+
+        assert!(result.contains("ガードレール"), "should use support path with guardrails");
+        assert!(!result.contains("最優先指示"), "should not contain legacy custom prompt section");
+    }
 }

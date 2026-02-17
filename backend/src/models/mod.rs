@@ -2289,7 +2289,7 @@ fn pmbok_areas_for_id(id: &str) -> Option<Vec<PmbokKnowledgeArea>> {
     Some(areas)
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScenarioBehavior {
     pub user_led: Option<bool>,
@@ -2299,20 +2299,55 @@ pub struct ScenarioBehavior {
     pub phase: Option<String>,
     pub single_response: Option<bool>,
     pub agent_response_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub assistance_mode: Option<AssistanceMode>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub forbid_role_play: Option<bool>,
 }
 
-impl Default for ScenarioBehavior {
-    fn default() -> Self {
-        Self {
-            user_led: None,
-            allow_proactive: None,
-            max_questions: None,
-            response_style: None,
-            phase: None,
-            single_response: None,
-            agent_response_enabled: None,
-        }
-    }
+// ---- Support-assistant types (Phase 0.3) ----
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum DeliverableFormat {
+    FreeText,
+    Structured,
+    Checklist,
+    Table,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AssistanceMode {
+    HandsOff,
+    OnRequest,
+    Guided,
+    Review,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskTemplate {
+    pub format: DeliverableFormat,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub sections: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub example: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub checklist: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskDefinition {
+    pub instruction: String,
+    pub deliverable_format: DeliverableFormat,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub template: Option<TaskTemplate>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub reference_info: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub hints: Option<Vec<String>>,
 }
 
 // Add ScoringGuidelines for evaluation criteria
