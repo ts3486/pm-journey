@@ -238,6 +238,7 @@ export async function sendMessage(
           scenarioDescription: scenario.description,
           productContext: formatProductContext(scenario, productConfig),
           behavior: scenario.behavior,
+          customPrompt: scenario.customPrompt,
         }
       : undefined;
 

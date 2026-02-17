@@ -32,6 +32,8 @@ pub struct AgentContext {
     pub model_id: Option<String>,
     #[serde(rename = "behavior")]
     pub behavior: Option<AgentBehavior>,
+    #[serde(rename = "customPrompt")]
+    pub custom_prompt: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema, Clone)]

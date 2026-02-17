@@ -564,9 +564,6 @@ export function HistoryDetailPage() {
                     {showMemberTeamInfo ? (
                       <p className="mt-2 text-xs font-medium text-slate-600">
                         所属チーム: <span className="font-semibold text-slate-900">{currentOrganizationName}</span>
-                        {currentOrganizationId ? (
-                          <span className="ml-1 text-[11px] text-slate-500">({currentOrganizationId})</span>
-                        ) : null}
                       </p>
                     ) : null}
                     {missionList && missionList.length > 0 ? (

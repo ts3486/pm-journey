@@ -121,9 +121,6 @@ export function AccountSettingsPage() {
               <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">所属チーム</dt>
               <dd className="text-slate-800">
                 {currentOrganizationName}
-                {currentOrganizationId ? (
-                  <span className="ml-1 text-xs text-slate-500">({currentOrganizationId})</span>
-                ) : null}
               </dd>
             </div>
             <div className="space-y-1 sm:col-span-2">

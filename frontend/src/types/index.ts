@@ -171,6 +171,7 @@ export type Scenario = {
   passingScore?: number;
   missions?: Mission[];
   supplementalInfo?: string;
+  customPrompt?: string;
 };
 
 export type ManagerComment = {

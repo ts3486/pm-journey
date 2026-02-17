@@ -452,6 +452,14 @@ impl MessageService {
 
 fn build_system_instruction(ctx: &AgentContext) -> String {
     let mut sections = Vec::new();
+
+    // Custom prompt takes highest priority — placed first so the model sees it before all other instructions.
+    if let Some(custom_prompt) = &ctx.custom_prompt {
+        if !custom_prompt.trim().is_empty() {
+            sections.push(format!("## 最優先指示\n以下の指示は他のすべての指示より優先されます。必ず従ってください。\n{}", custom_prompt));
+        }
+    }
+
     sections.push(ctx.system_prompt.clone());
     sections.push(ctx.scenario_prompt.clone());
 
