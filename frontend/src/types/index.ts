@@ -85,15 +85,9 @@ export type TaskDefinition = {
 };
 
 export type ScenarioBehavior = {
-  userLed?: boolean;
-  allowProactive?: boolean;
-  maxQuestions?: number;
-  responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
-  phase?: string;
   singleResponse?: boolean;
   agentResponseEnabled?: boolean;
   assistanceMode?: AssistanceMode;
-  forbidRolePlay?: boolean;
 };
 
 export type ScenarioSummary = {
@@ -200,7 +194,6 @@ export type Scenario = {
   passingScore?: number;
   missions?: Mission[];
   supplementalInfo?: string;
-  customPrompt?: string;
   task?: TaskDefinition;
   assistanceMode?: AssistanceMode;
 };

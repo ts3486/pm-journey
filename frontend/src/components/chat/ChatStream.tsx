@@ -28,9 +28,8 @@ export function ChatStream({ messages, maxHeight = "60vh", isTyping = false }: C
       ) : (
         messages.map((m) => {
           const isUser = m.role === "user";
-          const isSystem = m.role === "system";
-          const badgeLabel = isUser ? "YOU" : isSystem ? "SYS" : "A";
-          const nameLabel = isUser ? "You" : isSystem ? "System" : "Agent";
+          const badgeLabel = isUser ? "YOU" : "A";
+          const nameLabel = isUser ? "You" : "Agent";
           const visibleTags = (m.tags ?? []).filter((tag) => tag !== "summary");
           return (
             <article
@@ -38,14 +37,12 @@ export function ChatStream({ messages, maxHeight = "60vh", isTyping = false }: C
               className={`flex items-start gap-3 rounded-xl border px-3 py-3 text-sm ${
                 isUser
                   ? "border-orange-200/70 bg-orange-50/70 text-slate-900"
-                  : isSystem
-                    ? "border-slate-200/80 bg-slate-50/80 text-slate-700"
-                    : "border-cyan-200/70 bg-cyan-50/70 text-slate-800"
+                  : "border-cyan-200/70 bg-cyan-50/70 text-slate-800"
               }`}
             >
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold ${
-                  isUser ? "bg-orange-600 text-white" : isSystem ? "bg-slate-300 text-slate-700" : "bg-cyan-600 text-white"
+                  isUser ? "bg-orange-600 text-white" : "bg-cyan-600 text-white"
                 }`}
               >
                 <span className="leading-none">{badgeLabel}</span>

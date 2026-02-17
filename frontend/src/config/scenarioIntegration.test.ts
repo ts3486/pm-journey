@@ -32,26 +32,6 @@ const allScenarios: Scenario[] = allScenarioIds
 // ---------------------------------------------------------------------------
 
 describe("scenario consistency", () => {
-  it("every scenario with a task field also has forbidRolePlay: true", () => {
-    const violations: string[] = [];
-    for (const scenario of allScenarios) {
-      if (scenario.task && !scenario.behavior?.forbidRolePlay) {
-        violations.push(scenario.id);
-      }
-    }
-    expect(violations).toEqual([]);
-  });
-
-  it("no scenario with a task field has customPrompt set", () => {
-    const violations: string[] = [];
-    for (const scenario of allScenarios) {
-      if (scenario.task && scenario.customPrompt) {
-        violations.push(scenario.id);
-      }
-    }
-    expect(violations).toEqual([]);
-  });
-
   it("every scenario with a task field has assistanceMode set", () => {
     const violations: string[] = [];
     for (const scenario of allScenarios) {
@@ -86,8 +66,6 @@ describe("scenario consistency", () => {
       const scenario = getScenarioById(id);
       expect(scenario, `scenario ${id} should exist`).toBeDefined();
       expect(scenario!.task, `scenario ${id} should have task`).toBeDefined();
-      expect(scenario!.behavior?.forbidRolePlay, `scenario ${id} should forbid role-play`).toBe(true);
-      expect(scenario!.customPrompt, `scenario ${id} should not have customPrompt`).toBeUndefined();
       expect(
         scenario!.assistanceMode ?? scenario!.behavior?.assistanceMode,
         `scenario ${id} should have assistanceMode`,
@@ -109,8 +87,6 @@ describe("scenario consistency", () => {
       const scenario = getScenarioById(id);
       expect(scenario, `scenario ${id} should exist`).toBeDefined();
       expect(scenario!.task, `scenario ${id} should have task`).toBeDefined();
-      expect(scenario!.behavior?.forbidRolePlay, `scenario ${id} should forbid role-play`).toBe(true);
-      expect(scenario!.customPrompt, `scenario ${id} should not have customPrompt`).toBeUndefined();
     }
   });
 });
@@ -130,7 +106,6 @@ describe("buildSupportPrompt output matches backend AgentContext", () => {
    * - productContext: Option<String>
    * - modelId: Option<String>
    * - behavior: Option<AgentBehavior>
-   * - customPrompt: Option<String>
    * - task: Option<TaskDefinition>
    *
    * TaskDefinition expects:
@@ -158,7 +133,7 @@ describe("buildSupportPrompt output matches backend AgentContext", () => {
 
   // Pick a representative task-based scenario for shape tests
   const taskScenario = getScenarioById("test-login")!;
-  const profile = resolveAgentProfile("test-login");
+  const profile = resolveAgentProfile();
 
   it("returns all required backend fields", () => {
     const result = buildSupportPrompt({ scenario: taskScenario, profile });
@@ -173,11 +148,6 @@ describe("buildSupportPrompt output matches backend AgentContext", () => {
     for (const field of backendOptionalFields) {
       expect(result).toHaveProperty(field);
     }
-  });
-
-  it("does not include customPrompt in the output", () => {
-    const result = buildSupportPrompt({ scenario: taskScenario, profile });
-    expect(result).not.toHaveProperty("customPrompt");
   });
 
   it("task field has the correct shape", () => {
@@ -198,11 +168,6 @@ describe("buildSupportPrompt output matches backend AgentContext", () => {
   it("task.deliverableFormat is a valid kebab-case enum value", () => {
     const result = buildSupportPrompt({ scenario: taskScenario, profile });
     expect(validDeliverableFormats).toContain(result.task!.deliverableFormat);
-  });
-
-  it("behavior includes forbidRolePlay when scenario has it", () => {
-    const result = buildSupportPrompt({ scenario: taskScenario, profile });
-    expect(result.behavior?.forbidRolePlay).toBe(true);
   });
 
   it("scenarioPrompt includes task instruction", () => {
@@ -244,7 +209,7 @@ describe("agentProfile routing consistency", () => {
     const violations: string[] = [];
     for (const scenario of allScenarios) {
       if (scenario.task) {
-        const profile = resolveAgentProfile(scenario.id);
+        const profile = resolveAgentProfile();
         // SUPPORT profile has the supportSystemPrompt which contains "PMスキル学習の支援アシスタント"
         if (!profile.systemPrompt.includes("支援アシスタント")) {
           violations.push(scenario.id);
@@ -255,28 +220,28 @@ describe("agentProfile routing consistency", () => {
   });
 
   it("SUPPORT profile does not contain role-play instructions", () => {
-    const profile = resolveAgentProfile("test-login");
+    const profile = resolveAgentProfile();
     expect(profile.systemPrompt).not.toContain("エンジニア兼デザイナー");
     expect(profile.systemPrompt).toContain("支援アシスタント");
   });
 
   it("buildSupportPrompt uses the profile systemPrompt", () => {
     const scenario = getScenarioById("test-login")!;
-    const profile = resolveAgentProfile("test-login");
+    const profile = resolveAgentProfile();
     const result = buildSupportPrompt({ scenario, profile });
     expect(result.systemPrompt).toBe(profile.systemPrompt);
   });
 
   it("buildSupportPrompt uses the profile tonePrompt", () => {
     const scenario = getScenarioById("test-login")!;
-    const profile = resolveAgentProfile("test-login");
+    const profile = resolveAgentProfile();
     const result = buildSupportPrompt({ scenario, profile });
     expect(result.tonePrompt).toBe(profile.tonePrompt);
   });
 
   it("buildSupportPrompt uses the profile modelId", () => {
     const scenario = getScenarioById("test-login")!;
-    const profile = resolveAgentProfile("test-login");
+    const profile = resolveAgentProfile();
     const result = buildSupportPrompt({ scenario, profile });
     expect(result.modelId).toBe(profile.modelId);
   });
@@ -284,32 +249,6 @@ describe("agentProfile routing consistency", () => {
 
 // ---------------------------------------------------------------------------
 // 4. Cross-scenario buildSupportPrompt consistency
-// ---------------------------------------------------------------------------
-
-describe("no scenario should have customPrompt anywhere", () => {
-  it("no scenario has customPrompt set (even without task)", () => {
-    const violations: string[] = [];
-    for (const scenario of allScenarios) {
-      if (scenario.customPrompt) {
-        violations.push(scenario.id);
-      }
-    }
-    expect(violations).toEqual([]);
-  });
-
-  it("every scenario in the catalog has a task field (full migration)", () => {
-    const missing: string[] = [];
-    for (const scenario of allScenarios) {
-      if (!scenario.task) {
-        missing.push(scenario.id);
-      }
-    }
-    expect(missing).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 5. Cross-scenario buildSupportPrompt consistency
 // ---------------------------------------------------------------------------
 
 describe("buildSupportPrompt works for all task-based scenarios", () => {
@@ -322,7 +261,7 @@ describe("buildSupportPrompt works for all task-based scenarios", () => {
   it.each(
     taskScenarios.map((s) => [s.id, s] as const),
   )("buildSupportPrompt succeeds for %s", (_id, scenario) => {
-    const profile = resolveAgentProfile(scenario.id);
+    const profile = resolveAgentProfile();
     const result = buildSupportPrompt({ scenario, profile });
 
     // Required fields exist and are non-empty

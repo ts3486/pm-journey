@@ -103,24 +103,6 @@ const renderPromptTemplate = (
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => variables[key] ?? "");
 };
 
-const buildScenarioContext = (scenario: Scenario) => {
-  const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
-  const lines = [
-    scenario.kickoffPrompt ? `- システム案内: ${scenario.kickoffPrompt}` : "",
-    scenario.agentOpeningMessage && agentResponseEnabled
-      ? `- 会話相手の初回発話: ${scenario.agentOpeningMessage}`
-      : "",
-    scenario.supplementalInfo ? `- 補足情報: ${scenario.supplementalInfo}` : "",
-  ].filter((line) => line.length > 0);
-  if (scenario.missions?.length) {
-    const missionLines = [...scenario.missions]
-      .sort((a, b) => a.order - b.order)
-      .map((mission, index) => `${index + 1}. ${mission.title}${mission.description ? ` (${mission.description})` : ""}`);
-    lines.push(`- ミッション:\n${missionLines.join("\n")}`);
-  }
-  return lines.length > 0 ? `## シナリオ詳細\n${lines.join("\n")}` : "";
-};
-
 const resolveScenarioType = (scenario: Scenario): string => {
   if (scenario.scenarioType) return scenario.scenarioType;
   if (scenario.discipline === "CHALLENGE") return "challenge";
@@ -310,24 +292,12 @@ export async function sendMessage(
   const hasMessage = state.messages.some((m) => m.id === message.id);
   const messages = hasMessage ? [...state.messages] : [...state.messages, message];
   const scenario = getScenarioById(session.scenarioId);
-  const profile = resolveAgentProfile(session.scenarioId);
+  const profile = resolveAgentProfile();
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
 
   const agentContext =
     role === "user" && scenario
-      ? scenario.task
-        ? buildSupportPrompt({ scenario, productConfig, profile })
-        : {
-            systemPrompt: profile.systemPrompt,
-            tonePrompt: profile.tonePrompt,
-            modelId: profile.modelId,
-            scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
-            scenarioTitle: scenario.title,
-            scenarioDescription: scenario.description,
-            productContext: formatProductContext(scenario, productConfig),
-            behavior: scenario.behavior,
-            customPrompt: scenario.customPrompt,
-          }
+      ? buildSupportPrompt({ scenario, productConfig, profile })
       : undefined;
 
   const apiMessage = await api.postMessage(
@@ -370,7 +340,7 @@ export async function evaluate(state: SessionState): Promise<SessionState> {
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
         productContext: formatProductContext(scenario, productConfig),
-        scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
+        scenarioPrompt: scenario.kickoffPrompt,
       }
     : undefined;
   const evaluation = await api.evaluate(state.session.id, payload);
@@ -405,7 +375,7 @@ export async function evaluateSessionById(
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
         productContext: formatProductContext(scenario, productConfig),
-        scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
+        scenarioPrompt: scenario.kickoffPrompt,
         scenarioType: resolveScenarioType(scenario),
         testCasesContext,
       }

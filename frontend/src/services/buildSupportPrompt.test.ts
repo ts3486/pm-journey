@@ -100,15 +100,6 @@ describe("buildSupportPrompt", () => {
     expect(result.scenarioPrompt).toContain("プロジェクトの背景情報です。");
   });
 
-  it("does not include customPrompt in returned agentContext", () => {
-    const scenario = makeScenario({
-      customPrompt: "あなたはエンジニアです。",
-    });
-    const result = buildSupportPrompt({ scenario, profile: supportProfile });
-
-    expect(result).not.toHaveProperty("customPrompt");
-  });
-
   it("uses support systemPrompt and tonePrompt from SUPPORT profile", () => {
     const scenario = makeScenario();
     const result = buildSupportPrompt({ scenario, profile: supportProfile });

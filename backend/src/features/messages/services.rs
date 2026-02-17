@@ -545,123 +545,6 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
     sections.join("\n\n")
 }
 
-fn build_system_instruction(ctx: &AgentContext) -> String {
-    let mut sections = Vec::new();
-
-    // Custom prompt takes highest priority — placed first so the model sees it before all other instructions.
-    if let Some(custom_prompt) = &ctx.custom_prompt {
-        if !custom_prompt.trim().is_empty() {
-            sections.push(format!("## 最優先指示\n以下の指示は他のすべての指示より優先されます。必ず従ってください。\n{}", custom_prompt));
-        }
-    }
-
-    sections.push(ctx.system_prompt.clone());
-    sections.push(ctx.scenario_prompt.clone());
-
-    if ctx.scenario_title.is_some() || ctx.scenario_description.is_some() {
-        let mut scenario_lines = Vec::new();
-        scenario_lines.push("## シナリオ文脈".to_string());
-        if let Some(title) = &ctx.scenario_title {
-            scenario_lines.push(format!("- タイトル: {}", title));
-        }
-        if let Some(description) = &ctx.scenario_description {
-            scenario_lines.push(format!("- 説明: {}", description));
-        }
-        sections.push(scenario_lines.join("\n"));
-    }
-
-    if let Some(tone_prompt) = &ctx.tone_prompt {
-        if !tone_prompt.trim().is_empty() {
-            sections.push(format!("## 会話トーン\n{}", tone_prompt));
-        }
-    }
-
-    if let Some(product_context) = &ctx.product_context {
-        sections.push(product_context.clone());
-    }
-
-    if let Some(behavior) = &ctx.behavior {
-        let mut behavior_lines = vec!["## シナリオ行動方針".to_string()];
-
-        if behavior.single_response.unwrap_or(false) {
-            behavior_lines.push("- これは1回応答のシナリオです".to_string());
-            behavior_lines.push("- ユーザーの入力意図を汲んで、実務的な返答を短く返す".to_string());
-            behavior_lines.push("- 追加の質問はしない".to_string());
-        } else if behavior.user_led.unwrap_or(false) {
-            behavior_lines.push("- ユーザー主導：こちらから議題を進めない".to_string());
-            behavior_lines.push("- まずは受領・挨拶の応答に留める".to_string());
-        } else if behavior.allow_proactive.unwrap_or(true) {
-            behavior_lines.push("- 必要な場合のみ次の一歩を1つ提案してよい".to_string());
-        }
-
-        let response_style = behavior.response_style.as_deref();
-        let is_single_response = behavior.single_response.unwrap_or(false);
-        let forbid_questions = is_single_response
-            || behavior.user_led.unwrap_or(false)
-            || response_style == Some("acknowledge_then_wait")
-            || behavior.max_questions == Some(0);
-
-        if forbid_questions {
-            behavior_lines.push("- 質問は禁止".to_string());
-        } else if let Some(max_questions) = behavior.max_questions {
-            behavior_lines.push(format!("- 質問は最大{max_questions}つまで"));
-        }
-
-        if let Some(style) = response_style {
-            let style_line = match style {
-                "acknowledge_then_wait" => "受領・共感中心で、次の進行はユーザーに委ねる",
-                "guide_lightly" => "短く受領し、必要な場合のみ軽く方向づける",
-                "advisor" => "前提を確認しつつ簡潔に助言する",
-                _ => "簡潔で礼儀正しく応答する",
-            };
-            behavior_lines.push(format!("- 応答スタイル: {}", style_line));
-        }
-
-        if let Some(phase) = behavior.phase.as_deref() {
-            behavior_lines.push(format!("- フェーズ: {}", phase));
-        }
-
-        sections.push(behavior_lines.join("\n"));
-    }
-
-    // If forbidRolePlay is set, add guardrail even in legacy path
-    if ctx
-        .behavior
-        .as_ref()
-        .and_then(|b| b.forbid_role_play)
-        .unwrap_or(false)
-    {
-        sections.push(
-            "## ガードレール\n- チームメンバーを演じない（エンジニア、デザイナー、PO等の役割を装わない）"
-                .to_string(),
-        );
-    }
-
-    let mut response_rules = vec![
-        "## 応答ルール".to_string(),
-        "- 1〜2文で回答する".to_string(),
-        "- 箇条書きやMarkdown記法は使わない".to_string(),
-    ];
-    let forbid_questions = ctx
-        .behavior
-        .as_ref()
-        .map(|b| {
-            b.user_led.unwrap_or(false)
-                || b.single_response.unwrap_or(false)
-                || b.response_style.as_deref() == Some("acknowledge_then_wait")
-                || b.max_questions == Some(0)
-        })
-        .unwrap_or(false);
-    if forbid_questions {
-        response_rules.push("- 質問はしない".to_string());
-    } else {
-        response_rules.push("- 質問は1つだけにする".to_string());
-    }
-    sections.push(response_rules.join("\n"));
-
-    sections.join("\n\n")
-}
-
 async fn generate_agent_reply(
     context: &AgentContext,
     messages: &[Message],
@@ -670,11 +553,7 @@ async fn generate_agent_reply(
     let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
     let gemini_key = credentials.api_key;
     let model_id = credentials.model_id;
-    let system_instruction = if context.task.is_some() {
-        build_support_system_instruction(context)
-    } else {
-        build_system_instruction(context)
-    };
+    let system_instruction = build_support_system_instruction(context);
 
     let context_messages = if messages.len() > 20 {
         &messages[messages.len() - 20..]
@@ -757,31 +636,6 @@ mod tests {
     use crate::features::messages::models::AgentBehavior;
     use crate::models::{DeliverableFormat, TaskDefinition};
 
-    fn make_legacy_context() -> AgentContext {
-        AgentContext {
-            system_prompt: "あなたはエンジニア兼デザイナーです".to_string(),
-            tone_prompt: Some("フラットで淡々とした口調".to_string()),
-            scenario_prompt: "このチケットの目的と受入条件を整理してください。".to_string(),
-            scenario_title: Some("チケット要件整理".to_string()),
-            scenario_description: Some("チケットの目的と受入条件を整理する。".to_string()),
-            product_context: Some("## プロダクト\n勤怠管理アプリ".to_string()),
-            model_id: None,
-            behavior: Some(AgentBehavior {
-                user_led: Some(false),
-                allow_proactive: Some(false),
-                max_questions: Some(0),
-                response_style: Some("acknowledge_then_wait".to_string()),
-                phase: None,
-                single_response: Some(true),
-                agent_response_enabled: Some(true),
-                assistance_mode: None,
-                forbid_role_play: None,
-            }),
-            custom_prompt: Some("あなたはチケットの整理内容を受け取るエンジニアです。".to_string()),
-            task: None,
-        }
-    }
-
     fn make_support_context() -> AgentContext {
         AgentContext {
             system_prompt: "あなたはPMスキル学習の支援アシスタントです。".to_string(),
@@ -792,17 +646,10 @@ mod tests {
             product_context: Some("## プロダクト\n勤怠管理アプリ".to_string()),
             model_id: None,
             behavior: Some(AgentBehavior {
-                user_led: None,
-                allow_proactive: None,
-                max_questions: None,
-                response_style: None,
-                phase: None,
                 single_response: None,
                 agent_response_enabled: None,
                 assistance_mode: Some("on-request".to_string()),
-                forbid_role_play: Some(true),
             }),
-            custom_prompt: None,
             task: Some(TaskDefinition {
                 instruction: "チケットの目的と受入条件を整理してください。".to_string(),
                 deliverable_format: DeliverableFormat::Structured,
@@ -811,31 +658,6 @@ mod tests {
                 hints: None,
             }),
         }
-    }
-
-    #[test]
-    fn legacy_context_produces_old_style_instruction() {
-        let ctx = make_legacy_context();
-        let result = build_system_instruction(&ctx);
-
-        assert!(result.contains("最優先指示"), "should contain custom prompt priority header");
-        assert!(result.contains("エンジニアです"), "should contain role-play custom prompt");
-        assert!(result.contains("シナリオ文脈"), "should contain scenario context section");
-        assert!(result.contains("会話トーン"), "should contain tone section");
-        assert!(result.contains("応答ルール"), "should contain response rules");
-        assert!(!result.contains("ガードレール"), "legacy without forbidRolePlay should not have guardrails");
-    }
-
-    #[test]
-    fn legacy_context_with_forbid_role_play_adds_guardrail() {
-        let mut ctx = make_legacy_context();
-        if let Some(behavior) = ctx.behavior.as_mut() {
-            behavior.forbid_role_play = Some(true);
-        }
-        let result = build_system_instruction(&ctx);
-
-        assert!(result.contains("ガードレール"), "should contain guardrails when forbidRolePlay is set");
-        assert!(result.contains("チームメンバーを演じない"), "guardrail should forbid role-play");
     }
 
     #[test]
@@ -921,33 +743,11 @@ mod tests {
     }
 
     #[test]
-    fn routing_uses_support_path_when_task_present() {
+    fn support_instruction_is_always_used() {
         let ctx = make_support_context();
-        assert!(ctx.task.is_some(), "support context should have task");
-
-        // The routing logic: if task is present, use support path
-        let result = if ctx.task.is_some() {
-            build_support_system_instruction(&ctx)
-        } else {
-            build_system_instruction(&ctx)
-        };
+        let result = build_support_system_instruction(&ctx);
 
         assert!(result.contains("ガードレール"), "should use support path with guardrails");
-        assert!(!result.contains("最優先指示"), "should not use legacy path");
-    }
-
-    #[test]
-    fn routing_uses_legacy_path_when_no_task() {
-        let ctx = make_legacy_context();
-        assert!(ctx.task.is_none(), "legacy context should not have task");
-
-        let result = if ctx.task.is_some() {
-            build_support_system_instruction(&ctx)
-        } else {
-            build_system_instruction(&ctx)
-        };
-
-        assert!(result.contains("最優先指示"), "should use legacy path with custom prompt");
-        assert!(result.contains("応答ルール"), "should have legacy response rules");
+        assert!(!result.contains("最優先指示"), "should not contain legacy custom prompt section");
     }
 }
