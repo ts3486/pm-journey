@@ -1,4 +1,4 @@
-import { getScenarioById, resolveAgentProfile } from "@/config";
+import { getScenarioById, getScenarioDiscipline, resolveAgentProfile } from "@/config";
 import type { AgentProfile } from "@/config";
 import { buildScenarioEvaluationCriteria } from "@/lib/scenarioEvaluationCriteria";
 import { api } from "@/services/api";
@@ -34,8 +34,7 @@ export const createLocalMessage = (
 
 const seededMessagesForBasicScenario = async (sessionId: string, scenario: Scenario): Promise<Message[]> => {
   const messages: Message[] = [];
-  const agentResponseEnabled = scenario.behavior?.agentResponseEnabled ?? true;
-  const agentOpening = agentResponseEnabled ? scenario.agentOpeningMessage?.trim() : undefined;
+  const agentOpening = scenario.agentOpeningMessage?.trim();
 
   if (agentOpening) {
     const posted = await api.postMessage(sessionId, "agent", agentOpening, ["summary"]);
@@ -93,7 +92,7 @@ const renderPromptTemplate = (
   const variables: Record<string, string | undefined> = {
     scenarioTitle: scenario.title,
     scenarioDescription: scenario.description,
-    scenarioDiscipline: scenario.discipline,
+    scenarioDiscipline: getScenarioDiscipline(scenario),
     scenarioType: scenario.scenarioType ?? "",
     productName: productConfig?.name,
     productSummary: productConfig?.summary,
@@ -104,9 +103,7 @@ const renderPromptTemplate = (
 };
 
 const resolveScenarioType = (scenario: Scenario): string => {
-  if (scenario.scenarioType) return scenario.scenarioType;
-  if (scenario.discipline === "CHALLENGE") return "challenge";
-  return "basic";
+  return scenario.scenarioType;
 };
 
 const formatProductContext = (scenario: Scenario, productConfig?: ProductConfig) => {
@@ -228,9 +225,9 @@ export async function startSession(scenario: Scenario): Promise<SessionState> {
   let session = await api.createSession(scenario.id);
   session = {
     ...session,
-    scenarioDiscipline: session.scenarioDiscipline ?? scenario.discipline,
+    scenarioDiscipline: session.scenarioDiscipline,
   };
-  const messages = scenario.scenarioType === "basic" ? await seededMessagesForBasicScenario(session.id, scenario) : [];
+  const messages = await seededMessagesForBasicScenario(session.id, scenario);
   storage.setLastSession(session.id, scenario.id);
   return { session, messages, evaluation: undefined, history: [], loading: false };
 }

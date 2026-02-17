@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { env } from "@/config/env";
+import { getScenarioDiscipline } from "@/config/scenarios";
 import type { Mission, Scenario, ScenarioDiscipline } from "@/types";
 
 export type ScenarioGuide = {
@@ -22,13 +23,13 @@ const GUIDE_MODAL_CLOSE_DURATION_MS = 200;
 
 export function buildScenarioGuide(scenario: Scenario): ScenarioGuide {
   const fallbackMessage = `${scenario.description}このシナリオに取り組みましょう。`;
-  const guidanceSentence = scenario.guideMessage?.trim() || fallbackMessage;
+  const guidanceSentence = scenario.agentOpeningMessage?.trim() || fallbackMessage;
 
   return {
     scenarioId: scenario.id,
     scenarioTitle: scenario.title,
     guidanceSentence,
-    discipline: scenario.discipline,
+    discipline: getScenarioDiscipline(scenario),
     missions: scenario.missions ?? [],
   };
 }

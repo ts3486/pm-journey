@@ -165,6 +165,7 @@ export type Scenario = {
   title: string;
   description: string;
   scenarioType: ScenarioType;
+  featureMockup?: FeatureMockup;
   behavior?: ScenarioBehavior;
   product: {
     name: string;
@@ -182,6 +183,7 @@ export type Scenario = {
     coreFeatures?: string[];
   };
   kickoffPrompt: string;
+  agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];

@@ -741,8 +741,14 @@ const applyMissionBasedCriteriaToScenarios = (list: Scenario[]) => {
 };
 
 const applyBasicPromptRoles = (list: Scenario[]) => {
-  // This function is kept for compatibility but scenarios already have
-  // properly configured kickoffPrompts defined
+  list.forEach((scenario) => {
+    const existingOpening = scenario.agentOpeningMessage?.trim();
+
+    // Always set agentOpeningMessage to kickoffPrompt if not already set
+    if (!existingOpening) {
+      scenario.agentOpeningMessage = scenario.kickoffPrompt;
+    }
+  });
 };
 
 const scenarioList: Scenario[] = [
@@ -868,6 +874,10 @@ const scenarioList: Scenario[] = [
     id: "test-login",
     title: "ログイン機能",
     scenarioType: "test-cases",
+    featureMockup: {
+      component: "login",
+      description: "メールアドレスとパスワードで認証するログインフォームです。",
+    },
     description: "ログイン機能のテストケースを作成し、認証フローとセキュリティ観点を網羅する。",
     task: {
       instruction: "ログイン機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
@@ -898,6 +908,10 @@ const scenarioList: Scenario[] = [
     id: "test-form",
     title: "フォーム機能",
     scenarioType: "test-cases",
+    featureMockup: {
+      component: "form",
+      description: "お問い合わせフォームです。入力検証とエラー表示を確認できます。",
+    },
     description: "入力フォームのテストケースを作成し、バリデーションとUXを網羅する。",
     task: {
       instruction: "フォーム機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
@@ -928,6 +942,10 @@ const scenarioList: Scenario[] = [
     id: "test-file-upload",
     title: "ファイルアップロード機能",
     scenarioType: "test-cases",
+    featureMockup: {
+      component: "file-upload",
+      description: "ドラッグ＆ドロップ対応のファイルアップロード機能です。",
+    },
     description: "ファイルアップロード機能のテストケースを作成し、ファイル検証とセキュリティを網羅する。",
     task: {
       instruction: "ファイルアップロード機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
@@ -1415,6 +1433,16 @@ const scenarioGuideMessages: Record<string, string> = {
 
 const applyScenarioGuideMessages = (list: Scenario[]) => {
   // This function is kept for compatibility but guideMessage is no longer a property
+};
+
+export const getScenarioDiscipline = (scenario: Scenario): "BASIC" | "CHALLENGE" => {
+  // Map scenarioType back to discipline for backward compatibility
+  // soft-skills, test-cases, requirement-definition are BASIC
+  // incident-response, business-execution are CHALLENGE
+  if (scenario.scenarioType === "incident-response" || scenario.scenarioType === "business-execution") {
+    return "CHALLENGE";
+  }
+  return "BASIC";
 };
 
 const requireScenarioSummary = (id: string): ScenarioSummary => {

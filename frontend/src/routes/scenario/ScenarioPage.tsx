@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { defaultScenario, getScenarioById } from "@/config";
+import { defaultScenario, getScenarioById, getScenarioDiscipline } from "@/config";
 import type { Scenario } from "@/types";
 import { FeatureGate } from "@/components/FeatureGate";
 import { ChatComposer } from "@/components/chat/ChatComposer";
@@ -93,10 +93,10 @@ export function ScenarioPage() {
       const snapshot = await startSession(scenario);
       const seededState = {
         ...snapshot,
-        session: { ...snapshot.session, scenarioDiscipline: scenario.discipline },
+        session: { ...snapshot.session, scenarioDiscipline: getScenarioDiscipline(scenario) },
       };
       const opening = snapshot.messages[0];
-      const shouldDelayInitialOpening = scenario.scenarioType === "basic" && opening?.role === "agent";
+      const shouldDelayInitialOpening = false;
 
       if (shouldDelayInitialOpening) {
         const initialMessages = snapshot.messages.filter((message) => message.id !== opening.id);
@@ -120,7 +120,7 @@ export function ScenarioPage() {
         type: "session_start",
         sessionId: snapshot.session.id,
         scenarioId: scenario.id,
-        scenarioDiscipline: scenario.discipline,
+        scenarioDiscipline: getScenarioDiscipline(scenario),
       });
     } catch (error) {
       setStartupError(error instanceof Error ? error.message : "シナリオを開始できませんでした。");
@@ -274,12 +274,14 @@ export function ScenarioPage() {
     );
   }
 
-  if (activeScenario.scenarioType === "test-case") {
+  if (activeScenario.scenarioType === "test-cases") {
     return (
       <>
         <TestCaseScenarioLayout
           scenario={activeScenario}
           state={state}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
           onOpenGuide={handleOpenGuide}

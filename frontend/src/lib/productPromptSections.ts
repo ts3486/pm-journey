@@ -1,3 +1,4 @@
+import { getScenarioDiscipline } from "@/config/scenarios";
 import type { ProductConfig, Scenario } from "@/types";
 
 export type PromptSectionKey =
@@ -335,7 +336,7 @@ export const buildProjectOverviewData = ({
     ? renderPromptTemplate(promptTemplate, {
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        scenarioDiscipline: scenario.discipline,
+        scenarioDiscipline: getScenarioDiscipline(scenario),
         productName: merged.name,
         productSummary: merged.summary,
         productAudience: merged.audience,
