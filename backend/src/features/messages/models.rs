@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub use crate::models::{Message, MessageRole, MessageTag, MissionStatus, Session};
+pub use crate::models::{Message, MessageRole, MessageTag, MissionStatus, Session, TaskDefinition};
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateMessageRequest {
@@ -34,6 +34,8 @@ pub struct AgentContext {
     pub behavior: Option<AgentBehavior>,
     #[serde(rename = "customPrompt")]
     pub custom_prompt: Option<String>,
+    #[serde(rename = "task", default)]
+    pub task: Option<TaskDefinition>,
 }
 
 #[derive(Deserialize, ToSchema, Clone)]
@@ -46,6 +48,10 @@ pub struct AgentBehavior {
     pub phase: Option<String>,
     pub single_response: Option<bool>,
     pub agent_response_enabled: Option<bool>,
+    #[serde(default)]
+    pub assistance_mode: Option<String>,
+    #[serde(default)]
+    pub forbid_role_play: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]

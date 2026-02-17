@@ -1,8 +1,10 @@
 import { getScenarioById, resolveAgentProfile } from "@/config";
+import type { AgentProfile } from "@/config";
 import { buildScenarioEvaluationCriteria } from "@/lib/scenarioEvaluationCriteria";
 import { api } from "@/services/api";
 import { storage } from "@/services/storage";
 import type {
+  AssistanceMode,
   Evaluation,
   HistoryItem,
   Message,
@@ -156,6 +158,82 @@ const formatProductContext = (scenario: Scenario, productConfig?: ProductConfig)
   return sections.join("\n");
 };
 
+export function buildAssistanceModeRules(mode: AssistanceMode): string {
+  const rules: Record<AssistanceMode, string> = {
+    "hands-off": `## 支援モード: 見守り
+- ユーザーの質問には答えない
+- タスク完了後に評価のみ行う`,
+    "on-request": `## 支援モード: 質問対応
+- ユーザーから質問があった場合のみ応答する
+- こちらから積極的にアドバイスしない
+- ヒントは求められたときだけ提供する`,
+    "guided": `## 支援モード: ガイド付き
+- ユーザーの進捗を確認し、次のステップを提案してよい
+- 質問は1つずつ
+- 考え方のフレームワークを示してよいが、答えは教えない`,
+    "review": `## 支援モード: レビュー
+- ユーザーが成果物を提出するまで待つ
+- 提出されたら、改善ポイントをフィードバックする
+- 良い点も指摘する`,
+  };
+  return rules[mode];
+}
+
+export function buildSupportPrompt({
+  scenario,
+  productConfig,
+  profile,
+}: {
+  scenario: Scenario;
+  productConfig?: ProductConfig;
+  profile: AgentProfile;
+}) {
+  const task = scenario.task!;
+
+  const taskSection = [
+    `## タスク指示`,
+    task.instruction,
+    ...(task.template?.sections
+      ? [`\n期待される構成:`, ...task.template.sections.map((s) => `- ${s}`)]
+      : []),
+    ...(task.template?.example
+      ? [`\n## 成果物の例\n${task.template.example}`]
+      : []),
+  ].join("\n");
+
+  const modeRules = buildAssistanceModeRules(
+    scenario.assistanceMode ?? scenario.behavior?.assistanceMode ?? "on-request",
+  );
+
+  const referenceSection = task.referenceInfo
+    ? `## 背景情報\n${task.referenceInfo}`
+    : "";
+
+  const productContext = formatProductContext(scenario, productConfig);
+
+  const scenarioPrompt = [taskSection, referenceSection, modeRules]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    systemPrompt: profile.systemPrompt,
+    tonePrompt: profile.tonePrompt,
+    modelId: profile.modelId,
+    scenarioPrompt,
+    scenarioTitle: scenario.title,
+    scenarioDescription: scenario.description,
+    productContext,
+    behavior: scenario.behavior,
+    task: {
+      instruction: task.instruction,
+      deliverableFormat: task.deliverableFormat,
+      template: task.template,
+      referenceInfo: task.referenceInfo,
+      hints: task.hints,
+    },
+  };
+}
+
 export async function startSession(scenario: Scenario): Promise<SessionState> {
   let session = await api.createSession(scenario.id);
   session = {
@@ -229,17 +307,19 @@ export async function sendMessage(
 
   const agentContext =
     role === "user" && scenario
-      ? {
-          systemPrompt: profile.systemPrompt,
-          tonePrompt: profile.tonePrompt,
-          modelId: profile.modelId,
-          scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
-          scenarioTitle: scenario.title,
-          scenarioDescription: scenario.description,
-          productContext: formatProductContext(scenario, productConfig),
-          behavior: scenario.behavior,
-          customPrompt: scenario.customPrompt,
-        }
+      ? scenario.task
+        ? buildSupportPrompt({ scenario, productConfig, profile })
+        : {
+            systemPrompt: profile.systemPrompt,
+            tonePrompt: profile.tonePrompt,
+            modelId: profile.modelId,
+            scenarioPrompt: buildScenarioContext(scenario) || scenario.kickoffPrompt,
+            scenarioTitle: scenario.title,
+            scenarioDescription: scenario.description,
+            productContext: formatProductContext(scenario, productConfig),
+            behavior: scenario.behavior,
+            customPrompt: scenario.customPrompt,
+          }
       : undefined;
 
   const apiMessage = await api.postMessage(

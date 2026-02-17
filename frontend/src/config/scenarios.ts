@@ -1755,8 +1755,16 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "あなたは新しくプロジェクトに参加したPMです。チームの信頼を得るためにまずは自己紹介をしてみましょう。",
-    customPrompt: "簡潔に「こちらこそよろしくお願いします！」とだけ返してください。",
-    behavior: { ...singleResponseBehavior},
+    task: {
+      instruction: "新しくプロジェクトに参加したPMとして、チームに向けた自己紹介メッセージを作成してください。",
+      deliverableFormat: "free-text",
+      referenceInfo: "あなたは新しくプロジェクトに参加したPMです。自己紹介をしてください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "こんにちは！エンジニア兼デザイナーの鈴木です。よろしくお願いします！",
@@ -1773,8 +1781,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "会議の決定事項とアクションを整理する。",
-    customPrompt: "あなたは議事メモを受け取るチームメンバーです。議事メモの受領を自然な形で確認してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "先ほどのミーティングの議事メモを作成してください。決定事項と次のアクションを整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["決定事項", "未決事項", "次のアクション（担当・期限）"],
+      },
+      referenceInfo: "決定事項・未決事項・次アクションを簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1792,8 +1812,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "他のメンバーとミーティングを組む時に送るメッセージを作成してください。",
-    customPrompt: "このシナリオではAI応答がありません。評価時には、メッセージが明確で必要な情報(目的・議題・日時候補)を含んでいるかを重視してください。",
-    behavior: { ...singleResponseBehavior },
+    task: {
+      instruction: "要件詰めのミーティングを開催するため、関係者に送る調整メッセージを作成してください。",
+      deliverableFormat: "free-text",
+      template: {
+        format: "free-text",
+        checklist: ["目的", "議題", "日時候補", "参加者"],
+      },
+      referenceInfo: "要件詰めのミーティングを開催予定です。関係者のスケジュール調整をする時に送るメッセージを作成してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1811,8 +1843,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "資料の目的を整理し改善点を提案する。",
-    customPrompt: "あなたは改善提案を受け取る実務担当者です。資料の改善アドバイスに対して、現実的で前向きな反応を返してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "この資料の目的と対象読者を整理し、改善点を提案してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的", "対象読者", "改善点"],
+      },
+      referenceInfo: "目的・対象・改善点を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1830,8 +1874,32 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "チケットの目的と受入条件を整理する。",
-    customPrompt: "あなたはチケットの整理内容を受け取るエンジニアです。要件整理に対して、実装者の立場から建設的に応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "以下のチケットについて、目的・受入条件・依存関係を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的（ユーザーストーリー形式）", "受入条件（AC）", "依存関係", "リスク"],
+        example: `## 目的
+「ユーザーとして、〇〇できるようにしたい。なぜなら〇〇だから。」
+
+## 受入条件
+- [ ] 〇〇の場合、〇〇が表示される
+- [ ] 〇〇が〇〇以内に完了する
+
+## 依存関係
+- API設計: 担当〇〇、期日〇〇
+
+## リスク
+- 〇〇の場合、〇〇が発生する可能性がある → 対策: 〇〇`,
+      },
+      referenceInfo: "目的・受入条件・依存関係を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "このチケットの目的と受入条件を整理してください。",
@@ -1848,8 +1916,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "大きなチケットを分割し優先度を付ける。",
-    customPrompt: "あなたはチケット分割案を受け取るチームメンバーです。分割の妥当性を確認する立場として応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "この大きなチケットを実行可能な単位に分割し、優先度を付けてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["分割チケット一覧", "優先度（理由付き）", "依存関係"],
+      },
+      referenceInfo: "実行可能な単位に分割し、優先度を付けてください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1867,8 +1947,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "受入条件をレビューし改善する。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたは受入条件のレビュー結果を受け取るエンジニアです。改善提案を前向きに受け止める姿勢で応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "この受入条件をレビューし、改善点を提案してください。曖昧な表現を修正し、検証可能な形に整えてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["レビュー対象の受入条件", "改善点", "修正後の受入条件"],
+      },
+      referenceInfo: "曖昧な表現を修正し、検証可能な形に整えてください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1886,8 +1978,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "不明点を洗い出し確認方法を整理する。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたは不明点リストを受け取るチームメンバーです。不明点の整理を自然に受け止める形で応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "要件の不明点を洗い出し、確認方法を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["不明点一覧", "確認先", "確認方法・期限"],
+      },
+      referenceInfo: "不明点と確認先を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1905,8 +2009,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "テストケースを洗い出す。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたはテストケースを受け取るチームメンバーです。テストケースの提出を確認する形で応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "この機能のテストケースを洗い出してください。正常系と異常系を網羅してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["正常系テストケース", "異常系テストケース", "境界値テスト"],
+      },
+      referenceInfo: "正常系と異常系を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt: "この機能のテストケースを洗い出してください。",
@@ -1927,8 +2043,22 @@ const scenarioList: Scenario[] = [
       description: "メールアドレスとパスワードで認証するログインフォームです。",
     },
     description: "ログイン機能のテストケースを作成し、認証フローとセキュリティ観点を網羅する。",
-    customPrompt: "あなたはログイン機能の仕様を把握しているプロダクトオーナーです。質問には協力的に答えますが、自らテストケースを提案することは避けてください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "ログイン機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["正常系テストケース", "異常系テストケース", "前提条件とテストデータ"],
+      },
+      referenceInfo: `ログイン仕様:
+- メールアドレス: 有効なメール形式のみ
+- パスワード: 8文字以上
+- ログイン試行: 5回失敗で15分ロック
+- 「ログイン状態を保持」: 30日間有効
+パスワード誤り、アカウントロック、セッション管理などの観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1957,8 +2087,22 @@ const scenarioList: Scenario[] = [
       description: "お問い合わせフォームです。入力検証とエラー表示を確認できます。",
     },
     description: "入力フォームのテストケースを作成し、バリデーションとUXを網羅する。",
-    customPrompt: "あなたはフォーム機能の仕様を把握しているプロダクトオーナーです。質問には役立つ情報を提供しますが、テストケースそのものは提案しないでください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "フォーム機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["入力バリデーションケース", "エラー表示と操作性", "前提条件とテストデータ"],
+      },
+      referenceInfo: `フォーム仕様:
+- 必須項目: 名前、メール、カテゴリ、内容、同意
+- メール: 有効な形式のみ
+- 電話: 任意、10〜13桁の数字とハイフン
+- 内容: 10〜1000文字
+必須/任意、フォーマット、文字種、長さ制限などの観点を網羅してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -1987,8 +2131,23 @@ const scenarioList: Scenario[] = [
       description: "ドラッグ＆ドロップ対応のファイルアップロード機能です。",
     },
     description: "ファイルアップロード機能のテストケースを作成し、ファイル検証とセキュリティを網羅する。",
-    customPrompt: "あなたはファイルアップロード機能の仕様を理解しているプロダクトオーナーです。仕様に関する質問に答えますが、テストケースの提案は控えてください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "ファイルアップロード機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["ファイル種別・サイズ検証ケース", "エラー処理とセキュリティ", "前提条件とテストデータ"],
+      },
+      referenceInfo: `アップロード仕様:
+- 対応形式: JPEG, PNG, GIF, PDF
+- 最大サイズ: 10MB/ファイル
+- 最大ファイル数: 5
+- ドラッグ＆ドロップ対応
+- アップロード失敗時は再試行可能
+拡張子偽装、ウイルスチェック、ストレージ容量などのセキュリティ観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2018,8 +2177,22 @@ const scenarioList: Scenario[] = [
       description: "メール認証コードでパスワードを再設定するフローです。",
     },
     description: "パスワード再設定機能のテストケースを作成し、再設定フローとセキュリティ観点を網羅する。",
-    customPrompt: "あなたはパスワード再設定機能の仕様を知っているプロダクトオーナーです。質問には協力的に答えますが、テストケースは提案しないでください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "パスワード再設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["再設定フロー正常系", "セキュリティ・異常系", "前提条件とテストデータ"],
+      },
+      referenceInfo: `再設定仕様:
+- 再設定メールは登録済みアドレスにのみ送信
+- 確認コード有効期限: 10分
+- コード入力失敗: 3回で無効化
+- 新しいパスワード: 8文字以上、英数字を含む
+トークン有効期限、再利用防止、既存セッション無効化の観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2048,8 +2221,22 @@ const scenarioList: Scenario[] = [
       description: "一覧画面で検索・絞り込み・並び替えができる機能です。",
     },
     description: "検索・絞り込み機能のテストケースを作成し、検索精度と操作性を網羅する。",
-    customPrompt: "あなたは検索・絞り込み機能の仕様を理解しているプロダクトオーナーです。質問に答えることで仕様を明確にしますが、テストケースは提案しません。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "検索・絞り込み機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["検索クエリ正常系・境界値", "絞り込みと並び替えの組み合わせ", "0件・エラー・操作性"],
+      },
+      referenceInfo: `検索仕様:
+- キーワード検索: 部分一致（2文字以上で検索）
+- 絞り込み: カテゴリ、ステータス、担当者
+- 並び替え: 更新日、作成日、名前
+- 検索条件は画面遷移後も保持
+複合条件、0件表示、APIエラー、条件保持の観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2078,8 +2265,22 @@ const scenarioList: Scenario[] = [
       description: "チャネル別・イベント別に通知受信設定を変更できる機能です。",
     },
     description: "通知設定機能のテストケースを作成し、設定反映と権限観点を網羅する。",
-    customPrompt: "あなたは通知設定機能の仕様を把握しているプロダクトオーナーです。質問には協力的に答えますが、テストケースを自ら提案することは避けてください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "通知設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["チャネル別・イベント別設定ケース", "保存反映と権限エラー", "前提条件と優先度"],
+      },
+      referenceInfo: `通知設定仕様:
+- チャネル: メール、プッシュ、Slack
+- 通知種別: 週次サマリー、メンション、障害アラート
+- Do Not Disturb: 22:00〜07:00
+- 設定変更は保存ボタン押下で反映
+権限拒否、連携失敗、再ログイン後保持、複数端末反映の観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2108,8 +2309,22 @@ const scenarioList: Scenario[] = [
       description: "プロフィール情報と画像を更新できる編集画面です。",
     },
     description: "プロフィール編集機能のテストケースを作成し、入力検証と保存整合性を網羅する。",
-    customPrompt: "あなたはプロフィール編集機能の仕様を理解しているプロダクトオーナーです。質問には仕様情報を提供しますが、テストケースそのものは提案しません。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "プロフィール編集機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["入力項目バリデーション", "画像アップロードと保存処理", "権限・公開範囲"],
+      },
+      referenceInfo: `プロフィール仕様:
+- 表示名: 必須、最大50文字
+- 自己紹介: 任意、最大160文字
+- 画像: PNG/JPEG/WEBP、最大5MB
+- 保存時に最終更新日時をチェックし、競合時は再編集を促す
+入力制約、競合検知、公開範囲、権限観点を意識してください。`,
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2134,8 +2349,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "テスト観点を洗い出す。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたはテスト観点リストを受け取るチームメンバーです。提出内容を自然に受け止める形で応答してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "この機能のテスト観点を洗い出し、優先順位を付けてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["テスト観点一覧", "優先度と理由"],
+      },
+      referenceInfo: "観点と優先順位を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2153,8 +2380,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "テスト計画をリスク観点でレビューする。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたはテスト計画のレビュー結果を受け取るチームメンバーです。リスク分析の提出を確認してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "このテスト計画をレビューし、高リスク領域と優先度を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["高リスク領域", "優先度と根拠", "追加テスト提案"],
+      },
+      referenceInfo: "高リスク領域と優先度を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2172,8 +2411,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "回帰テストの最小セットを整理する。1回の回答でシナリオが終了します。",
-    customPrompt: "あなたは回帰テストセットの整理結果を受け取るチームメンバーです。提出内容を自然に受け止めてください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "回帰テストの最小セットを整理してください。必須ケースと優先度を明確にしてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["必須テストケース", "優先度", "スモークテスト候補"],
+      },
+      referenceInfo: "必須フローと優先度を簡潔に整理してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2191,8 +2442,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "ログイン機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはログイン機能の改善を依頼するプロダクトオーナー「鈴木」です。問い合わせ増加を懸念しており、要件定義をサポートしてほしいと考えています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "ログイン機能の要件定義を行ってください。『ログインできない』問い合わせが増えているため、最低限のログイン体験を安定化するための要件を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "受入条件", "非対象と不明点の確認"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。目的・対象ユーザーの確認、受入条件と非対象の整理、不明点の確認先と期限の設定まで行ってください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2211,8 +2471,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "問い合わせフォーム機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはCSと法務の対立する要件を抱えるプロダクトオーナーです。入力項目削減と同意取得厳格化の両立に悩んでおり、PMに整理を期待しています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "問い合わせフォーム機能の要件を整理してください。CSの入力項目削減要求と法務の同意取得厳格化の両立を検討し、要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "入力/送信/エラー時の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。入力バリデーション、送信失敗時の扱い、同意取得の境界を明確にし、不明点の確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2233,8 +2502,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "ファイルアップロード機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたは営業の早期リリース要求とインフラのサイズ制限遵守の板挟みになっているプロダクトオーナーです。PMに要件整理を依頼しています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "ファイルアップロード機能の要件を整理してください。営業の早期リリース要求とインフラのサイズ制限遵守の両立を検討し、要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "形式/サイズ/失敗時の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。許可形式、サイズ上限、失敗時リトライの期待挙動を明確化し、不明点の確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2255,8 +2533,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "パスワード再設定機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはUXの簡便性とセキュリティの厳格性の間で悩んでいるプロダクトオーナーです。パスワード再設定の問い合わせ急増に対処したいと考えています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "パスワード再設定機能の要件を整理してください。UXの簡便性とセキュリティの厳格性の両立を検討し、問い合わせ急増に対処するための要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "本人確認/期限/完了条件の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。トークン有効期限と不正利用防止を含む受入条件を明確化し、不明点の確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2277,8 +2564,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "検索・絞り込み機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはPMの多条件検索要求と開発の性能懸念の間で調整が必要なプロダクトオーナーです。PMに要件整理のサポートを求めています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "検索・絞り込み機能の要件を整理してください。多条件検索の要求と開発の性能懸念の両立を検討し、要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "検索条件/ソート/0件表示の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。複合条件検索と0件表示の期待挙動を明確化し、性能懸念に関する確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2299,8 +2595,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "通知設定機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはマーケティングの通知増加要求とユーザーの通知過多不満の板挟みになっているプロダクトオーナーです。PMに要件定義の協力を求めています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "通知設定機能の要件を整理してください。マーケティングの通知頻度増加要求とユーザーの通知過多不満の両立を検討し、要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "チャネル/頻度/保存反映の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。保存後の反映と権限拒否時の挙動を含む受入条件を定義し、不明点の確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2321,8 +2626,17 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "プロフィール編集機能のユーザーストーリーと受入条件を定義する。",
-    customPrompt: "あなたはユーザーの即時保存期待と開発の同時編集競合懸念の間で調整が必要なプロダクトオーナーです。PMに要件整理を依頼しています。",
-    behavior: requirementDialogueBehavior,
+    task: {
+      instruction: "プロフィール編集機能の要件を整理してください。即時保存の期待と同時編集時の競合懸念の両立を検討し、要件定義を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["目的・対象ユーザー", "入力制約/保存/競合時の受入条件", "非対象と不明点の確認アクション"],
+      },
+      referenceInfo: "会話で段階的に要件を合意してください。保存失敗時と競合時の期待挙動を含む受入条件を明確化し、不明点の確認計画まで整理してください。",
+    },
+    assistanceMode: "guided" as const,
+    behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2342,8 +2656,17 @@ const scenarioList: Scenario[] = [
     title: "ステークホルダー優先度交渉",
     discipline: "BASIC",
     description: "営業の早期リリース要求と開発の品質要求が対立する状況で、優先度の合意形成を進める。",
-    customPrompt: "あなたは営業と開発の両方の視点を代弁する立場です。それぞれの主張を適度に表現しながら、PMの調整をサポートしてください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "営業と開発の対立する要求を整理し、優先度の合意形成を進めてください。対立点と共通目的を明確にし、譲歩案と判断基準を示した上で合意事項をまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["対立点と共通目的", "譲歩案と判断基準", "合意事項・保留事項・次アクション"],
+      },
+      referenceInfo: "状況:\n- 営業は「今月中に新機能を出したい」と主張している\n- 開発は「品質基準を満たさない限りリリースできない」と主張している\n- 両者の視点にはそれぞれ合理的な根拠がある\n- PMとして対立点を整理し、合意形成に向けた交渉を進める必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2362,8 +2685,17 @@ const scenarioList: Scenario[] = [
     title: "優先度トレードオフ",
     discipline: "BASIC",
     description: "複数要望を価値/工数/リスクで比較し、段階リリース方針を合意する。",
-    customPrompt: "あなたは3つの機能候補についての比較をサポートする協力者です。PMの分析を助けるために質問に答え、トレードオフの議論を促進してください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "次リリース候補の3案を価値・工数・リスクで比較し、段階リリースの合意案を作ってください。比較軸を定義し、採用案と却下案を整理した上で判断理由をまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["比較軸の定義と各案の評価", "採用案と却下案", "段階リリース計画と判断理由"],
+      },
+      referenceInfo: "状況:\n- 次リリース候補として「高速検索」「通知改善」「管理画面改修」の3案がある\n- 各案の価値・工数・リスクを比較する必要がある\n- PMとしてトレードオフを分析し、段階リリース方針の合意を導く必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2383,8 +2715,17 @@ const scenarioList: Scenario[] = [
     title: "意思決定ログ共有と認識合わせ",
     discipline: "BASIC",
     description: "既存の意思決定ログをもとに、関係者間の認識ズレを解消する。",
-    customPrompt: "あなたは過去の意思決定について営業と開発で微妙に異なる理解を持っている関係者です。PMの認識合わせに協力的に応じてください。",
-    behavior: guidedBehavior,
+    task: {
+      instruction: "意思決定ログを整理し、関係者間の認識ズレを解消してください。ズレているポイントを特定し、背景と根拠を再整理した上で共有文面と確認ポイントをまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["ズレている認識ポイント", "意思決定の背景と根拠", "共有文面と確認ポイント"],
+      },
+      referenceInfo: "状況:\n- 先週決めた「段階リリース方針」について、営業と開発で認識にズレが出ている\n- 各関係者は過去の意思決定について微妙に異なる理解を持っている\n- PMとして意思決定ログを整理し、共有メッセージと確認ポイントを作成する必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2402,9 +2743,18 @@ const scenarioList: Scenario[] = [
     id: "coming-incident-response",
     title: "P1障害: ログイン不能バグの緊急対応",
     discipline: "CHALLENGE",
-    description: "全ユーザーがログインできない致命的不具合に対し、初動対応と報告方針を会話で確定する。",
-    customPrompt: "あなたは緊急の障害を報告するエンジニアです。状況の深刻さを伝え、PMの迅速な判断と指示を求める緊迫感を持って応答してください。",
-    behavior: challengeBehavior,
+    description: "全ユーザーがログインできない致命的不具合に対し、初動対応と報告方針を整理する。",
+    task: {
+      instruction: "P1障害が発生しました。以下の状況を読み、PMとして初動対応計画を作成してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["影響範囲と緊急度", "初動対応アクション", "連絡先とエスカレーション", "初回報告文"],
+      },
+      referenceInfo: "状況:\n- 本番環境でログインAPIが500エラーを返し続けている\n- 全ユーザーがログイン不能\n- 発生時刻: 不明（最初のアラートから10分経過）\n- 影響範囲: 全ユーザー",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2423,8 +2773,17 @@ const scenarioList: Scenario[] = [
     title: "P2障害: 決済遅延バグ",
     discipline: "CHALLENGE",
     description: "一部ユーザーで決済完了通知が遅延する重大不具合について、トリアージとエスカレーション判断を行う。",
-    customPrompt: "あなたは決済遅延の不具合に気づいたエンジニアです。問題の影響を懸念しており、PMの判断とガイダンスを必要としています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "P2障害が発生しています。以下の状況を読み、PMとして優先度判定とエスカレーション判断を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["事象の再現条件と影響範囲", "優先度判定と根拠", "エスカレーション経路", "報告リズムと次回報告時刻"],
+      },
+      referenceInfo: "状況:\n- 決済処理自体は成功しているが、完了通知の反映が最大20分遅延\n- 一部ユーザーに影響\n- P2想定",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2442,9 +2801,18 @@ const scenarioList: Scenario[] = [
     id: "coming-postmortem-followup",
     title: "P3障害: 表示崩れバグの再発防止",
     discipline: "CHALLENGE",
-    description: "特定端末で発生する軽微不具合について、原因分析と再発防止策を会話で合意する。",
-    customPrompt: "あなたは軽微な表示崩れを報告するエンジニアです。問題の影響は限定的ですが、再発防止について相談したいと考えています。",
-    behavior: challengeBehavior,
+    description: "特定端末で発生する軽微不具合について、原因分析と再発防止策を整理する。",
+    task: {
+      instruction: "P3不具合が報告されました。以下の状況を読み、PMとして原因分析と再発防止策を整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["事実と原因仮説", "暫定対応と恒久対応", "再発防止アクション（担当・期限）", "検証方法"],
+      },
+      referenceInfo: "状況:\n- Androidの一部端末でプロフィール画面のボタンが重なって表示崩れ\n- P3: 影響は限定的\n- 再発防止の仕組みづくりが求められている",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2464,8 +2832,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "ふりかえり会を設計し、改善アクションを導き出す。",
-    customPrompt: "あなたはスプリント振り返りの改善アクションを受け取るチームメンバーです。提案を前向きに受け止めてください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "スプリント振り返りの進め方と改善アクションを整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["Keep（継続すること）", "Problem（課題）", "Try（改善アクション）"],
+      },
+      referenceInfo: "Keep/Problem/Try を使って、具体的な改善アクションを示してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2483,8 +2863,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "リリース直前の準備状況を確認し、Go/No-Go判断材料を整理する。",
-    customPrompt: "あなたはリリース準備レビューの整理結果を受け取るチームメンバーです。判断材料の提出を確認してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "リリース準備レビューのチェック項目と判断基準を整理してください。",
+      deliverableFormat: "checklist",
+      template: {
+        format: "checklist",
+        checklist: ["品質チェック", "運用準備", "告知・ドキュメント", "ロールバック計画"],
+      },
+      referenceInfo: "品質、運用、告知、ロールバック観点のチェック項目を示してください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2502,8 +2894,20 @@ const scenarioList: Scenario[] = [
     discipline: "BASIC",
     scenarioType: "basic",
     description: "事業KPIの振り返りを行い、次の改善施策を定義する。",
-    customPrompt: "あなたはKPIレビューと改善施策の提案を受け取るチームメンバーです。分析結果の提出を確認してください。",
-    behavior: singleResponseBehavior,
+    task: {
+      instruction: "主要KPIの振り返りと次スプリントの改善アクションを整理してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["KPIの現状", "課題仮説", "改善施策", "検証方法"],
+      },
+      referenceInfo: "KPIの現状、課題仮説、施策、検証方法を明確にしてください。",
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
     product: sharedProduct,
     mode: "guided",
     kickoffPrompt:
@@ -2520,8 +2924,17 @@ const scenarioList: Scenario[] = [
     title: "遅延プロジェクト立て直し (チャレンジ)",
     discipline: "CHALLENGE",
     description: "遅延しているプロジェクトでスコープ再交渉とリカバリ計画を短時間でまとめる。",
-    customPrompt: "あなたは遅延プロジェクトで疲弊しているエンジニアです。フラストレーションを抱えつつも、PMの立て直し案に期待を寄せています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "遅延しているプロジェクトのPM/PMOとして、遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["遅延要因とリスク", "スコープ再構成と優先度", "リカバリ計画", "関係者コミュニケーション案"],
+      },
+      referenceInfo: "状況:\n- プロジェクトが遅延しており、チームは疲弊している\n- 品質バーを下げずに間に合わせる打ち手が求められている\n- 並行作業・カット案・リソース振替を検討可能",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。",
@@ -2539,8 +2952,17 @@ const scenarioList: Scenario[] = [
     title: "リリース期限の突然の前倒し (チャレンジ)",
     discipline: "CHALLENGE",
     description: "外部要因で期限が前倒しになり、影響分析と打ち手を提案する。",
-    customPrompt: "あなたは期限前倒しに不安を感じているチームメンバーです。現実的な対応策を求めており、PMの判断を待っています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとしてリリース期限が突然前倒しになった状況に対応します。影響範囲を整理し、複数の打ち手と合意形成を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["影響範囲", "選択肢とトレードオフ", "合意した方針", "次アクション"],
+      },
+      referenceInfo: "状況:\n- 外部要因でリリース期限が前倒しになった\n- チームは不安を感じている\n- 品質・スコープ・リソースのトレードオフ判断が必要",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2559,8 +2981,17 @@ const scenarioList: Scenario[] = [
     title: "進捗が見えない状況への対応 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "進捗が見えない状況で可視化と打ち手を設計する。",
-    customPrompt: "あなたは進捗が不透明な状況で困惑しているチームメンバーです。明確な方向性を求めており、PMのリードに期待しています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして進捗が見えない状況に対応します。最小限の可視化手段と報告リズムを設計し、次アクションを決めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["進捗可視化の指標と方法", "リスク要因", "報告リズム", "次アクション"],
+      },
+      referenceInfo: "状況:\n- プロジェクトの進捗が不透明\n- チームメンバーは方向性を求めている\n- 最小限の指標で現状把握が必要",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2579,8 +3010,17 @@ const scenarioList: Scenario[] = [
     title: "品質問題の緊急対応と優先度調整 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "品質問題が発生し、緊急対応と優先度を再調整する。",
-    customPrompt: "あなたは品質危機に直面しているエンジニアです。状況の深刻さを認識しており、PMの迅速な優先度判断を求めています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして品質問題に緊急対応します。原因と影響を整理し、優先度と対応方針を合意してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["品質問題の原因と影響", "緊急対応と優先度", "関係者への説明", "合意事項"],
+      },
+      referenceInfo: "状況:\n- 品質問題が発生し、緊急対応が必要\n- ユーザー影響とリリース計画のトレードオフ判断が求められている",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2599,8 +3039,17 @@ const scenarioList: Scenario[] = [
     title: "要件が曖昧な依頼への対応 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "曖昧な要求を具体化し、合意できるスコープを作る。",
-    customPrompt: "あなたは曖昧な要件しか持っていないステークホルダーです。何が欲しいのか自分でも明確ではなく、PMに整理を手伝ってほしいと考えています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして曖昧な依頼に対応します。成功条件と仮スコープを整理し、確認事項と次アクションを合意してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["成功条件", "仮スコープと非対象", "確認事項", "次アクション"],
+      },
+      referenceInfo: "状況:\n- ステークホルダーから曖昧な要件の依頼が来ている\n- 何が欲しいのか依頼者自身も明確ではない\n- 曖昧さを放置せず、仮置きでも合意を取って進める必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2619,8 +3068,17 @@ const scenarioList: Scenario[] = [
     title: "追加スコープ要求の交渉 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "追加要求に対してスコープ調整と合意形成を行う。",
-    customPrompt: "あなたは追加スコープを強く求めるステークホルダーです。ビジネス上の必要性を主張しつつも、PMの調整案には耳を傾ける姿勢を持っています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして追加スコープ要求の交渉を行います。代替案と影響を提示し、合意内容をまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["追加要求の背景と目的", "代替案と影響", "合意内容", "次アクション"],
+      },
+      referenceInfo: "状況:\n- ステークホルダーから追加スコープの要求が来ている\n- ビジネス上の必要性が主張されている\n- 期限・品質・リソースのトレードオフ判断が必要",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2639,8 +3097,17 @@ const scenarioList: Scenario[] = [
     title: "スコープ／リソース交渉 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "顧客や上長とスコープ削減かリソース増加を交渉し、合意形成する。",
-    customPrompt: "あなたはスコープとリソースの交渉に関わるステークホルダーです。それぞれの制約を持ちながらも、PMと現実的な落とし所を探っています。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["譲れない条件とBATNA", "スコープ/リソースの代替案とインパクト", "合意プロセス", "残存リスクとフォローアップ"],
+      },
+      referenceInfo: "状況:\n- 顧客や上長とスコープ削減またはリソース増加の交渉が必要\n- 各ステークホルダーはそれぞれの制約を持っている\n- 合意後に残るリスクとフォローアップの記録が求められる",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。",
@@ -2658,8 +3125,17 @@ const scenarioList: Scenario[] = [
     title: "エンジニアから「無理です」と言われる (チャレンジ)",
     discipline: "CHALLENGE",
     description: "技術的制約を理解し、代替案と合意を作る。",
-    customPrompt: "あなたは技術的に実現困難だと判断したエンジニアです。明確な根拠を持ちながらも、PMの代替案提案には協力的に検討します。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PMとしてエンジニアから実現困難と指摘された状況に対応します。制約を整理し、代替案と合意形成を進めてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["制約・根拠の整理", "代替案と影響の比較", "合意した対応", "次アクション"],
+      },
+      referenceInfo: "状況:\n- エンジニアから技術的に実現困難だと指摘された\n- 明確な根拠がある\n- 無理の理由を尊重しつつ、実現可能な落とし所を探す必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2678,8 +3154,17 @@ const scenarioList: Scenario[] = [
     title: "コンフリクト調整 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "開発とQA・ビジネスの対立をファシリテートし、合意に導く。",
-    customPrompt: "あなたは会議で対立している複数の関係者を演じます。それぞれ異なる主張を持ちつつも、PMの調整に応じる姿勢を見せてください。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["論点と事実/解釈の整理", "合意の選択肢と条件", "フォロータスクと担当"],
+      },
+      referenceInfo: "状況:\n- 開発・QA・ビジネスの間で対立が発生している\n- それぞれ異なる主張を持っており、感情的になりやすい\n- PMとして事実と解釈を分けて整理し、全員が前進できる合意点を導く必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt: "あなたはPM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
@@ -2697,8 +3182,17 @@ const scenarioList: Scenario[] = [
     title: "優先度対立のファシリテーション (チャレンジ)",
     discipline: "CHALLENGE",
     description: "関係者間の優先度対立を整理し、合意に導く。",
-    customPrompt: "あなたは優先度について異なる見解を持つステークホルダーたちです。それぞれの立場から主張しつつ、PMのファシリテーションに協力してください。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとして優先度対立をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["対立の論点整理", "合意の選択肢と条件", "フォロータスクと担当"],
+      },
+      referenceInfo: "状況:\n- 関係者間で優先度について異なる見解が存在している\n- それぞれの立場に合理的な根拠がある\n- PMとして事実と解釈を分け、公平にファシリテーションする必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2717,8 +3211,17 @@ const scenarioList: Scenario[] = [
     title: "ステークホルダーとの認識ズレ解消 (チャレンジ)",
     discipline: "CHALLENGE",
     description: "期待値のズレを解消し、共通認識と再発防止を作る。",
-    customPrompt: "あなたは期待値にズレがあるステークホルダーです。自分の理解が正しいと思い込んでいましたが、PMの説明には耳を傾けます。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとしてステークホルダー間の認識ズレを解消します。ズレの原因を整理し、共通認識と再発防止プロセスを合意してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["ズレているポイントの特定", "共通認識の再整理", "再発防止の確認プロセス"],
+      },
+      referenceInfo: "状況:\n- ステークホルダー間で期待値にズレが発生している\n- 各自が自分の理解が正しいと思い込んでいる\n- PMとしてズレの原因を整理し、合意後の確認プロセス（定例やチェックポイント）まで設計する必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:
@@ -2737,8 +3240,17 @@ const scenarioList: Scenario[] = [
     title: "ユーザー視点が抜けていることへの気づき (チャレンジ)",
     discipline: "CHALLENGE",
     description: "ユーザー視点の欠落に気づき、価値に立ち返る。",
-    customPrompt: "あなたは技術実装に集中していてユーザー視点が薄れているチームメンバーです。PMの指摘に最初は戸惑いつつも、理解を示します。",
-    behavior: challengeBehavior,
+    task: {
+      instruction: "PM/PMOとしてユーザー視点が抜けていることに気づきます。ユーザー行動を整理し、最小限の改善案と合意を作ってください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: ["ユーザー行動フローの整理", "価値と影響の説明", "最小改善案と合意"],
+      },
+      referenceInfo: "状況:\n- チームが技術実装に集中し、ユーザー視点が薄れている\n- 機能は作られているが、ユーザーにとっての価値が見えにくくなっている\n- PMとして機能ではなく価値に立ち返り、最小の打ち手を提案する必要がある",
+    },
+    assistanceMode: "guided",
+    behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
     kickoffPrompt:

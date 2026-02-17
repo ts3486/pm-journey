@@ -57,6 +57,33 @@ export type TestCase = {
   createdAt: string;
 };
 
+export type DeliverableFormat =
+  | "free-text"
+  | "structured"
+  | "checklist"
+  | "table";
+
+export type AssistanceMode =
+  | "hands-off"
+  | "on-request"
+  | "guided"
+  | "review";
+
+export type TaskTemplate = {
+  format: DeliverableFormat;
+  sections?: string[];
+  example?: string;
+  checklist?: string[];
+};
+
+export type TaskDefinition = {
+  instruction: string;
+  deliverableFormat: DeliverableFormat;
+  template?: TaskTemplate;
+  referenceInfo?: string;
+  hints?: string[];
+};
+
 export type ScenarioBehavior = {
   userLed?: boolean;
   allowProactive?: boolean;
@@ -65,6 +92,8 @@ export type ScenarioBehavior = {
   phase?: string;
   singleResponse?: boolean;
   agentResponseEnabled?: boolean;
+  assistanceMode?: AssistanceMode;
+  forbidRolePlay?: boolean;
 };
 
 export type ScenarioSummary = {
@@ -172,6 +201,8 @@ export type Scenario = {
   missions?: Mission[];
   supplementalInfo?: string;
   customPrompt?: string;
+  task?: TaskDefinition;
+  assistanceMode?: AssistanceMode;
 };
 
 export type ManagerComment = {
