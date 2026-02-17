@@ -131,7 +131,7 @@ export function ScenarioCategoryGuideModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-700">
-                  ブリーフィング
+                  シナリオガイド
                 </p>
                 <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[10px] font-semibold text-orange-600">
                   {guide.discipline === "CHALLENGE" ? "実践" : "基本"}
@@ -145,7 +145,7 @@ export function ScenarioCategoryGuideModal({
               type="button"
               className="h-8 w-8 rounded-full border border-orange-200 bg-white text-base font-semibold text-orange-700 transition hover:border-orange-300 hover:text-orange-800"
               onClick={onClose}
-              aria-label="ブリーフィングを閉じる"
+              aria-label="シナリオガイドを閉じる"
             >
               ×
             </button>
@@ -192,7 +192,7 @@ export function ScenarioCategoryGuideModal({
         <div className="flex items-center justify-between border-t border-orange-100/80 px-6 py-4 sm:px-8">
           <p className="text-xs text-slate-400">Esc で閉じる</p>
           <button type="button" className="btn-primary" onClick={onClose}>
-            取り組みを始める
+            シナリオを開始する
           </button>
         </div>
       </section>

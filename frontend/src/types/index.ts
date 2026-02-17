@@ -31,9 +31,7 @@ export type Evaluation = {
   improvementAdvice?: string;
 };
 
-export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
-
-export type ScenarioType = "basic" | "test-case";
+export type ScenarioType = "soft-skills" | "test-cases" | "requirement-definition" | "incident-response" | "business-execution";
 
 export type FeatureMockup = {
   component:
@@ -94,7 +92,6 @@ export type ScenarioSummary = {
   id: string;
   title: string;
   description: string;
-  discipline: ScenarioDiscipline;
 };
 
 export type ProgressFlags = {
@@ -167,10 +164,7 @@ export type Scenario = {
   id: string;
   title: string;
   description: string;
-  guideMessage?: string;
-  discipline: ScenarioDiscipline;
-  scenarioType?: ScenarioType;
-  featureMockup?: FeatureMockup;
+  scenarioType: ScenarioType;
   behavior?: ScenarioBehavior;
   product: {
     name: string;
@@ -187,13 +181,10 @@ export type Scenario = {
     techStack?: string[];
     coreFeatures?: string[];
   };
-  mode: string;
   kickoffPrompt: string;
-  agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];
-  supplementalInfo?: string;
   task?: TaskDefinition;
   assistanceMode?: AssistanceMode;
 };
@@ -218,12 +209,6 @@ export type OutputSubmission = {
   note?: string;
   createdByUserId?: string;
   createdAt: string;
-};
-
-export type ScenarioCatalogSection = {
-  discipline: ScenarioDiscipline;
-  title: string;
-  scenarios: ScenarioSummary[];
 };
 
 export type ScenarioEvaluationCriteriaConfig = {
