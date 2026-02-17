@@ -43,7 +43,7 @@ describe("resolveAgentProfile", () => {
     const profile = resolveAgentProfile("test-task-scenario");
 
     expect(profile.systemPrompt).toContain("PMスキル学習の支援アシスタント");
-    expect(profile.tonePrompt).toContain("コーチ");
+    expect(profile.tonePrompt).toContain("メンター");
   });
 
   it("returns BASIC profile for legacy BASIC scenario without task", () => {

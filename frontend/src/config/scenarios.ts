@@ -1767,13 +1767,113 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt: "こんにちは！エンジニア兼デザイナーの鈴木です。よろしくお願いします！",
+    kickoffPrompt: "今回はPMとしての自己紹介を練習します。チームに自分の役割と期待値を伝えてみましょう。",
     evaluationCriteria: simpleIntroCriteria,
     passingScore: 60,
     missions: [
       { id: "basic-intro-m1", title: "自己紹介をする", order: 1 },
     ],
     supplementalInfo: "あなたは新しくプロジェクトに参加したPMです。自己紹介をしてください。",
+  },
+  {
+    id: "basic-product-understanding",
+    title: "プロダクト理解",
+    discipline: "BASIC",
+    scenarioType: "basic",
+    description:
+      "新しくプロジェクトに参加したPMとして、保険金請求サポートサービスのプロダクト概要を理解し、自分の言葉で整理する。",
+    task: {
+      instruction:
+        "あなたは保険金請求サポートサービスのPMとして新しくプロジェクトに参加しました。\nプロダクトの概要を理解し、以下の観点で自分の言葉で整理してください。\nわからないことがあれば、遠慮なく質問してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: [
+          "プロダクト概要（何を、誰に、なぜ提供しているか）",
+          "対象ユーザーと主な課題（3つ）",
+          "現在の主要機能と差別化ポイント",
+          "自分が最初に深掘りしたいポイントと理由",
+        ],
+      },
+      referenceInfo: `プロダクト情報は会話の中でエージェントに質問して確認してください。
+以下はプロジェクトの概要です：
+
+■ プロダクト名: 保険金請求サポートサービス
+■ 概要: ユーザーが保険商品を購入し、後から証跡を提出して保険金を受け取れる請求体験を提供するサービス
+■ 対象ユーザー: 個人契約者、小規模事業者、保険金請求を担当する運用チーム
+
+■ ユーザーが抱える課題:
+- 保険金請求に必要な証跡が分かりづらく、提出漏れが発生する
+- 差し戻し理由が不明確で、再提出の手間と時間が増える
+- 請求ステータスが見えづらく、問い合わせ対応コストが高い
+
+■ プロダクトの目標:
+- ユーザーが迷わず保険金請求を完了できる体験を提供する
+- 提出から支払いまでのリードタイムを短縮する
+- 差し戻し率を下げ、初回提出での受理率を高める
+
+■ 差別化ポイント:
+- 必要書類をステップ形式で案内し、提出漏れを防ぐ
+- 不足証跡を自動で検知し、再提出を最小化する
+- 請求進捗をリアルタイムで可視化し、ユーザー不安を軽減する
+
+■ 主要機能: 保険商品購入、証跡アップロード、請求ステータス管理、審査・承認ワークフロー
+■ 技術スタック: Next.js, Tailwind CSS, Axum, PostgreSQL, Redis
+■ 制約: 個人情報・証跡データの安全な取り扱い必須、監査対応のため履歴保持、MVPから段階的拡張
+■ タイムライン: 今四半期にMVP、次四半期に運用最適化機能を追加
+■ 成功指標: 請求完了率の向上、差し戻し率の低下、初回支払いまでの日数短縮`,
+      hints: [
+        "プロダクト概要を書く際は「何を → 誰に → なぜ」の順で整理すると伝わりやすくなります。",
+        "課題と機能を1対1で対応づけてみましょう。例: 「証跡が分かりづらい → ステップ形式のガイドで案内」",
+        "「最初に深掘りしたいポイント」は正解がありません。ただし「なぜそこを深掘りしたいか」の理由を書くと、PMとしての思考が伝わります。例: 「差し戻し率30%の内訳を知りたい。原因が証跡の種類間違いなのか品質不足なのかで打ち手が変わるため。」",
+      ],
+    },
+    assistanceMode: "guided",
+    behavior: {
+      userLed: false,
+      allowProactive: true,
+      maxQuestions: 2,
+      responseStyle: "guide_lightly",
+      forbidRolePlay: true,
+    },
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt: "今回はプロダクト理解を練習します。提供された情報をもとに、プロダクトの全体像を自分の言葉で整理してみましょう。",
+    evaluationCriteria: simpleIntroCriteria,
+    passingScore: 60,
+    missions: [
+      {
+        id: "product-m1",
+        title: "プロダクトの目的と対象ユーザーを自分の言葉で説明する",
+        order: 1,
+      },
+      {
+        id: "product-m2",
+        title: "ユーザーの課題とプロダクトの解決策を対応づけて整理する",
+        order: 2,
+      },
+      {
+        id: "product-m3",
+        title: "自分がPMとして最初に深掘りしたいポイントを述べる",
+        order: 3,
+      },
+    ],
+    supplementalInfo: `プロダクトを理解する際は、以下の観点で考えてみましょう：
+
+【ユーザー視点】
+- このプロダクトを使うのはどんな人ですか？
+- その人たちは今、何に困っていますか？
+- このプロダクトがなかったら、どうやって解決していますか？
+
+【ビジネス視点】
+- なぜ今このプロダクトを作っているのですか？
+- 競合や代替手段と比べて、何が違いますか？
+- 成功をどう測りますか？
+
+【PM視点】
+- 最も不確実性が高い部分はどこですか？
+- 自分がPMとして最初に確認すべきことは何ですか？
+- プロダクトのどの部分に最もインパクトを出せそうですか？`,
   },
   {
     id: "basic-meeting-minutes",
@@ -1797,8 +1897,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "先ほどのミーティングの議事メモを作成してください。決定事項と次のアクションを整理してください。",
+    kickoffPrompt: "今回は議事メモの作成を練習します。決定事項と次アクションが明確に伝わるメモを目指しましょう。",
     evaluationCriteria: simpleMinutesCriteria,
     passingScore: 60,
     missions: [
@@ -1828,8 +1927,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "",
+    kickoffPrompt: "今回はミーティング調整メッセージの作成を練習します。関係者が参加しやすい調整連絡を作りましょう。",
     evaluationCriteria: simpleScheduleCriteria,
     passingScore: 60,
     missions: [
@@ -1859,8 +1957,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "この資料の目的と対象読者を整理し、改善点を教えてください。",
+    kickoffPrompt: "今回は既存資料の改善提案を練習します。目的と読み手を意識して改善点を考えてみましょう。",
     evaluationCriteria: simpleDocsCriteria,
     passingScore: 60,
     missions: [
@@ -1902,7 +1999,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt: "このチケットの目的と受入条件を整理してください。",
+    kickoffPrompt: "今回はチケットの要件整理を練習します。実装者が迷わない粒度で整理することを意識しましょう。",
     evaluationCriteria: simpleTicketCriteria,
     passingScore: 60,
     missions: [
@@ -1932,8 +2029,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "この大きなチケットを分割し、優先度を付けてください。",
+    kickoffPrompt: "今回はチケット分割と優先度付けを練習します。実行可能な単位と優先順位の根拠を明確にしましょう。",
     evaluationCriteria: simpleTicketCriteria,
     passingScore: 60,
     missions: [
@@ -1963,8 +2059,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "この受入条件をレビューし、改善点を教えてください。",
+    kickoffPrompt: "今回は受入条件のレビューを練習します。曖昧な表現を検証可能な形に改善することを目指しましょう。",
     evaluationCriteria: simpleTicketCriteria,
     passingScore: 60,
     missions: [
@@ -1994,8 +2089,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "要件の不明点を洗い出し、確認方法を教えてください。",
+    kickoffPrompt: "今回は不明点の洗い出しを練習します。着手前に確認すべき事項と確認先を整理しましょう。",
     evaluationCriteria: simpleUnknownsCriteria,
     passingScore: 60,
     missions: [
@@ -2025,7 +2119,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt: "この機能のテストケースを洗い出してください。",
+    kickoffPrompt: "今回はテストケース作成を練習します。正常系と異常系を網羅的に洗い出してみましょう。",
     evaluationCriteria: simpleTestCriteria,
     passingScore: 60,
     missions: [
@@ -2061,8 +2155,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "ログイン機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回はログイン機能のテストケース作成に取り組みます。認証フローとセキュリティの観点を意識しましょう。",
     evaluationCriteria: testLoginCriteria,
     passingScore: 70,
     missions: [
@@ -2105,8 +2198,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "フォーム機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回はフォーム機能のテストケース作成に取り組みます。入力バリデーションとUXの観点を意識しましょう。",
     evaluationCriteria: testFormCriteria,
     passingScore: 70,
     missions: [
@@ -2150,8 +2242,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "ファイルアップロード機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回はファイルアップロード機能のテストケース作成に取り組みます。ファイル検証とセキュリティの観点を意識しましょう。",
     evaluationCriteria: testFileUploadCriteria,
     passingScore: 70,
     missions: [
@@ -2195,8 +2286,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "パスワード再設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回はパスワード再設定機能のテストケース作成に取り組みます。再設定フローとセキュリティの観点を意識しましょう。",
     evaluationCriteria: testPasswordResetCriteria,
     passingScore: 70,
     missions: [
@@ -2239,8 +2329,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "検索・絞り込み機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回は検索・絞り込み機能のテストケース作成に取り組みます。条件の組み合わせと操作性の観点を意識しましょう。",
     evaluationCriteria: testSearchFilterCriteria,
     passingScore: 70,
     missions: [
@@ -2283,8 +2372,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "通知設定機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回は通知設定機能のテストケース作成に取り組みます。設定反映と権限の観点を意識しましょう。",
     evaluationCriteria: testNotificationSettingsCriteria,
     passingScore: 70,
     missions: [
@@ -2327,8 +2415,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "プロフィール編集機能のテストケースを作成してください。プロダクトや機能の詳細について質問があれば遠慮なく聞いてください！",
+    kickoffPrompt: "今回はプロフィール編集機能のテストケース作成に取り組みます。入力検証と保存整合性の観点を意識しましょう。",
     evaluationCriteria: testProfileEditCriteria,
     passingScore: 70,
     missions: [
@@ -2365,8 +2452,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "この機能のテスト観点を洗い出し、優先順位を付けてください。",
+    kickoffPrompt: "今回はテスト観点の洗い出しと優先度付けを練習します。観点の網羅性と優先順位の根拠を意識しましょう。",
     evaluationCriteria: simpleTestCriteria,
     passingScore: 60,
     missions: [
@@ -2396,8 +2482,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "このテスト計画をレビューし、高リスク領域と優先度を教えてください。",
+    kickoffPrompt: "今回はテスト計画のリスクレビューを練習します。高リスク領域の特定と優先度の根拠を明確にしましょう。",
     evaluationCriteria: simpleTestCriteria,
     passingScore: 60,
     missions: [
@@ -2427,8 +2512,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "回帰テストの最小セットを整理してください。必須ケースと優先度を教えてください。",
+    kickoffPrompt: "今回は回帰テストの最小セット整理を練習します。限られた時間で品質を守る判断を意識しましょう。",
     evaluationCriteria: simpleTestCriteria,
     passingScore: 60,
     missions: [
@@ -2455,8 +2539,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "お疲れ様です、POの鈴木です！ログイン機能で『ログインできない』問い合わせが増えているので、最低限のログイン体験を安定化したいです。要件定義をお願いできますか？",
+    kickoffPrompt: "今回はログイン機能の要件定義を練習します。問い合わせ増加という課題に対して、要件を段階的に整理していきましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2484,8 +2567,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "問い合わせフォームの離脱が増えています。CSは入力項目を減らしたい一方で、法務は同意取得を厳密にしたいと言っています。要件を整理してもらえますか？",
+    kickoffPrompt: "今回は問い合わせフォーム機能の要件定義を練習します。CS側と法務側の対立する要求をどう両立させるかを考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2515,8 +2597,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "サポート向けに添付ファイルアップロードを追加したいです。営業は早期リリースを求めていますが、インフラはサイズ制限を厳守してほしいと言っています。要件を整理してください。",
+    kickoffPrompt: "今回はファイルアップロード機能の要件定義を練習します。早期リリースとサイズ制限の両立を考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2546,8 +2627,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "パスワード再設定の問い合わせが急増しています。UXは簡単な導線を求めていますが、セキュリティは厳格な本人確認を求めています。要件を整理してもらえますか？",
+    kickoffPrompt: "今回はパスワード再設定機能の要件定義を練習します。UXの簡便性とセキュリティの厳格性の両立を考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2577,8 +2657,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "検索・絞り込み機能の改善依頼があります。PMは多条件検索を求めていますが、開発からは性能劣化の懸念が出ています。要件を整理しましょう。",
+    kickoffPrompt: "今回は検索・絞り込み機能の要件定義を練習します。多条件検索の要求と性能懸念の両立を考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2608,8 +2687,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "通知設定を見直したいです。マーケは通知頻度を上げたい一方で、ユーザーからは通知過多の不満が来ています。要件定義を手伝ってください。",
+    kickoffPrompt: "今回は通知設定機能の要件定義を練習します。通知頻度とユーザー体験のバランスを考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2639,8 +2717,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...requirementDialogueBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "プロフィール編集を改善したいです。利用者は即時保存を期待していますが、開発は同時編集時の競合を懸念しています。要件を整理してください。",
+    kickoffPrompt: "今回はプロフィール編集機能の要件定義を練習します。即時保存の期待と同時編集の競合への対処を考えましょう。",
     evaluationCriteria: featureRequirementCriteria,
     passingScore: 60,
     missions: [
@@ -2669,8 +2746,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "営業は『今月中に新機能を出したい』、開発は『品質基準を満たさない限りリリースできない』と主張しています。対立点を整理し、合意形成に向けた交渉を進めてください。",
+    kickoffPrompt: "今回はステークホルダー間の優先度交渉に取り組みます。営業と開発の対立する要求を整理し、合意形成を目指しましょう。",
     evaluationCriteria: scopeNegotiationCriteria,
     passingScore: 60,
     missions: [
@@ -2698,8 +2774,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "次リリース候補として『高速検索』『通知改善』『管理画面改修』の3案があります。価値・工数・リスクを比較し、段階リリースの合意案を作ってください。",
+    kickoffPrompt: "今回は優先度トレードオフの分析に取り組みます。3つのリリース候補を価値・工数・リスクで比較しましょう。",
     evaluationCriteria: scopeNegotiationCriteria,
     passingScore: 60,
     missions: [
@@ -2728,8 +2803,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...guidedBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "先週決めた『段階リリース方針』について、営業と開発で認識にズレが出ています。意思決定ログを整理し、共有メッセージと確認ポイントを作成してください。",
+    kickoffPrompt: "今回は意思決定ログの認識合わせに取り組みます。関係者間のズレを特定し、共通理解を形成しましょう。",
     evaluationCriteria: stakeholderAlignmentCriteria,
     passingScore: 60,
     missions: [
@@ -2757,8 +2831,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "本番環境で『ログインAPIが500エラーを返し続け、全ユーザーがログイン不能』というP1障害が発生しました。初動対応、影響範囲、社内外への初回報告を会話で整理してください。",
+    kickoffPrompt: "今回はP1障害の緊急対応チャレンジです。全ユーザーがログインできない状況への初動対応を考えましょう。",
     evaluationCriteria: projectRescueCriteria,
     passingScore: 60,
     missions: [
@@ -2786,8 +2859,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "本番環境で『決済は成功しているが完了通知反映が最大20分遅延する』不具合が発生しています。P2想定で、優先度判定とエスカレーション判断を会話で進めてください。",
+    kickoffPrompt: "今回はP2障害のトリアージチャレンジです。決済通知遅延の優先度判定とエスカレーション判断を行いましょう。",
     evaluationCriteria: progressVisibilityCriteria,
     passingScore: 60,
     missions: [
@@ -2815,8 +2887,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "Androidの一部端末でプロフィール画面のボタンが重なって表示崩れするP3不具合が報告されました。原因分析、優先度判断、再発防止策を会話で整理してください。",
+    kickoffPrompt: "今回はP3障害の再発防止チャレンジです。軽微な表示崩れの原因分析と再発防止策を整理しましょう。",
     evaluationCriteria: stakeholderAlignmentCriteria,
     passingScore: 60,
     missions: [
@@ -2848,8 +2919,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "スプリントふりかえりの進め方と改善アクションを整理してください。",
+    kickoffPrompt: "今回はスプリント振り返りを練習します。具体的で実行可能な改善アクションを導き出しましょう。",
     evaluationCriteria: simpleMinutesCriteria,
     passingScore: 60,
     missions: [
@@ -2879,8 +2949,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "リリース準備レビューのチェック項目と判断基準を整理してください。",
+    kickoffPrompt: "今回はリリース準備レビューを練習します。Go/No-Go判断に必要な観点を整理しましょう。",
     evaluationCriteria: simpleTicketCriteria,
     passingScore: 60,
     missions: [
@@ -2910,8 +2979,7 @@ const scenarioList: Scenario[] = [
     },
     product: sharedProduct,
     mode: "guided",
-    kickoffPrompt:
-      "主要KPIの振り返りと次スプリントの改善アクションを整理してください。",
+    kickoffPrompt: "今回はKPIレビューと改善アクション策定を練習します。データに基づく課題特定と施策立案を意識しましょう。",
     evaluationCriteria: simpleTicketCriteria,
     passingScore: 60,
     missions: [
@@ -2937,7 +3005,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt: "あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。",
+    kickoffPrompt: "今回は遅延プロジェクトの立て直しチャレンジです。スコープ再交渉とリカバリ計画をまとめましょう。",
     evaluationCriteria: projectRescueCriteria,
     passingScore: 70,
     missions: [
@@ -2965,8 +3033,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとしてリリース期限が突然前倒しになった状況に対応します。影響範囲を整理し、複数の打ち手と合意形成を進めてください。",
+    kickoffPrompt: "今回はリリース期限前倒しへの対応チャレンジです。影響分析と複数の打ち手を検討しましょう。",
     evaluationCriteria: deadlineAdvanceCriteria,
     passingScore: 70,
     missions: [
@@ -2994,8 +3061,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとして進捗が見えない状況に対応します。最小限の可視化手段と報告リズムを設計し、次アクションを決めてください。",
+    kickoffPrompt: "今回は進捗不透明な状況への対応チャレンジです。最小限の可視化手段と報告リズムを設計しましょう。",
     evaluationCriteria: progressVisibilityCriteria,
     passingScore: 70,
     missions: [
@@ -3023,8 +3089,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとして品質問題に緊急対応します。原因と影響を整理し、優先度と対応方針を合意してください。",
+    kickoffPrompt: "今回は品質問題への緊急対応チャレンジです。原因と影響を整理し、優先度を再調整しましょう。",
     evaluationCriteria: projectRescueCriteria,
     passingScore: 70,
     missions: [
@@ -3052,8 +3117,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとして曖昧な依頼に対応します。成功条件と仮スコープを整理し、確認事項と次アクションを合意してください。",
+    kickoffPrompt: "今回は曖昧な依頼への対応チャレンジです。不明確な要求を具体化し、合意できるスコープを作りましょう。",
     evaluationCriteria: ambiguousRequestCriteria,
     passingScore: 70,
     missions: [
@@ -3081,8 +3145,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとして追加スコープ要求の交渉を行います。代替案と影響を提示し、合意内容をまとめてください。",
+    kickoffPrompt: "今回は追加スコープ要求の交渉チャレンジです。代替案と影響を提示し、合意形成を目指しましょう。",
     evaluationCriteria: scopeNegotiationCriteria,
     passingScore: 70,
     missions: [
@@ -3110,7 +3173,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt: "あなたはPM/PMOとしてスコープまたはリソースの交渉を行います。代替案とインパクトを提示し、短時間で合意を得てください。",
+    kickoffPrompt: "今回はスコープ・リソース交渉チャレンジです。代替案とインパクトを整理し、合意を目指しましょう。",
     evaluationCriteria: scopeNegotiationCriteria,
     passingScore: 70,
     missions: [
@@ -3138,8 +3201,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPMとしてエンジニアから実現困難と指摘された状況に対応します。制約を整理し、代替案と合意形成を進めてください。",
+    kickoffPrompt: "今回は技術的制約への対応チャレンジです。制約を理解し、実現可能な代替案を探りましょう。",
     evaluationCriteria: impossibleRequestCriteria,
     passingScore: 70,
     missions: [
@@ -3167,7 +3229,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt: "あなたはPM/PMOとして対立が発生している会議をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
+    kickoffPrompt: "今回はコンフリクト調整チャレンジです。対立する論点を整理し、合意に導きましょう。",
     evaluationCriteria: conflictMediationCriteria,
     passingScore: 70,
     missions: [
@@ -3195,8 +3257,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとして優先度対立をファシリテートします。論点を整理し、合意とフォローアップをまとめてください。",
+    kickoffPrompt: "今回は優先度対立のファシリテーションチャレンジです。異なる見解を整理し、合意に収束させましょう。",
     evaluationCriteria: conflictMediationCriteria,
     passingScore: 70,
     missions: [
@@ -3224,8 +3285,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとしてステークホルダー間の認識ズレを解消します。ズレの原因を整理し、共通認識と再発防止プロセスを合意してください。",
+    kickoffPrompt: "今回はステークホルダー間の認識ズレ解消チャレンジです。ズレの原因を特定し、共通理解と再発防止を目指しましょう。",
     evaluationCriteria: stakeholderAlignmentCriteria,
     passingScore: 70,
     missions: [
@@ -3253,8 +3313,7 @@ const scenarioList: Scenario[] = [
     behavior: { ...challengeBehavior, forbidRolePlay: true },
     product: sharedProduct,
     mode: "freeform",
-    kickoffPrompt:
-      "あなたはPM/PMOとしてユーザー視点が抜けていることに気づきます。ユーザー行動を整理し、最小限の改善案と合意を作ってください。",
+    kickoffPrompt: "今回はユーザー視点の回復チャレンジです。技術実装に偏った状況から、価値に立ち返る改善案を考えましょう。",
     evaluationCriteria: userPerspectiveCriteria,
     passingScore: 70,
     missions: [
@@ -3263,6 +3322,171 @@ const scenarioList: Scenario[] = [
       { id: "challenge-user-m3", title: "最小改善案と合意をまとめる", order: 3 },
     ],
     supplementalInfo: "機能ではなく価値に立ち返り、最小の打ち手を提案してください。",
+  },
+  // ============================================================================
+  // Advanced Scenarios: 事業推進・戦略
+  // ============================================================================
+  {
+    id: "adv-data-roi",
+    title: "ROI分析: AI証跡チェック機能の投資判断",
+    discipline: "CHALLENGE",
+    description:
+      "AI証跡チェック機能の開発投資について、3シナリオのROIモデルを作成し、投資判断の根拠を整理する。",
+    task: {
+      instruction:
+        "AI証跡チェック機能の開発に必要な投資（エンジニア3名×3ヶ月 = 約1,500万円）に対するROIモデルを作成してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: [
+          "インパクト計算式（各変数の定義と根拠）",
+          "3シナリオ分析（悲観的 / 現実的 / 楽観的）",
+          "投資判断の推奨と根拠",
+        ],
+      },
+      referenceInfo: `前提データ:
+- 月間請求件数: 10,000件
+- 現在の差し戻し率: 30%（3,000件/月）
+- 差し戻し1件あたりのコスト:
+  - ユーザー側: 再提出に平均2時間（機会損失）
+  - 運用チーム側: 確認・連絡に平均20分（人件費換算 約800円/件）
+- 月間運用コスト: 3,000件 × 800円 = 240万円
+- 開発コスト: エンジニア3名 × 3ヶ月 = 約1,500万円
+- ユーザーLTV: 請求完了ユーザーの年間継続率80%、年間保険料平均12万円
+
+ROI計算式:
+Impact = 対象件数 × 現在の差し戻し率 × 期待改善率 × 1件あたり削減コスト`,
+      hints: [
+        "「対象件数」は月間10,000件ではなく、採用率を掛けた数字を使いましょう。悲観シナリオでは3,000件（30%採用）です。",
+        "コスト削減だけでなく、請求完了率の改善によるLTV向上も収益インパクトに含めましょう。",
+        "経営層への報告では「最悪でも○ヶ月で回収、現実的には○倍のROI」という形で伝えると判断しやすくなります。",
+      ],
+    },
+    assistanceMode: "on-request",
+    behavior: {
+      ...singleResponseBehavior,
+      forbidRolePlay: true,
+    },
+    product: sharedProduct,
+    mode: "guided",
+    kickoffPrompt: "今回はAI証跡チェック機能のROI分析に取り組みます。投資判断に必要な3シナリオモデルを作成しましょう。",
+    evaluationCriteria: simpleIntroCriteria,
+    passingScore: 60,
+    missions: [
+      {
+        id: "roi-m1",
+        title: "インパクト計算の各変数を定義し根拠を示す",
+        order: 1,
+      },
+      {
+        id: "roi-m2",
+        title: "3シナリオ（悲観/現実/楽観）を作成する",
+        order: 2,
+      },
+      {
+        id: "roi-m3",
+        title: "投資判断の推奨を根拠付きで示す",
+        order: 3,
+      },
+    ],
+    supplementalInfo: `ROIモデル作成のポイント：
+- 採用率は100%で計算しないこと（段階的ロールアウトを想定）
+- 3シナリオで不確実性の幅を示すこと
+- 「最悪でも投資回収できるか？」が判断の鍵
+
+| シナリオ | 採用率 | 差し戻し率改善 | 前提 |
+|----------|--------|-------------|------|
+| 悲観的 | 30% | 30%→25% | AI精度が想定以下 |
+| 現実的 | 70% | 30%→18% | 想定通りの精度 |
+| 楽観的 | 90% | 30%→12% | 高精度 + UX改善効果 |`,
+  },
+  // ============================================================================
+  // Advanced Scenarios: 戦略・方針
+  // ============================================================================
+  {
+    id: "adv-strategy-diagnosis",
+    title: "プロダクト戦略: 請求サービスの競争優位",
+    discipline: "CHALLENGE",
+    description:
+      "保険金請求サービスの戦略的課題を診断し、競争優位を確立するための方針と行動計画を策定する。",
+    task: {
+      instruction:
+        "保険金請求サービスの戦略を、診断→方針→行動の3ステップで策定してください。",
+      deliverableFormat: "structured",
+      template: {
+        format: "structured",
+        sections: [
+          "診断（DIAGNOSIS）: 戦略的課題は何か",
+          "方針（GUIDING POLICY）: どこで、どう戦うか",
+          "行動計画（COHERENT ACTIONS）: 具体的に何をするか（Q1/Q2）",
+          "前提条件と見直し条件",
+        ],
+      },
+      referenceInfo: `現状:
+- 保険金請求サポートサービスは利用者5,000人、ARR 1.5億円
+- 請求完了率45%（業界平均60%）
+- 差し戻し率30%（業界平均15%）
+- NPS: -5（「進捗が見えない」「書類がわからない」が主な不満）
+- エンジニア5名、PM1名（あなた）、CS3名
+
+競合環境:
+- 大手保険会社の既存システム: 機能は広いがUIが古い。切替コストが高くユーザーは不満を抱えつつ使い続ける。
+- InsurTechスタートアップX社: モダンUI、AI審査機能あり。ただし実績が少なく大手保険会社への導入は進んでいない。
+- Salesforceカスタマイズ: 汎用的だが保険請求特化の機能がなく、導入・運用コストが高い。
+
+制約:
+- 開発リソース: エンジニア5名（うち2名はインフラ運用兼務）
+- 予算: 四半期あたり500万円（外注含む）
+- 「全部やる」は不可能 — 何を捨てるかの判断が必要`,
+      hints: [
+        "診断では「何が問題か」だけでなく「なぜそれが最も重要な問題か」を説明しましょう。",
+        "方針には必ず「やらないこと」を書きましょう。やることだけでは方針になりません。",
+        "行動計画のQ1施策がQ2施策の土台になっているか確認しましょう。施策が互いに強化し合う構成が理想です。",
+      ],
+    },
+    assistanceMode: "guided",
+    behavior: {
+      ...challengeBehavior,
+      forbidRolePlay: true,
+    },
+    product: sharedProduct,
+    mode: "freeform",
+    kickoffPrompt: "今回はプロダクト戦略の策定チャレンジです。限られたリソースで競争優位を確立する方針を考えましょう。",
+    evaluationCriteria: simpleIntroCriteria,
+    passingScore: 60,
+    missions: [
+      {
+        id: "strategy-m1",
+        title: "戦略的課題を診断する（データと競合分析に基づく）",
+        order: 1,
+      },
+      {
+        id: "strategy-m2",
+        title: "方針を策定する（トレードオフを明示する）",
+        order: 2,
+      },
+      {
+        id: "strategy-m3",
+        title: "Q1/Q2の行動計画を策定する（方針と整合した具体的施策）",
+        order: 3,
+      },
+    ],
+    supplementalInfo: `戦略策定のフレームワーク（Rumelt's Strategy Kernel）：
+
+【診断】戦略的課題を特定する
+- 「全部が問題」ではなく「核心的な課題」を1つに絞る
+- データで裏付ける（数字がないなら仮説でもよい）
+- × 「UIが古い」→ 事象であり診断ではない
+- ○ 「ユーザーが証跡提出で離脱する根本原因は、必要書類のガイダンス不足」→ 診断
+
+【方針】どこで戦うか / 何を捨てるか
+- 目標は方針ではない（× 「売上2倍」）
+- 機能リストは方針ではない（× 「AI、通知、ダッシュボードを作る」）
+- ○ 「証跡提出体験に集中し、審査自動化は捨てる」→ トレードオフを含む方針
+
+【行動】方針と整合した施策
+- 各施策が方針を実現するものであること
+- 施策同士が矛盾しないこと（「コスト削減」と「大規模投資」の同時追求は矛盾）`,
   },
 ];
 
@@ -3361,6 +3585,12 @@ const scenarioGuideMessages: Record<string, string> = {
     "ステークホルダー間の期待値のズレを解消し、再発防止まで含めて合意しましょう。",
   "challenge-user-perspective":
     "抜けているユーザー視点を取り戻し、価値に基づいた改善案を合意しましょう。",
+  "basic-product-understanding":
+    "プロダクトの全体像を掴み、ユーザー・課題・差別化を自分の言葉で整理しましょう。",
+  "adv-data-roi":
+    "AI証跡チェック機能の3シナリオROIモデルを作成し、投資判断の根拠を整理しましょう。",
+  "adv-strategy-diagnosis":
+    "請求サービスの戦略的課題を診断し、方針と行動計画をRumelt's Strategy Kernelで策定しましょう。",
 };
 
 const applyScenarioGuideMessages = (list: Scenario[]) => {
@@ -3424,6 +3654,7 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
         title: "基礎ソフトスキル",
         scenarios: [
           requireScenarioSummary("basic-intro-alignment"),
+          requireScenarioSummary("basic-product-understanding"),
           requireScenarioSummary("basic-schedule-share"),
         ],
       },
@@ -3479,12 +3710,14 @@ export const homeScenarioCatalog: ScenarioCatalogCategory[] = [
     title: "",
     subcategories: [
       {
-        id: "business-execution-delivery",
-        title: "事業推進",
+        id: "business-execution-strategy",
+        title: "事業推進・戦略",
         scenarios: [
           requireScenarioSummary("coming-priority-tradeoff-workshop"),
           requireScenarioSummary("coming-stakeholder-negotiation"),
           requireScenarioSummary("coming-decision-log-alignment"),
+          requireScenarioSummary("adv-data-roi"),
+          requireScenarioSummary("adv-strategy-diagnosis"),
         ],
       },
     ],

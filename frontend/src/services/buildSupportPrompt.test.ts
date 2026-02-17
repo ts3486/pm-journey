@@ -6,7 +6,7 @@ import type { AgentProfile } from "@/config";
 const supportProfile: AgentProfile = {
   modelId: "gemini-3-flash-preview",
   systemPrompt: "あなたはPMスキル学習の支援アシスタントです。",
-  tonePrompt: "学習を支援する親しみやすいコーチとして振る舞う",
+  tonePrompt: "思考を鍛える厳しめのメンターとして振る舞う",
 };
 
 const minimalProduct: Scenario["product"] = {
@@ -223,6 +223,16 @@ describe("buildAssistanceModeRules", () => {
   it("returns review rules containing 'レビュー' for 'review' mode", () => {
     const result = buildAssistanceModeRules("review");
     expect(result).toContain("レビュー");
-    expect(result).toContain("改善ポイントをフィードバック");
+    expect(result).toContain("弱い論拠や抜け漏れを指摘する");
+  });
+
+  it("all modes prohibit giving complete answers", () => {
+    const modes: Array<"hands-off" | "on-request" | "guided" | "review"> = [
+      "hands-off", "on-request", "guided", "review",
+    ];
+    for (const mode of modes) {
+      const result = buildAssistanceModeRules(mode);
+      expect(result).toContain("ミッションの完全な答えは絶対に提示しない");
+    }
   });
 });

@@ -491,6 +491,8 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
                     "## 支援モード: 見守り",
                     "- ユーザーの質問には答えない",
                     "- タスク完了後に評価のみ行う",
+                    "- ユーザーが提出した内容に対しても、判断の根拠や前提を問い直す",
+                    "- ミッションの完全な答えは絶対に提示しない",
                 ]
                 .join("\n"),
                 "on-request" => [
@@ -498,6 +500,8 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
                     "- ユーザーから質問があった場合のみ応答する",
                     "- こちらから積極的にアドバイスしない",
                     "- ヒントは求められたときだけ提供する",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
                 ]
                 .join("\n"),
                 "guided" => [
@@ -505,13 +509,17 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
                     "- ユーザーの進捗を確認し、次のステップを提案してよい",
                     "- 質問は1つずつ",
                     "- 考え方のフレームワークを示してよいが、答えは教えない",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
                 ]
                 .join("\n"),
                 "review" => [
                     "## 支援モード: レビュー",
                     "- ユーザーが成果物を提出するまで待つ",
-                    "- 提出されたら、改善ポイントをフィードバックする",
-                    "- 良い点も指摘する",
+                    "- 提出されたら、弱い論拠や抜け漏れを指摘する",
+                    "- 良い点にも触れるが、改善すべき点を重点的にフィードバックする",
+                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
+                    "- ミッションの完全な答えは絶対に提示しない",
                 ]
                 .join("\n"),
                 _ => format!("## 支援モード\n- {}", mode),
@@ -524,9 +532,11 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
     sections.push(
         [
             "## ガードレール",
+            "- ミッションの完全な答えを提示しない（最優先）",
+            "- ユーザーの判断や前提を積極的に問い直す",
             "- チームメンバーを演じない（エンジニア、デザイナー、PO等の役割を装わない）",
             "- ユーザーの代わりに成果物を書かない",
-            "- 1〜3文で簡潔に応答する",
+            "- 1〜2文で簡潔に応答する（最大3文）",
             "- テンプレート提示時以外は箇条書き・Markdownを使わない",
         ]
         .join("\n"),
@@ -840,6 +850,8 @@ mod tests {
         assert!(result.contains("ガードレール"), "should always contain guardrails");
         assert!(result.contains("チームメンバーを演じない"), "guardrail should forbid role-play");
         assert!(result.contains("成果物を書かない"), "guardrail should forbid producing deliverable");
+        assert!(result.contains("ミッションの完全な答えを提示しない"), "guardrail should prohibit complete answers");
+        assert!(result.contains("判断や前提を積極的に問い直す"), "guardrail should require challenging user");
     }
 
     #[test]
@@ -858,6 +870,7 @@ mod tests {
 
         assert!(result.contains("支援モード: 質問対応"), "should include on-request mode rules");
         assert!(result.contains("ユーザーから質問があった場合のみ応答する"), "should include on-request details");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "on-request mode should prohibit complete answers");
     }
 
     #[test]
@@ -869,6 +882,7 @@ mod tests {
         let result = build_support_system_instruction(&ctx);
 
         assert!(result.contains("支援モード: ガイド付き"), "should include guided mode rules");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "guided mode should prohibit complete answers");
     }
 
     #[test]
@@ -880,6 +894,8 @@ mod tests {
         let result = build_support_system_instruction(&ctx);
 
         assert!(result.contains("支援モード: レビュー"), "should include review mode rules");
+        assert!(result.contains("弱い論拠や抜け漏れを指摘する"), "review mode should focus on weak reasoning");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "review mode should prohibit complete answers");
     }
 
     #[test]
@@ -891,6 +907,7 @@ mod tests {
         let result = build_support_system_instruction(&ctx);
 
         assert!(result.contains("支援モード: 見守り"), "should include hands-off mode rules");
+        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "hands-off mode should prohibit complete answers");
     }
 
     #[test]
