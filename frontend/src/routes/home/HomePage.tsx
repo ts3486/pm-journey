@@ -1,4 +1,3 @@
-import { homeScenarioCatalog } from "@/config";
 import type {
   HistoryItem,
   ScenarioCatalogCategory,
@@ -11,21 +10,12 @@ import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listHistory } from "@/services/history";
 import { useEntitlements } from "@/queries/entitlements";
+import { useScenarios, buildHomeScenarioCatalog } from "@/queries/scenarios";
 import { useCurrentOrganization } from "@/queries/organizations";
 import { env } from "@/config/env";
 import { canViewTeamManagement } from "@/lib/teamAccess";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
-
-const homeScenarioIds = Array.from(
-  new Set(
-    homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
-      category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
-        subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
-      )
-    )
-  )
-);
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
 
 type JourneyStage = {
@@ -235,6 +225,21 @@ export function HomePage() {
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Record<string, boolean>>({});
   const { data: entitlements, isLoading: isEntitlementsLoading } = useEntitlements();
   const { data: currentOrganization } = useCurrentOrganization();
+  const { data: scenarios = [] } = useScenarios();
+  const homeScenarioCatalog = useMemo(() => buildHomeScenarioCatalog(scenarios), [scenarios]);
+  const homeScenarioIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          homeScenarioCatalog.flatMap((category: ScenarioCatalogCategory) =>
+            category.subcategories.flatMap((subcategory: ScenarioCatalogSubcategory) =>
+              subcategory.scenarios.map((scenario: ScenarioSummary) => scenario.id)
+            )
+          )
+        )
+      ),
+    [homeScenarioCatalog]
+  );
   const currentPlanCode = entitlements?.planCode;
   const hasCurrentOrganization = Boolean(currentOrganization?.organization?.id);
   const currentOrganizationRole = currentOrganization?.membership?.role ?? null;
@@ -293,7 +298,7 @@ export function HomePage() {
           progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
         };
       }),
-    [completedScenarioIds]
+    [completedScenarioIds, homeScenarioCatalog]
   );
 
   const sequenceRoadmap = useMemo<SequenceRoadmapCategory[]>(() => roadmap, [roadmap]);

@@ -1,6 +1,4 @@
-use crate::models::{
-    Mission, ProductInfo, RatingCriterion, Scenario, ScenarioBehavior, ScenarioDiscipline,
-};
+use crate::models::{Mission, RatingCriterion, Scenario};
 use anyhow::{Context, Result};
 use sqlx::{PgPool, Row};
 
@@ -20,13 +18,9 @@ impl ScenarioRepository {
 
     /// Create a new custom scenario for the authenticated user.
     pub async fn create(&self, scenario: &Scenario, user_id: &str) -> Result<Scenario> {
-        let discipline = match scenario.discipline {
-            ScenarioDiscipline::Basic => "BASIC",
-            ScenarioDiscipline::Challenge => "CHALLENGE",
-        };
+        let discipline_val = scenario.scenario_type.to_discipline();
+        let discipline = discipline_val.as_str();
 
-        let behavior = serde_json::to_value(&scenario.behavior)?;
-        let product = serde_json::to_value(&scenario.product)?;
         let evaluation_criteria = serde_json::to_value(&scenario.evaluation_criteria)?;
         let missions = serde_json::to_value(&scenario.missions)?;
 
@@ -35,21 +29,19 @@ impl ScenarioRepository {
             INSERT INTO custom_scenarios (
                 id, title, description, discipline, mode,
                 kickoff_prompt, passing_score, supplemental_info,
-                behavior, product, evaluation_criteria, missions, user_id
+                evaluation_criteria, missions, user_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             "#,
         )
         .bind(&scenario.id)
         .bind(&scenario.title)
         .bind(&scenario.description)
         .bind(discipline)
-        .bind(&scenario.mode)
+        .bind("")
         .bind(&scenario.kickoff_prompt)
         .bind(scenario.passing_score)
-        .bind(&scenario.supplemental_info)
-        .bind(behavior)
-        .bind(product)
+        .bind(Option::<String>::None)
         .bind(evaluation_criteria)
         .bind(missions)
         .bind(user_id)
@@ -63,36 +55,6 @@ impl ScenarioRepository {
     }
 
     fn map_row(r: sqlx::postgres::PgRow) -> Scenario {
-        let discipline = match r.get::<String, _>("discipline").as_str() {
-            "CHALLENGE" => ScenarioDiscipline::Challenge,
-            _ => ScenarioDiscipline::Basic,
-        };
-
-        let behavior: ScenarioBehavior = r
-            .try_get::<Option<serde_json::Value>, _>("behavior")
-            .ok()
-            .flatten()
-            .and_then(|v| serde_json::from_value(v).ok())
-            .unwrap_or_default();
-        let product: ProductInfo = r
-            .try_get::<serde_json::Value, _>("product")
-            .ok()
-            .and_then(|v| serde_json::from_value(v).ok())
-            .unwrap_or(ProductInfo {
-                name: String::new(),
-                summary: String::new(),
-                audience: String::new(),
-                problems: vec![],
-                goals: vec![],
-                differentiators: vec![],
-                scope: vec![],
-                constraints: vec![],
-                timeline: String::new(),
-                success_criteria: vec![],
-                unique_edge: None,
-                tech_stack: None,
-                core_features: None,
-            });
         let evaluation_criteria: Vec<RatingCriterion> = r
             .try_get::<serde_json::Value, _>("evaluation_criteria")
             .ok()
@@ -104,16 +66,13 @@ impl ScenarioRepository {
             .flatten()
             .and_then(|v| serde_json::from_value(v).ok());
 
+        let id: String = r.get("id");
+        let scenario_type = crate::models::scenario_type_for_id(&id);
         Scenario {
-            id: r.get("id"),
             title: r.get("title"),
             description: r.get("description"),
-            discipline,
-            scenario_type: None,
+            scenario_type,
             feature_mockup: None,
-            product,
-            mode: r.get("mode"),
-            behavior,
             kickoff_prompt: r.get("kickoff_prompt"),
             evaluation_criteria: evaluation_criteria
                 .into_iter()
@@ -126,11 +85,9 @@ impl ScenarioRepository {
                 .collect(),
             passing_score: r.try_get::<Option<f32>, _>("passing_score").ok().flatten(),
             missions,
-            supplemental_info: r
-                .try_get::<Option<String>, _>("supplemental_info")
-                .ok()
-                .flatten(),
-            pmbok_knowledge_areas: None,
+            agent_prompt: None,
+            single_response: None,
+            id,
         }
     }
 

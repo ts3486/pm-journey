@@ -36,7 +36,7 @@ impl SessionService {
             .into_iter()
             .find(|s| s.id == scenario_id)
             .ok_or_else(|| client_error("scenario not found"))?;
-        let discipline = Some(scenario.discipline.clone());
+        let discipline = Some(scenario.scenario_type.to_discipline());
         let mut organization_id = None;
 
         let feature_flags = FeatureFlagService::new();

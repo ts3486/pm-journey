@@ -198,7 +198,7 @@ export const serializeScenarioEvaluationCriteriaConfig = (
 export const resolveScenarioEvaluationCategoryKey = (
   scenario: Pick<Scenario, "id" | "scenarioType">
 ): ScenarioEvaluationCategoryKey => {
-  if (scenario.scenarioType === "test-case") return "testCases";
+  if (scenario.scenarioType === "test-cases") return "testCases";
   if (requirementDefinitionScenarioIds.has(scenario.id)) return "requirementDefinition";
   if (incidentResponseScenarioIds.has(scenario.id)) return "incidentResponse";
   if (businessExecutionScenarioIds.has(scenario.id)) return "businessExecution";

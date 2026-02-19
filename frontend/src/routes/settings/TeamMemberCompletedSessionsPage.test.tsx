@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,11 @@ vi.mock("@/queries/organizations", () => ({
   useCurrentOrganization: vi.fn(),
   useCurrentOrganizationProgress: vi.fn(),
   useCurrentOrganizationMemberCompletedSessions: vi.fn(),
+}));
+
+vi.mock("@/queries/scenarios", () => ({
+  useScenarios: () => ({ data: [], isLoading: false }),
+  findScenarioById: () => undefined,
 }));
 
 const useCurrentOrganizationMock = vi.mocked(useCurrentOrganization);
@@ -104,16 +110,26 @@ describe("TeamMemberCompletedSessionsPage", () => {
     } as any);
   });
 
+  const createWrapper = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
+
   it("shows completed sessions and links to session detail", () => {
+    const Wrapper = createWrapper();
     render(
-      <MemoryRouter initialEntries={["/settings/team/members/member_1/completed"]}>
-        <Routes>
-          <Route
-            path="/settings/team/members/:memberId/completed"
-            element={<TeamMemberCompletedSessionsPage />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      <Wrapper>
+        <MemoryRouter initialEntries={["/settings/team/members/member_1/completed"]}>
+          <Routes>
+            <Route
+              path="/settings/team/members/:memberId/completed"
+              element={<TeamMemberCompletedSessionsPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </Wrapper>,
     );
 
     expect(screen.getByText("完了シナリオ詳細")).toBeInTheDocument();
@@ -154,16 +170,19 @@ describe("TeamMemberCompletedSessionsPage", () => {
       error: null,
     } as any);
 
+    const Wrapper = createWrapper();
     render(
-      <MemoryRouter initialEntries={["/settings/team/members/member_1/completed"]}>
-        <Routes>
-          <Route
-            path="/settings/team/members/:memberId/completed"
-            element={<TeamMemberCompletedSessionsPage />}
-          />
-          <Route path="/settings/account" element={<p>account-page</p>} />
-        </Routes>
-      </MemoryRouter>,
+      <Wrapper>
+        <MemoryRouter initialEntries={["/settings/team/members/member_1/completed"]}>
+          <Routes>
+            <Route
+              path="/settings/team/members/:memberId/completed"
+              element={<TeamMemberCompletedSessionsPage />}
+            />
+            <Route path="/settings/account" element={<p>account-page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Wrapper>,
     );
 
     expect(screen.getByText("account-page")).toBeInTheDocument();

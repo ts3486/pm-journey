@@ -1,5 +1,5 @@
-import { getScenarioDiscipline } from "@/config/scenarios";
-import type { ProductConfig, Scenario } from "@/types";
+import { getScenarioDiscipline } from "@/queries/scenarios";
+import type { ProductConfig, Scenario, ScenarioType } from "@/types";
 
 export type PromptSectionKey =
   | "context"
@@ -305,7 +305,11 @@ export type ProjectOverviewData = {
   sections: ProjectOverviewSection[];
 };
 
-type ScenarioOverviewSource = Pick<Scenario, "title" | "description" | "discipline" | "product">;
+type ScenarioOverviewSource = {
+  title: string;
+  description: string;
+  scenarioType: ScenarioType;
+};
 
 export const buildProjectOverviewData = ({
   scenario,
@@ -315,19 +319,19 @@ export const buildProjectOverviewData = ({
   productConfig?: ProductConfig;
 }): ProjectOverviewData => {
   const merged: ProductSnapshot = {
-    name: choose(productConfig?.name, scenario.product.name),
-    summary: choose(productConfig?.summary, scenario.product.summary),
-    audience: choose(productConfig?.audience, scenario.product.audience),
-    problems: chooseList(productConfig?.problems, scenario.product.problems),
-    goals: chooseList(productConfig?.goals, scenario.product.goals),
-    differentiators: chooseList(productConfig?.differentiators, scenario.product.differentiators),
-    scope: chooseList(productConfig?.scope, scenario.product.scope),
-    constraints: chooseList(productConfig?.constraints, scenario.product.constraints),
-    timeline: choose(productConfig?.timeline, scenario.product.timeline),
-    successCriteria: chooseList(productConfig?.successCriteria, scenario.product.successCriteria),
-    uniqueEdge: choose(productConfig?.uniqueEdge, scenario.product.uniqueEdge),
-    techStack: chooseList(productConfig?.techStack, scenario.product.techStack),
-    coreFeatures: chooseList(productConfig?.coreFeatures, scenario.product.coreFeatures),
+    name: productConfig?.name ?? "",
+    summary: productConfig?.summary ?? "",
+    audience: productConfig?.audience ?? "",
+    problems: productConfig?.problems ?? [],
+    goals: productConfig?.goals ?? [],
+    differentiators: productConfig?.differentiators ?? [],
+    scope: productConfig?.scope ?? [],
+    constraints: productConfig?.constraints ?? [],
+    timeline: productConfig?.timeline ?? "",
+    successCriteria: productConfig?.successCriteria ?? [],
+    uniqueEdge: productConfig?.uniqueEdge,
+    techStack: productConfig?.techStack ?? [],
+    coreFeatures: productConfig?.coreFeatures ?? [],
     productPrompt: nonEmpty(productConfig?.productPrompt),
   };
 
@@ -336,7 +340,7 @@ export const buildProjectOverviewData = ({
     ? renderPromptTemplate(promptTemplate, {
         scenarioTitle: scenario.title,
         scenarioDescription: scenario.description,
-        scenarioDiscipline: getScenarioDiscipline(scenario),
+        scenarioDiscipline: getScenarioDiscipline(scenario as unknown as Scenario),
         productName: merged.name,
         productSummary: merged.summary,
         productAudience: merged.audience,

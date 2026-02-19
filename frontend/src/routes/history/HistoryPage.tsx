@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { listHistory } from "@/services/history";
-import { getScenarioById } from "@/config";
+import { useScenarios, findScenarioById } from "@/queries/scenarios";
 import type { HistoryItem, ScenarioDiscipline } from "@/types";
 import { Link } from "react-router-dom";
 
@@ -34,6 +34,7 @@ const resolveStartedAt = (item: HistoryItem) => {
 };
 
 export function HistoryPage() {
+  const { data: scenarios } = useScenarios();
   const { data: items = [], isLoading, isError, error } = useQuery({
     queryKey: ["history", "list"],
     queryFn: listHistory,
@@ -73,7 +74,7 @@ export function HistoryPage() {
         <div className="space-y-3">
           {items.map((item) => {
             const scenarioTitle =
-              getScenarioById(item.scenarioId ?? "")?.title ?? item.scenarioId ?? "Scenario";
+              findScenarioById(scenarios, item.scenarioId ?? "")?.title ?? item.scenarioId ?? "Scenario";
             const startedAt = formatStartedAt(resolveStartedAt(item));
             return (
               <Link

@@ -15,6 +15,8 @@ const call =
     )(...args)) as ApiClient[K];
 
 export const api: ApiClient = {
+  listScenarios: call("listScenarios"),
+  getScenario: call("getScenario"),
   createScenario: call("createScenario"),
   createSession: call("createSession"),
   getMyAccount: call("getMyAccount"),

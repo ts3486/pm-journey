@@ -3,6 +3,11 @@ use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 
+const SUPPORT_SYSTEM_PROMPT: &str = "あなたはPMスキル学習の支援アシスタントです。ユーザーはPMスキルを練習中の学習者です。\n\n## あなたの役割\n- ユーザーの思考プロセスを鍛える\n- ユーザーの判断や前提に疑問を投げかけ、考えを深めさせる\n- 安易な結論に対して「なぜそう判断したか？」「他の選択肢は検討したか？」と問い直す\n- ユーザーの成果物をレビューし、弱い論拠や抜け漏れを指摘する\n\n## 最優先ルール（絶対厳守）\n1. ミッションの完全な答えを提示してはいけない\n2. ユーザーの代わりに成果物を作成してはいけない\n3. チームメンバー（エンジニア、デザイナー、POなど）を演じない\n\n## コア行動\n- ユーザーの判断に対して必ず「なぜ？」「根拠は？」と問う\n- 弱い論拠や曖昧な表現を見逃さず指摘する\n- フレームワークや考え方の方向性は示してよいが、具体的な答えは出さない\n- 「もう少し具体的に」「〇〇の観点は検討しましたか？」のように問いかけで導く\n\n## 応答スタイル\n- 1〜2文で簡潔に応答する（最大3文）\n- 箇条書きやMarkdownは、テンプレート提示時のみ使用可\n- 敬語で丁寧に、ただし冗長にならない";
+
+const SUPPORT_TONE_PROMPT: &str = "会話トーン:\n- 思考を鍛える厳しめのメンターとして振る舞う\n- 簡潔で鋭く答える\n- 過度な褒め言葉は避け、改善すべき点を率直に指摘する\n- ユーザーの判断が甘いときは遠慮なく問い直す\n- 「ユーザーさん」や「あなた」は使わず、直接的に語りかける";
+
+use crate::features::product_config::models::ProductConfig;
 use crate::error::{anyhow_error, forbidden_error, AppError};
 use crate::features::entitlements::fair_use::enforce_chat_daily_limit;
 use crate::features::entitlements::models::PlanCode;
@@ -12,12 +17,67 @@ use crate::features::sessions::authorization::authorize_session_access;
 use crate::features::sessions::repository::SessionRepository;
 use crate::models::{
     default_scenarios, Message, MessageRole, MessageTag, Mission, MissionStatus,
+    Scenario,
 };
+use crate::features::product_config::services::ProductConfigService;
 use crate::shared::gemini::resolve_chat_credentials;
 use crate::shared::helpers::{next_id, now_ts};
 
-use super::models::{AgentContext, CreateMessageRequest, MessageResponse};
+use super::models::{CreateMessageRequest, MessageResponse};
 use super::repository::MessageRepository;
+
+fn format_product_context(config: &ProductConfig, scenario_title: &str) -> String {
+    let list = |label: &str, items: &[String]| -> String {
+        if items.is_empty() {
+            String::new()
+        } else {
+            format!("- {}: {}", label, items.join("、"))
+        }
+    };
+
+    let render_template = |template: &str| -> String {
+        template
+            .replace("{{scenarioTitle}}", scenario_title)
+            .replace("{{productName}}", &config.name)
+            .replace("{{productSummary}}", &config.summary)
+            .replace("{{productAudience}}", &config.audience)
+            .replace("{{productTimeline}}", config.timeline.as_deref().unwrap_or(""))
+    };
+
+    let mut sections: Vec<String> = Vec::new();
+
+    if let Some(prompt) = &config.product_prompt {
+        let rendered = render_template(prompt.trim());
+        if !rendered.is_empty() {
+            sections.push(format!("## プロジェクトメモ\n{}", rendered));
+        }
+    }
+
+    let product_lines: Vec<String> = [
+        if !config.name.is_empty() { format!("- 名前: {}", config.name) } else { String::new() },
+        if !config.summary.is_empty() { format!("- 概要: {}", config.summary) } else { String::new() },
+        if !config.audience.is_empty() { format!("- 対象: {}", config.audience) } else { String::new() },
+        list("課題", &config.problems),
+        list("目標", &config.goals),
+        list("差別化要素", &config.differentiators),
+        list("スコープ", &config.scope),
+        list("制約", &config.constraints),
+        config.timeline.as_ref()
+            .filter(|t| !t.is_empty())
+            .map(|t| format!("- タイムライン: {}", t))
+            .unwrap_or_default(),
+        list("成功条件", &config.success_criteria),
+    ]
+    .into_iter()
+    .filter(|s| !s.is_empty())
+    .collect();
+
+    if !product_lines.is_empty() {
+        sections.push(format!("## プロダクト情報\n{}", product_lines.join("\n")));
+    }
+
+    sections.join("\n\n")
+}
 
 fn single_turn_completion_message(title: Option<&str>) -> String {
     let intro = title
@@ -52,7 +112,6 @@ fn extract_json_value(text: &str) -> Option<serde_json::Value> {
 }
 
 async fn infer_completed_mission_ids(
-    context: &AgentContext,
     latest_user_message: &str,
     missions: &[Mission],
     plan_code: &PlanCode,
@@ -61,7 +120,7 @@ async fn infer_completed_mission_ids(
         return Ok(Vec::new());
     }
 
-    let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
+    let credentials = resolve_chat_credentials(plan_code, None)?;
     let gemini_key = credentials.api_key;
     let model_id = credentials.model_id;
 
@@ -316,19 +375,18 @@ impl MessageService {
             let plan_code = effective_plan.plan_code.clone();
             let organization_id = effective_plan.organization_id.clone();
 
-            let context = body
-                .agent_context
+            let product_config = ProductConfigService::new(self.pool.clone())
+                .get_product_config(user_id)
+                .await
+                .unwrap_or_else(|_| ProductConfig::default_product());
+            let product_context = format_product_context(
+                &product_config,
+                scenario.as_ref().map(|s| s.title.as_str()).unwrap_or(""),
+            );
+            let agent_response_enabled = true;
+            let behavior_single_response = scenario
                 .as_ref()
-                .ok_or_else(|| anyhow_error("agentContext is required for user messages"))?;
-            let agent_response_enabled = context
-                .behavior
-                .as_ref()
-                .and_then(|b| b.agent_response_enabled)
-                .unwrap_or(true);
-            let behavior_single_response = context
-                .behavior
-                .as_ref()
-                .and_then(|b| b.single_response)
+                .and_then(|s| s.single_response)
                 .unwrap_or(false);
             let should_append_completion_message = behavior_single_response;
             let should_invoke_ai =
@@ -354,7 +412,17 @@ impl MessageService {
                     .list_by_session(session_id)
                     .await
                     .map_err(|e| anyhow_error(&format!("Failed to load message history: {}", e)))?;
-                let reply_text = generate_agent_reply(context, &history, &plan_code).await?;
+                let all_missions_complete = !scenario_missions.is_empty() && {
+                    let completed_ids: std::collections::HashSet<&str> = session
+                        .mission_status
+                        .as_deref()
+                        .unwrap_or(&[])
+                        .iter()
+                        .map(|m| m.mission_id.as_str())
+                        .collect();
+                    scenario_missions.iter().all(|m| completed_ids.contains(m.id.as_str()))
+                };
+                let reply_text = generate_agent_reply(scenario.as_ref().unwrap(), Some(&product_context), &history, &plan_code, all_missions_complete).await?;
 
                 let agent_message = Message {
                     id: next_id("msg"),
@@ -375,7 +443,7 @@ impl MessageService {
 
             if should_append_completion_message {
                 let closing_content =
-                    single_turn_completion_message(context.scenario_title.as_deref());
+                    single_turn_completion_message(scenario.as_ref().map(|s| s.title.as_str()));
                 let system_message = Message {
                     id: next_id("msg"),
                     session_id: session_id.to_string(),
@@ -398,7 +466,6 @@ impl MessageService {
 
             if !scenario_missions.is_empty() {
                 if let Ok(completed_ids) = infer_completed_mission_ids(
-                    context,
                     &message.content,
                     &scenario_missions,
                     &plan_code,
@@ -450,85 +517,40 @@ impl MessageService {
     }
 }
 
-fn build_support_system_instruction(ctx: &AgentContext) -> String {
+fn build_support_system_instruction(
+    scenario: &Scenario,
+    product_context: Option<&str>,
+    all_missions_complete: bool,
+) -> String {
     let mut sections = Vec::new();
 
-    // 1. Fixed role (from systemPrompt — now the support-assistant identity)
-    sections.push(ctx.system_prompt.clone());
+    // 1. Fixed role (hardcoded support-assistant identity)
+    sections.push(SUPPORT_SYSTEM_PROMPT.to_string());
 
-    // 2. Task instruction (from scenario_prompt, which frontend now populates with task details)
-    sections.push(ctx.scenario_prompt.clone());
+    // 2. Task instruction (from scenario.agent_prompt)
+    if let Some(agent_prompt) = &scenario.agent_prompt {
+        if !agent_prompt.is_empty() {
+            sections.push(agent_prompt.clone());
+        }
+    }
 
     // 3. Scenario context
-    if ctx.scenario_title.is_some() || ctx.scenario_description.is_some() {
-        let mut lines = vec!["## シナリオ文脈".to_string()];
-        if let Some(title) = &ctx.scenario_title {
-            lines.push(format!("- タイトル: {}", title));
-        }
-        if let Some(desc) = &ctx.scenario_description {
-            lines.push(format!("- 説明: {}", desc));
-        }
-        sections.push(lines.join("\n"));
-    }
+    sections.push(format!(
+        "## シナリオ文脈\n- タイトル: {}\n- 説明: {}",
+        scenario.title, scenario.description
+    ));
 
-    // 4. Tone
-    if let Some(tone) = &ctx.tone_prompt {
-        if !tone.trim().is_empty() {
-            sections.push(format!("## 会話トーン\n{}", tone));
+    // 4. Tone (always use hardcoded tone prompt)
+    sections.push(format!("## 会話トーン\n{}", SUPPORT_TONE_PROMPT));
+
+    // 5. Product context (fetched from backend)
+    if let Some(product) = product_context {
+        if !product.is_empty() {
+            sections.push(product.to_string());
         }
     }
 
-    // 5. Product context
-    if let Some(product) = &ctx.product_context {
-        sections.push(product.clone());
-    }
-
-    // 6. Assistance mode rules (from behavior.assistance_mode)
-    if let Some(behavior) = &ctx.behavior {
-        if let Some(mode) = &behavior.assistance_mode {
-            let mode_section = match mode.as_str() {
-                "hands-off" => [
-                    "## 支援モード: 見守り",
-                    "- ユーザーの質問には答えない",
-                    "- タスク完了後に評価のみ行う",
-                    "- ユーザーが提出した内容に対しても、判断の根拠や前提を問い直す",
-                    "- ミッションの完全な答えは絶対に提示しない",
-                ]
-                .join("\n"),
-                "on-request" => [
-                    "## 支援モード: 質問対応",
-                    "- ユーザーから質問があった場合のみ応答する",
-                    "- こちらから積極的にアドバイスしない",
-                    "- ヒントは求められたときだけ提供する",
-                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
-                    "- ミッションの完全な答えは絶対に提示しない",
-                ]
-                .join("\n"),
-                "guided" => [
-                    "## 支援モード: ガイド付き",
-                    "- ユーザーの進捗を確認し、次のステップを提案してよい",
-                    "- 質問は1つずつ",
-                    "- 考え方のフレームワークを示してよいが、答えは教えない",
-                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
-                    "- ミッションの完全な答えは絶対に提示しない",
-                ]
-                .join("\n"),
-                "review" => [
-                    "## 支援モード: レビュー",
-                    "- ユーザーが成果物を提出するまで待つ",
-                    "- 提出されたら、弱い論拠や抜け漏れを指摘する",
-                    "- 良い点にも触れるが、改善すべき点を重点的にフィードバックする",
-                    "- ユーザーの判断に疑問を投げかけ、考えを深めさせる",
-                    "- ミッションの完全な答えは絶対に提示しない",
-                ]
-                .join("\n"),
-                _ => format!("## 支援モード\n- {}", mode),
-            };
-            sections.push(mode_section);
-        }
-    }
-
-    // 7. Guardrails (always appended for support mode)
+    // 6. Guardrails (always appended)
     sections.push(
         [
             "## ガードレール",
@@ -542,18 +564,25 @@ fn build_support_system_instruction(ctx: &AgentContext) -> String {
         .join("\n"),
     );
 
+    // 7. Mission completion section (only when all missions are done)
+    if all_missions_complete {
+        sections.push("## ミッション完了\n全てのミッションが達成されました。以下を行ってください:\n- ユーザーの取り組みと達成を端的に称える（1文）\n- 今回練習した内容で特に良かった点を1つ挙げる\n- 次に意識すべき改善ポイントを1つ提案する\n- 評価ボタンで振り返りができることを案内する".to_string());
+    }
+
     sections.join("\n\n")
 }
 
 async fn generate_agent_reply(
-    context: &AgentContext,
+    scenario: &Scenario,
+    product_context: Option<&str>,
     messages: &[Message],
     plan_code: &PlanCode,
+    all_missions_complete: bool,
 ) -> Result<String, AppError> {
-    let credentials = resolve_chat_credentials(plan_code, context.model_id.as_deref())?;
+    let credentials = resolve_chat_credentials(plan_code, None)?;
     let gemini_key = credentials.api_key;
     let model_id = credentials.model_id;
-    let system_instruction = build_support_system_instruction(context);
+    let system_instruction = build_support_system_instruction(scenario, product_context, all_missions_complete);
 
     let context_messages = if messages.len() > 20 {
         &messages[messages.len() - 20..]
@@ -633,37 +662,28 @@ async fn generate_agent_reply(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::messages::models::AgentBehavior;
-    use crate::models::{DeliverableFormat, TaskDefinition};
+    use crate::models::ScenarioType;
 
-    fn make_support_context() -> AgentContext {
-        AgentContext {
-            system_prompt: "あなたはPMスキル学習の支援アシスタントです。".to_string(),
-            tone_prompt: Some("簡潔で具体的に答える".to_string()),
-            scenario_prompt: "## タスク指示\nチケットの目的と受入条件を整理してください。".to_string(),
-            scenario_title: Some("チケット要件整理".to_string()),
-            scenario_description: Some("チケットの目的と受入条件を整理する。".to_string()),
-            product_context: Some("## プロダクト\n勤怠管理アプリ".to_string()),
-            model_id: None,
-            behavior: Some(AgentBehavior {
-                single_response: None,
-                agent_response_enabled: None,
-                assistance_mode: Some("on-request".to_string()),
-            }),
-            task: Some(TaskDefinition {
-                instruction: "チケットの目的と受入条件を整理してください。".to_string(),
-                deliverable_format: DeliverableFormat::Structured,
-                template: None,
-                reference_info: Some("背景情報です".to_string()),
-                hints: None,
-            }),
+    fn make_scenario(agent_prompt: Option<&str>) -> Scenario {
+        Scenario {
+            id: "test-scenario".to_string(),
+            title: "チケット要件整理".to_string(),
+            description: "チケットの目的と受入条件を整理する。".to_string(),
+            scenario_type: ScenarioType::SoftSkills,
+            feature_mockup: None,
+            kickoff_prompt: "チケットを整理してください。".to_string(),
+            evaluation_criteria: vec![],
+            passing_score: None,
+            missions: None,
+            agent_prompt: agent_prompt.map(|s| s.to_string()),
+            single_response: None,
         }
     }
 
     #[test]
     fn support_context_produces_support_instruction() {
-        let ctx = make_support_context();
-        let result = build_support_system_instruction(&ctx);
+        let scenario = make_scenario(Some("## タスク指示\nチケットの目的と受入条件を整理してください。"));
+        let result = build_support_system_instruction(&scenario, None, false);
 
         assert!(result.contains("PMスキル学習の支援アシスタント"), "should contain support identity");
         assert!(result.contains("タスク指示"), "should contain task instruction");
@@ -678,76 +698,43 @@ mod tests {
 
     #[test]
     fn support_instruction_does_not_contain_role_play() {
-        let ctx = make_support_context();
-        let result = build_support_system_instruction(&ctx);
+        let scenario = make_scenario(None);
+        let result = build_support_system_instruction(&scenario, None, false);
 
         assert!(!result.contains("最優先指示"), "should not have custom prompt priority section");
         assert!(!result.contains("エンジニア兼デザイナー"), "should not have old role-play identity");
     }
 
     #[test]
-    fn support_instruction_includes_assistance_mode_on_request() {
-        let ctx = make_support_context();
-        let result = build_support_system_instruction(&ctx);
-
-        assert!(result.contains("支援モード: 質問対応"), "should include on-request mode rules");
-        assert!(result.contains("ユーザーから質問があった場合のみ応答する"), "should include on-request details");
-        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "on-request mode should prohibit complete answers");
-    }
-
-    #[test]
-    fn support_instruction_includes_assistance_mode_guided() {
-        let mut ctx = make_support_context();
-        if let Some(behavior) = ctx.behavior.as_mut() {
-            behavior.assistance_mode = Some("guided".to_string());
-        }
-        let result = build_support_system_instruction(&ctx);
-
-        assert!(result.contains("支援モード: ガイド付き"), "should include guided mode rules");
-        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "guided mode should prohibit complete answers");
-    }
-
-    #[test]
-    fn support_instruction_includes_assistance_mode_review() {
-        let mut ctx = make_support_context();
-        if let Some(behavior) = ctx.behavior.as_mut() {
-            behavior.assistance_mode = Some("review".to_string());
-        }
-        let result = build_support_system_instruction(&ctx);
-
-        assert!(result.contains("支援モード: レビュー"), "should include review mode rules");
-        assert!(result.contains("弱い論拠や抜け漏れを指摘する"), "review mode should focus on weak reasoning");
-        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "review mode should prohibit complete answers");
-    }
-
-    #[test]
-    fn support_instruction_includes_assistance_mode_hands_off() {
-        let mut ctx = make_support_context();
-        if let Some(behavior) = ctx.behavior.as_mut() {
-            behavior.assistance_mode = Some("hands-off".to_string());
-        }
-        let result = build_support_system_instruction(&ctx);
-
-        assert!(result.contains("支援モード: 見守り"), "should include hands-off mode rules");
-        assert!(result.contains("ミッションの完全な答えは絶対に提示しない"), "hands-off mode should prohibit complete answers");
-    }
-
-    #[test]
-    fn support_instruction_without_behavior_still_has_guardrails() {
-        let mut ctx = make_support_context();
-        ctx.behavior = None;
-        let result = build_support_system_instruction(&ctx);
+    fn support_instruction_without_agent_prompt_still_has_guardrails() {
+        let scenario = make_scenario(None);
+        let result = build_support_system_instruction(&scenario, None, false);
 
         assert!(result.contains("ガードレール"), "guardrails should always be present");
-        assert!(!result.contains("支援モード"), "no assistance mode when behavior is absent");
     }
 
     #[test]
-    fn support_instruction_is_always_used() {
-        let ctx = make_support_context();
-        let result = build_support_system_instruction(&ctx);
+    fn support_instruction_includes_product_context_when_provided() {
+        let scenario = make_scenario(None);
+        let result = build_support_system_instruction(&scenario, Some("## プロダクト\n勤怠管理アプリ"), false);
 
-        assert!(result.contains("ガードレール"), "should use support path with guardrails");
-        assert!(!result.contains("最優先指示"), "should not contain legacy custom prompt section");
+        assert!(result.contains("勤怠管理アプリ"), "should include provided product context");
+    }
+
+    #[test]
+    fn support_instruction_includes_agent_prompt_when_present() {
+        let scenario = make_scenario(Some("## カスタム指示\n特別なタスクを実行してください。"));
+        let result = build_support_system_instruction(&scenario, None, false);
+
+        assert!(result.contains("カスタム指示"), "should include agent_prompt content");
+        assert!(result.contains("特別なタスクを実行してください。"), "should include agent_prompt details");
+    }
+
+    #[test]
+    fn support_instruction_includes_mission_complete_when_all_done() {
+        let scenario = make_scenario(None);
+        let result = build_support_system_instruction(&scenario, None, true);
+
+        assert!(result.contains("ミッション完了"), "should include mission complete message when all done");
     }
 }

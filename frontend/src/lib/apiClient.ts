@@ -125,6 +125,12 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
   }
 
   return {
+    async listScenarios(): Promise<Scenario[]> {
+      return request<Scenario[]>("/scenarios");
+    },
+    async getScenario(id: string): Promise<Scenario> {
+      return request<Scenario>(`/scenarios/${encodeURIComponent(id)}`);
+    },
     async createScenario(payload: Scenario): Promise<Scenario> {
       return request<Scenario>("/scenarios", { method: "POST", body: payload });
     },
@@ -215,28 +221,10 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
       content: string,
       tags?: MessageTag[],
       missionStatus?: MissionStatus[],
-      agentContext?: {
-        systemPrompt: string;
-        tonePrompt?: string;
-        scenarioPrompt: string;
-        scenarioTitle?: string;
-        scenarioDescription?: string;
-        productContext?: string;
-        modelId?: string;
-        behavior?: {
-          userLed?: boolean;
-          allowProactive?: boolean;
-          maxQuestions?: number;
-          responseStyle?: "acknowledge_then_wait" | "guide_lightly" | "advisor";
-          phase?: string;
-          singleResponse?: boolean;
-          agentResponseEnabled?: boolean;
-        };
-      }
     ): Promise<{ reply: Message; session: Session }> {
       return request<{ reply: Message; session: Session }>(`/sessions/${sessionId}/messages`, {
         method: "POST",
-        body: { role, content, tags, missionStatus, agentContext },
+        body: { role, content, tags, missionStatus },
       });
     },
     async evaluate(
