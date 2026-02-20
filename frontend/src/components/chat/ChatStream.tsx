@@ -9,11 +9,18 @@ type ChatStreamProps = {
 
 export function ChatStream({ messages, maxHeight = "60vh", isTyping = false }: ChatStreamProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const prevMessagesLengthRef = useRef<number>(0);
 
   useEffect(() => {
     const el = containerRef.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      // Scroll to top for initial message, bottom for subsequent messages
+      if (messages.length > 0 && prevMessagesLengthRef.current === 0) {
+        el.scrollTop = 0;
+      } else if (messages.length > prevMessagesLengthRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+      prevMessagesLengthRef.current = messages.length;
     }
   }, [messages, isTyping]);
 

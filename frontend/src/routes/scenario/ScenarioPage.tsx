@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { defaultScenario, getScenarioById, getScenarioDiscipline } from "@/config";
+import { useScenarios, findScenarioById, getDefaultScenario, getScenarioDiscipline } from "@/queries/scenarios";
 import type { Scenario } from "@/types";
 import { FeatureGate } from "@/components/FeatureGate";
 import { ChatComposer } from "@/components/chat/ChatComposer";
@@ -12,6 +12,7 @@ import {
   ScenarioCategoryGuideModal,
 } from "@/components/scenario/ScenarioCategoryGuideModal";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
+import { RequirementDefinitionScenarioLayout } from "@/components/scenario/RequirementDefinitionScenarioLayout";
 import {
   createLocalMessage,
   resetSession,
@@ -37,29 +38,31 @@ export function ScenarioPage() {
   const scenarioIdParam = searchParams.get("scenarioId");
   const { data: entitlements, isLoading: isEntitlementsLoading, isError: isEntitlementsError } =
     useEntitlements();
+  const { data: scenarios, isLoading: isScenariosLoading } = useScenarios();
+  const fallback = getDefaultScenario(scenarios);
 
-  const activeScenario = useMemo<Scenario>(() => {
-    if (scenarioIdParam) return getScenarioById(scenarioIdParam) ?? defaultScenario;
-    if (state?.session?.scenarioId) return getScenarioById(state.session.scenarioId) ?? defaultScenario;
-    return defaultScenario;
-  }, [scenarioIdParam, state?.session?.scenarioId]);
-  const activeGuide = useMemo(() => buildScenarioGuide(activeScenario), [activeScenario]);
-  const activeGuideScenarioId = activeGuide.scenarioId;
+  const activeScenario = useMemo<Scenario | undefined>(() => {
+    if (scenarioIdParam) return findScenarioById(scenarios, scenarioIdParam) ?? fallback;
+    if (state?.session?.scenarioId) return findScenarioById(scenarios, state.session.scenarioId) ?? fallback;
+    return fallback;
+  }, [scenarioIdParam, state?.session?.scenarioId, scenarios, fallback]);
+  const activeGuide = useMemo(() => activeScenario ? buildScenarioGuide(activeScenario) : null, [activeScenario]);
+  const activeGuideScenarioId = activeGuide?.scenarioId;
   const canAccessCurrentScenario = useMemo(() => {
-    if (!entitlements) return isEntitlementsError;
-    return canAccessScenario(entitlements.planCode, activeScenario.id, activeScenario.discipline);
-  }, [activeScenario.discipline, activeScenario.id, entitlements, isEntitlementsError]);
+    if (!activeScenario || !entitlements) return isEntitlementsError;
+    return canAccessScenario(entitlements.planCode, activeScenario.id, getScenarioDiscipline(activeScenario));
+  }, [activeScenario, entitlements, isEntitlementsError]);
 
   const hasActive = Boolean(state?.session);
   const messages = state?.messages ?? [];
-  const missions = activeScenario.missions ?? [];
+  const missions = activeScenario?.missions ?? [];
   const missionStatusMap = useMemo(() => {
     const map = new Map<string, boolean>();
     (state?.session.missionStatus ?? []).forEach((mission) => map.set(mission.missionId, true));
     return map;
   }, [state?.session?.missionStatus]);
-  const isSingleResponseScenario = activeScenario.behavior?.singleResponse ?? false;
-  const agentResponseEnabled = activeScenario.behavior?.agentResponseEnabled ?? true;
+  const isSingleResponseScenario = activeScenario?.singleResponse ?? false;
+  const agentResponseEnabled = true;
   const firstUserMessageIndex = messages.findIndex((message) => message.role === "user");
   const hasUserResponse = firstUserMessageIndex >= 0;
   const postUserMessages = firstUserMessageIndex >= 0 ? messages.slice(firstUserMessageIndex + 1) : [];
@@ -71,11 +74,7 @@ export function ScenarioPage() {
     (!agentResponseEnabled || hasAgentResponseAfterUser);
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
   const requiresMissionCompletion = missions.length > 0;
-  const canCompleteScenario =
-    hasActive &&
-    hasUserResponse &&
-    (!requiresMissionCompletion || allMissionsComplete) &&
-    (!isSingleResponseScenario || singleResponseScenarioEnded);
+  const canCompleteScenario = hasActive && (!requiresMissionCompletion || allMissionsComplete);
   const scenarioLocked = isSingleResponseScenario && singleResponseScenarioEnded;
 
   const clearPendingInitialReply = () => {
@@ -86,6 +85,7 @@ export function ScenarioPage() {
   };
 
   const handleStart = async (scenario = activeScenario) => {
+    if (!scenario) return;
     clearPendingInitialReply();
     setStartupError(null);
     setAwaitingReply(false);
@@ -197,13 +197,13 @@ export function ScenarioPage() {
 
   useEffect(() => {
     async function initializeSession() {
-      if (isEntitlementsLoading) return;
+      if (isEntitlementsLoading || isScenariosLoading || !activeScenario) return;
       if (!canAccessCurrentScenario) {
         setState(null);
         return;
       }
 
-      const targetScenario = getScenarioById(scenarioIdParam) ?? activeScenario ?? defaultScenario;
+      const targetScenario = (scenarioIdParam ? findScenarioById(scenarios, scenarioIdParam) : undefined) ?? activeScenario;
       if (!restart) {
         const existing = await resumeSession(targetScenario.id);
         if (existing && !state) {
@@ -227,13 +227,13 @@ export function ScenarioPage() {
     }
     void initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAccessCurrentScenario, isEntitlementsLoading, scenarioIdParam, restart]);
+  }, [canAccessCurrentScenario, isEntitlementsLoading, isScenariosLoading, scenarioIdParam, restart]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const hasSeenGuide =
-        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId)) === "1";
+        window.localStorage.getItem(getScenarioGuideSeenStorageKey(activeGuideScenarioId ?? "")) === "1";
       if (!hasSeenGuide) setIsGuideOpen(true);
     } catch {
       setIsGuideOpen(true);
@@ -249,14 +249,14 @@ export function ScenarioPage() {
     };
   }, []);
 
-  const guideModal = (
+  const guideModal = activeGuide ? (
     <ScenarioCategoryGuideModal guide={activeGuide} isOpen={isGuideOpen} onClose={handleCloseGuide} />
-  );
+  ) : null;
 
-  if (isEntitlementsLoading && !state?.session) {
+  if ((isEntitlementsLoading || isScenariosLoading || !activeScenario) && !state?.session) {
     return (
       <div className="card p-6">
-        <p className="text-sm text-slate-600">プラン情報を確認しています...</p>
+        <p className="text-sm text-slate-600">シナリオを読み込んでいます...</p>
       </div>
     );
   }
@@ -274,6 +274,8 @@ export function ScenarioPage() {
     );
   }
 
+  if (!activeScenario) return null;
+
   if (activeScenario.scenarioType === "test-cases") {
     return (
       <>
@@ -285,6 +287,29 @@ export function ScenarioPage() {
           onComplete={handleCompleteScenario}
           onReset={handleReset}
           onOpenGuide={handleOpenGuide}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
+  if (activeScenario.scenarioType === "requirement-definition") {
+    return (
+      <>
+        <RequirementDefinitionScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
+          missions={missions}
+          missionStatusMap={missionStatusMap}
+          onMissionToggle={handleMissionToggle}
+          canCompleteScenario={canCompleteScenario}
+          allMissionsComplete={allMissionsComplete}
+          requiresMissionCompletion={requiresMissionCompletion}
         />
         {guideModal}
       </>
@@ -304,7 +329,7 @@ export function ScenarioPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-                  {activeScenario.discipline} Scenario
+                  {getScenarioDiscipline(activeScenario)} Scenario
                 </p>
                 <h1 className="font-display text-2xl text-slate-900">{activeScenario.title}</h1>
                 <p className="text-sm text-slate-600">{activeScenario.description}</p>
@@ -389,15 +414,7 @@ export function ScenarioPage() {
                   シナリオを完了する
                 </button>
               </div>
-              {!hasUserResponse ? (
-                <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
-              ) : null}
-              {hasUserResponse && isSingleResponseScenario && !singleResponseScenarioEnded ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  エージェントの返答とシナリオ終了メッセージの表示を待ってから完了してください。
-                </p>
-              ) : null}
-              {hasUserResponse && requiresMissionCompletion && !allMissionsComplete ? (
+              {requiresMissionCompletion && !allMissionsComplete ? (
                 <p className="mt-2 text-xs text-slate-500">
                   エージェントがミッション達成を判定すると自動でチェックされます。必要であれば手動でチェックして完了できます。
                 </p>

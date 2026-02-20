@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 
-import { getScenarioById } from "@/config";
+import { useScenarios, findScenarioById } from "@/queries/scenarios";
 import { canViewTeamManagement } from "@/lib/teamAccess";
 import { useCurrentOrganization } from "@/queries/organizations";
 import { api } from "@/services/api";
@@ -196,6 +196,7 @@ export function HistoryDetailPage() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { data: currentOrganization } = useCurrentOrganization();
+  const { data: scenarios } = useScenarios();
 
   const autoEvaluate = searchParams.get("autoEvaluate") === "1";
   const autoTriggeredRef = useRef(false);
@@ -228,11 +229,12 @@ export function HistoryDetailPage() {
     queryKey: ["history", sessionId],
     queryFn: () => getHistoryItem(sessionId ?? ""),
     enabled: Boolean(sessionId),
+    staleTime: 0,
   });
 
-  const scenario = item?.scenarioId ? getScenarioById(item.scenarioId) : undefined;
-  const isTestCaseScenario = scenario?.scenarioType === "test-case";
-  const isBasicScenario = scenario?.scenarioType === "basic";
+  const scenario = item?.scenarioId ? findScenarioById(scenarios, item.scenarioId) : undefined;
+  const isTestCaseScenario = scenario?.scenarioType === "test-cases";
+  const isBasicScenario = scenario?.scenarioType === "soft-skills";
   const missionList =
     scenario?.missions && scenario.missions.length > 0
       ? [...scenario.missions].sort((a, b) => a.order - b.order)

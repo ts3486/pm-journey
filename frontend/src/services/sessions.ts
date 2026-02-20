@@ -1,10 +1,9 @@
-import { getScenarioById, getScenarioDiscipline, resolveAgentProfile } from "@/config";
-import type { AgentProfile } from "@/config";
+import { getScenarioDiscipline } from "@/queries/scenarios";
+import { api as scenariosApi } from "@/services/api";
 import { buildScenarioEvaluationCriteria } from "@/lib/scenarioEvaluationCriteria";
 import { api } from "@/services/api";
 import { storage } from "@/services/storage";
 import type {
-  AssistanceMode,
   Evaluation,
   HistoryItem,
   Message,
@@ -34,7 +33,7 @@ export const createLocalMessage = (
 
 const seededMessagesForBasicScenario = async (sessionId: string, scenario: Scenario): Promise<Message[]> => {
   const messages: Message[] = [];
-  const agentOpening = scenario.agentOpeningMessage?.trim();
+  const agentOpening = (scenario.agentOpeningMessage ?? scenario.kickoffPrompt)?.trim();
 
   if (agentOpening) {
     const posted = await api.postMessage(sessionId, "agent", agentOpening, ["summary"]);
@@ -54,6 +53,36 @@ export type SessionState = SessionSnapshot & {
   history: HistoryItem[];
   loading: boolean;
 };
+
+let cachedScenarios: Scenario[] | null = null;
+let scenariosFetchPromise: Promise<Scenario[]> | null = null;
+
+async function getCachedScenarios(): Promise<Scenario[]> {
+  if (cachedScenarios) return cachedScenarios;
+  if (scenariosFetchPromise) return scenariosFetchPromise;
+  scenariosFetchPromise = (async () => {
+    try {
+      const list = await scenariosApi.listScenarios();
+      cachedScenarios = list;
+      return list;
+    } catch {
+      return [];
+    } finally {
+      scenariosFetchPromise = null;
+    }
+  })();
+  return scenariosFetchPromise;
+}
+
+async function getScenarioById(id: string | null): Promise<Scenario | undefined> {
+  if (!id) return undefined;
+  const list = await getCachedScenarios();
+  return list.find((s) => s.id === id);
+}
+
+export function invalidateScenarioCache() {
+  cachedScenarios = null;
+}
 
 let cachedProductConfig: ProductConfig | null | undefined;
 let productConfigFetchPromise: Promise<ProductConfig | undefined> | null = null;
@@ -137,89 +166,6 @@ const formatProductContext = (scenario: Scenario, productConfig?: ProductConfig)
   return sections.join("\n");
 };
 
-export function buildAssistanceModeRules(mode: AssistanceMode): string {
-  const rules: Record<AssistanceMode, string> = {
-    "hands-off": `## 支援モード: 見守り
-- ユーザーの質問には答えない
-- タスク完了後に評価のみ行う
-- ユーザーが提出した内容に対しても、判断の根拠や前提を問い直す
-- ミッションの完全な答えは絶対に提示しない`,
-    "on-request": `## 支援モード: 質問対応
-- ユーザーから質問があった場合のみ応答する
-- こちらから積極的にアドバイスしない
-- ヒントは求められたときだけ提供する
-- ユーザーの判断に疑問を投げかけ、考えを深めさせる
-- ミッションの完全な答えは絶対に提示しない`,
-    "guided": `## 支援モード: ガイド付き
-- ユーザーの進捗を確認し、次のステップを提案してよい
-- 質問は1つずつ
-- 考え方のフレームワークを示してよいが、答えは教えない
-- ユーザーの判断に疑問を投げかけ、考えを深めさせる
-- ミッションの完全な答えは絶対に提示しない`,
-    "review": `## 支援モード: レビュー
-- ユーザーが成果物を提出するまで待つ
-- 提出されたら、弱い論拠や抜け漏れを指摘する
-- 良い点にも触れるが、改善すべき点を重点的にフィードバックする
-- ユーザーの判断に疑問を投げかけ、考えを深めさせる
-- ミッションの完全な答えは絶対に提示しない`,
-  };
-  return rules[mode];
-}
-
-export function buildSupportPrompt({
-  scenario,
-  productConfig,
-  profile,
-}: {
-  scenario: Scenario;
-  productConfig?: ProductConfig;
-  profile: AgentProfile;
-}) {
-  const task = scenario.task!;
-
-  const taskSection = [
-    `## タスク指示`,
-    task.instruction,
-    ...(task.template?.sections
-      ? [`\n期待される構成:`, ...task.template.sections.map((s) => `- ${s}`)]
-      : []),
-    ...(task.template?.example
-      ? [`\n## 成果物の例\n${task.template.example}`]
-      : []),
-  ].join("\n");
-
-  const modeRules = buildAssistanceModeRules(
-    scenario.assistanceMode ?? scenario.behavior?.assistanceMode ?? "on-request",
-  );
-
-  const referenceSection = task.referenceInfo
-    ? `## 背景情報\n${task.referenceInfo}`
-    : "";
-
-  const productContext = formatProductContext(scenario, productConfig);
-
-  const scenarioPrompt = [taskSection, referenceSection, modeRules]
-    .filter(Boolean)
-    .join("\n\n");
-
-  return {
-    systemPrompt: profile.systemPrompt,
-    tonePrompt: profile.tonePrompt,
-    modelId: profile.modelId,
-    scenarioPrompt,
-    scenarioTitle: scenario.title,
-    scenarioDescription: scenario.description,
-    productContext,
-    behavior: scenario.behavior,
-    task: {
-      instruction: task.instruction,
-      deliverableFormat: task.deliverableFormat,
-      template: task.template,
-      referenceInfo: task.referenceInfo,
-      hints: task.hints,
-    },
-  };
-}
 
 export async function startSession(scenario: Scenario): Promise<SessionState> {
   let session = await api.createSession(scenario.id);
@@ -288,39 +234,29 @@ export async function sendMessage(
   const message = options?.existingMessage ?? createLocalMessage(session.id, role, content, tags);
   const hasMessage = state.messages.some((m) => m.id === message.id);
   const messages = hasMessage ? [...state.messages] : [...state.messages, message];
-  const scenario = getScenarioById(session.scenarioId);
-  const profile = resolveAgentProfile();
-  const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
-
-  const agentContext =
-    role === "user" && scenario
-      ? buildSupportPrompt({ scenario, productConfig, profile })
-      : undefined;
-
   const apiMessage = await api.postMessage(
     session.id,
     role,
     content,
     tags,
     session.missionStatus,
-    agentContext,
   );
   const reply = apiMessage.reply;
   session.missionStatus = apiMessage.session.missionStatus;
-  const nextMessages =
-    scenario?.scenarioType === "basic"
-      ? await api.listMessages(session.id)
-      : (() => {
-          if (reply && reply.role !== "user") messages.push(reply);
-          return messages;
-        })();
+  const nextMessages = (() => {
+    if (reply && reply.role !== "user") messages.push(reply);
+    for (const extra of apiMessage.additionalMessages ?? []) {
+      messages.push(extra);
+    }
+    return messages;
+  })();
 
   storage.setLastSession(session.id, session.scenarioId);
   return { ...state, session, messages: nextMessages };
 }
 
 export async function evaluate(state: SessionState): Promise<SessionState> {
-  const scenario = getScenarioById(state.session.scenarioId);
+  const scenario = await getScenarioById(state.session.scenarioId);
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
   const criteria = scenario
     ? buildScenarioEvaluationCriteria({
@@ -356,7 +292,7 @@ export async function evaluateSessionById(
   scenarioId?: string,
   testCasesContext?: string,
 ): Promise<Evaluation> {
-  const scenario = scenarioId ? getScenarioById(scenarioId) : undefined;
+  const scenario = scenarioId ? await getScenarioById(scenarioId) : undefined;
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
   const criteria = scenario
     ? buildScenarioEvaluationCriteria({

@@ -1,5 +1,5 @@
 import { Link, Navigate, useParams } from "react-router-dom";
-import { getScenarioById } from "@/config";
+import { useScenarios, findScenarioById } from "@/queries/scenarios";
 import { canViewTeamManagement } from "@/lib/teamAccess";
 import {
   useCurrentOrganization,
@@ -27,6 +27,7 @@ const formatStartedAt = (value?: string) => {
 
 export function TeamMemberCompletedSessionsPage() {
   const { memberId = "" } = useParams();
+  const { data: scenarios } = useScenarios();
   const { data: currentOrganization, isLoading: isCurrentOrganizationLoading } = useCurrentOrganization();
   const currentUserRole = currentOrganization?.membership.role ?? null;
   const canAccessTeamManagement = canViewTeamManagement(currentUserRole);
@@ -95,7 +96,7 @@ export function TeamMemberCompletedSessionsPage() {
           <div className="mt-4 space-y-3">
             {sessions.map((session) => {
               const scenarioTitle =
-                getScenarioById(session.scenarioId ?? "")?.title ??
+                findScenarioById(scenarios, session.scenarioId ?? "")?.title ??
                 session.scenarioId ??
                 "Scenario";
               return (

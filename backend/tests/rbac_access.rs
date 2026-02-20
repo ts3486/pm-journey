@@ -134,7 +134,6 @@ async fn role_matrix_enforces_permissions_for_messages_comments_and_outputs() {
                 content: "owner update".to_string(),
                 tags: None,
                 mission_status: None,
-                agent_context: None,
             },
         )
         .await
@@ -148,7 +147,6 @@ async fn role_matrix_enforces_permissions_for_messages_comments_and_outputs() {
                 content: "admin update".to_string(),
                 tags: None,
                 mission_status: None,
-                agent_context: None,
             },
         )
         .await

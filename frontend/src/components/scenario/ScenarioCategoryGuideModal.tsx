@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { env } from "@/config/env";
-import { getScenarioDiscipline } from "@/config/scenarios";
+import { getScenarioDiscipline } from "@/queries/scenarios";
 import type { Mission, Scenario, ScenarioDiscipline } from "@/types";
 
 export type ScenarioGuide = {
@@ -23,7 +23,7 @@ const GUIDE_MODAL_CLOSE_DURATION_MS = 200;
 
 export function buildScenarioGuide(scenario: Scenario): ScenarioGuide {
   const fallbackMessage = `${scenario.description}このシナリオに取り組みましょう。`;
-  const guidanceSentence = scenario.agentOpeningMessage?.trim() || fallbackMessage;
+  const guidanceSentence = scenario.scenarioGuide?.trim() || scenario.agentOpeningMessage?.trim() || scenario.kickoffPrompt?.trim() || fallbackMessage;
 
   return {
     scenarioId: scenario.id,
@@ -157,7 +157,7 @@ export function ScenarioCategoryGuideModal({
           <div className="space-y-5">
             <div>
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
-                あなたの状況
+                シナリオ概要
               </p>
               <p className="text-base leading-7 text-slate-800">{guide.guidanceSentence}</p>
             </div>

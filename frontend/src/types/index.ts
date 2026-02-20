@@ -33,6 +33,8 @@ export type Evaluation = {
 
 export type ScenarioType = "soft-skills" | "test-cases" | "requirement-definition" | "incident-response" | "business-execution";
 
+export type ScenarioDiscipline = "BASIC" | "CHALLENGE";
+
 export type FeatureMockup = {
   component:
     | "login"
@@ -55,38 +57,6 @@ export type TestCase = {
   createdAt: string;
 };
 
-export type DeliverableFormat =
-  | "free-text"
-  | "structured"
-  | "checklist"
-  | "table";
-
-export type AssistanceMode =
-  | "hands-off"
-  | "on-request"
-  | "guided"
-  | "review";
-
-export type TaskTemplate = {
-  format: DeliverableFormat;
-  sections?: string[];
-  example?: string;
-  checklist?: string[];
-};
-
-export type TaskDefinition = {
-  instruction: string;
-  deliverableFormat: DeliverableFormat;
-  template?: TaskTemplate;
-  referenceInfo?: string;
-  hints?: string[];
-};
-
-export type ScenarioBehavior = {
-  singleResponse?: boolean;
-  agentResponseEnabled?: boolean;
-  assistanceMode?: AssistanceMode;
-};
 
 export type ScenarioSummary = {
   id: string;
@@ -166,29 +136,14 @@ export type Scenario = {
   description: string;
   scenarioType: ScenarioType;
   featureMockup?: FeatureMockup;
-  behavior?: ScenarioBehavior;
-  product: {
-    name: string;
-    summary: string;
-    audience: string;
-    problems: string[];
-    goals: string[];
-    differentiators: string[];
-    scope: string[];
-    constraints: string[];
-    timeline: string;
-    successCriteria: string[];
-    uniqueEdge?: string;
-    techStack?: string[];
-    coreFeatures?: string[];
-  };
+  scenarioGuide?: string;
   kickoffPrompt: string;
   agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];
   passingScore?: number;
   missions?: Mission[];
-  task?: TaskDefinition;
-  assistanceMode?: AssistanceMode;
+  agentPrompt?: string;
+  singleResponse?: boolean;
 };
 
 export type ManagerComment = {

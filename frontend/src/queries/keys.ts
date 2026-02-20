@@ -1,4 +1,8 @@
 export const queryKeys = {
+  scenarios: {
+    all: () => ["scenarios"] as const,
+    detail: (id: string) => ["scenarios", id] as const,
+  },
   account: {
     detail: () => ["account", "detail"] as const,
   },

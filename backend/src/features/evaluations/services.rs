@@ -488,8 +488,18 @@ async fn generate_ai_evaluation(
 
     let json_value =
         json_value.ok_or_else(|| anyhow_error("Gemini evaluation returned invalid JSON"))?;
-    let output: EvaluationOutput = serde_json::from_value(json_value)
-        .map_err(|e| anyhow_error(format!("Failed to decode evaluation JSON: {}", e)))?;
+
+    // Log the JSON being parsed for debugging
+    tracing::info!("=== EVALUATION JSON ===");
+    tracing::info!("Parsed JSON: {}", serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| "Failed to stringify".to_string()));
+    tracing::info!("======================");
+
+    let output: EvaluationOutput = serde_json::from_value(json_value.clone())
+        .map_err(|e| {
+            tracing::error!("JSON deserialization error: {}", e);
+            tracing::error!("JSON value: {:?}", json_value);
+            anyhow_error(format!("Failed to decode evaluation JSON: {}", e))
+        })?;
 
     let mut categories = Vec::new();
     for criterion in criteria {

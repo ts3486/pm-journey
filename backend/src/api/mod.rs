@@ -29,7 +29,6 @@ use crate::features::imports::handlers::{__path_import_sessions, import_sessions
 use crate::features::messages::handlers::{
     __path_list_messages, __path_post_message, list_messages, post_message,
 };
-use crate::features::messages::models::AgentContext;
 use crate::features::organizations::handlers::{
     __path_accept_invitation, __path_create_invitation, __path_create_organization,
     __path_delete_member, __path_get_current_organization, __path_get_current_progress,
@@ -164,8 +163,8 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         TestCase,
         TestCaseResponse,
         CreateTestCaseRequest,
-        crate::models::ProductInfo,
-        AgentContext,
+        crate::models::ScoringGuidelines,
+        crate::models::RatingCriterion,
         ProductConfig,
         UpdateProductConfigRequest,
         MyAccountResponse,
