@@ -163,6 +163,7 @@ struct EvaluationOutputCategory {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EvaluationOutput {
+    #[serde(default)]
     categories: Vec<EvaluationOutputCategory>,
     overall_score: Option<f32>,
     summary: Option<String>,
@@ -435,14 +436,18 @@ async fn generate_ai_evaluation(
     )
     .await?;
 
+    let needs_retry = |v: &Option<serde_json::Value>| {
+        v.as_ref().map_or(true, |j| j.get("categories").is_none())
+    };
+
     let mut json_value = extract_json_value(&reply_text);
-    if json_value.is_none() {
+    if needs_retry(&json_value) {
         warn!(
             session_id = %session_id,
             attempt = "initial",
             reply_len = reply_text.len(),
             reply_preview = %preview_for_log(&reply_text, 600),
-            "Gemini evaluation returned non-JSON output"
+            "Gemini evaluation returned non-JSON or missing categories"
         );
         let strict_instruction = build_evaluation_instruction(request, criteria, true);
         let strict_reply = call_gemini_evaluation(
@@ -453,13 +458,13 @@ async fn generate_ai_evaluation(
         )
         .await?;
         json_value = extract_json_value(&strict_reply);
-        if json_value.is_none() {
+        if needs_retry(&json_value) {
             warn!(
                 session_id = %session_id,
                 attempt = "strict",
                 reply_len = strict_reply.len(),
                 reply_preview = %preview_for_log(&strict_reply, 600),
-                "Gemini evaluation strict output still invalid"
+                "Gemini evaluation strict output still invalid or missing categories"
             );
             let template = build_evaluation_template_json(criteria);
             let repair_instruction = format!(
@@ -474,13 +479,13 @@ async fn generate_ai_evaluation(
                 call_gemini_evaluation(repair_instruction, repair_input, &eval_model, &gemini_key)
                     .await?;
             json_value = extract_json_value(&repaired_reply);
-            if json_value.is_none() {
+            if needs_retry(&json_value) {
                 warn!(
                     session_id = %session_id,
                     attempt = "repair",
                     reply_len = repaired_reply.len(),
                     reply_preview = %preview_for_log(&repaired_reply, 600),
-                    "Gemini evaluation repair output still invalid"
+                    "Gemini evaluation repair output still invalid or missing categories"
                 );
             }
         }
