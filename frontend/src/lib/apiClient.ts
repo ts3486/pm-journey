@@ -221,8 +221,8 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
       content: string,
       tags?: MessageTag[],
       missionStatus?: MissionStatus[],
-    ): Promise<{ reply: Message; session: Session }> {
-      return request<{ reply: Message; session: Session }>(`/sessions/${sessionId}/messages`, {
+    ): Promise<{ reply: Message; additionalMessages: Message[]; session: Session }> {
+      return request<{ reply: Message; additionalMessages: Message[]; session: Session }>(`/sessions/${sessionId}/messages`, {
         method: "POST",
         body: { role, content, tags, missionStatus },
       });

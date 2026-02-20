@@ -16,5 +16,7 @@ pub struct CreateMessageRequest {
 #[derive(Serialize, ToSchema)]
 pub struct MessageResponse {
     pub reply: Message,
+    #[serde(rename = "additionalMessages")]
+    pub additional_messages: Vec<Message>,
     pub session: Session,
 }

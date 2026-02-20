@@ -51,9 +51,9 @@ export function buildHomeScenarioCatalog(scenarios: Scenario[]): ScenarioCatalog
           id: "basic-soft-skills",
           title: "基礎ソフトスキル",
           scenarios: [
-            require("basic-product-understanding"),
             require("basic-intro-alignment"),
-            require("basic-schedule-share"),
+            require("basic-product-understanding"),
+            require("basic-meeting-minutes"),
           ],
         },
       ],
@@ -112,8 +112,6 @@ export function buildHomeScenarioCatalog(scenarios: Scenario[]): ScenarioCatalog
           title: "事業推進・戦略",
           scenarios: [
             require("coming-priority-tradeoff-workshop"),
-            require("coming-stakeholder-negotiation"),
-            require("coming-decision-log-alignment"),
             require("adv-data-roi"),
             require("adv-strategy-diagnosis"),
           ],

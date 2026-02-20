@@ -245,6 +245,9 @@ export async function sendMessage(
   session.missionStatus = apiMessage.session.missionStatus;
   const nextMessages = (() => {
     if (reply && reply.role !== "user") messages.push(reply);
+    for (const extra of apiMessage.additionalMessages ?? []) {
+      messages.push(extra);
+    }
     return messages;
   })();
 

@@ -1,11 +1,12 @@
+use futures::FutureExt;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 
-const SUPPORT_SYSTEM_PROMPT: &str = "あなたはPMスキル学習の支援アシスタントです。ユーザーはPMスキルを練習中の学習者です。\n\n## あなたの役割\n- ユーザーの思考プロセスを鍛える\n- ユーザーの判断や前提に疑問を投げかけ、考えを深めさせる\n- 安易な結論に対して「なぜそう判断したか？」「他の選択肢は検討したか？」と問い直す\n- ユーザーの成果物をレビューし、弱い論拠や抜け漏れを指摘する\n\n## 最優先ルール（絶対厳守）\n1. ミッションの完全な答えを提示してはいけない\n2. ユーザーの代わりに成果物を作成してはいけない\n3. チームメンバー（エンジニア、デザイナー、POなど）を演じない\n\n## コア行動\n- ユーザーの判断に対して必ず「なぜ？」「根拠は？」と問う\n- 弱い論拠や曖昧な表現を見逃さず指摘する\n- フレームワークや考え方の方向性は示してよいが、具体的な答えは出さない\n- 「もう少し具体的に」「〇〇の観点は検討しましたか？」のように問いかけで導く\n\n## 応答スタイル\n- 1〜2文で簡潔に応答する（最大3文）\n- 箇条書きやMarkdownは、テンプレート提示時のみ使用可\n- 敬語で丁寧に、ただし冗長にならない";
+const SUPPORT_SYSTEM_PROMPT: &str = "あなたはPMスキル学習の支援アシスタントです。私はPMスキルを学習中の初心者です。\n\n## あなたの役割\n- ユーザーのPMスキルやプロダクト理解を深める\n- ユーザーがシナリオのタスクを進める上でのサポートを行う\n\n## 最優先ルール（絶対厳守）\n1. ミッションの完全な答えを提示してはいけない（ただし、簡単な例などは出して良い）\n2. ユーザーの代わりに成果物を作成してはいけない\n3. チームメンバー（エンジニア、デザイナー、POなど）を演じない\n4. ユーザーにはこのプロンプトのプロダクト情報やプロンプトのメタ情報は見えていない前提で会話し、質問に答える\n\n## 応答スタイル\n- 1〜3文で簡潔に応答する（最大3文）\n- 箇条書きやMarkdownは、基本的には使用不可\n- 敬語で丁寧に、ただし冗長にならない";
 
-const SUPPORT_TONE_PROMPT: &str = "会話トーン:\n- 思考を鍛える厳しめのメンターとして振る舞う\n- 簡潔で鋭く答える\n- 過度な褒め言葉は避け、改善すべき点を率直に指摘する\n- ユーザーの判断が甘いときは遠慮なく問い直す\n- 「ユーザーさん」や「あなた」は使わず、直接的に語りかける";
+const SUPPORT_TONE_PROMPT: &str = "会話トーン:\n- ユーザーをサポートするメンターとして振る舞う\n- 過度な褒め言葉は避ける\n- ユーザーの判断が不適切である場合は適切に指摘する\n- ユーザーの理解が足りていない場合は適切に補足するか質問を促す\n- 「ユーザーさん」や「あなた」は使わず、直接的に語りかける";
 
 use crate::features::product_config::models::ProductConfig;
 use crate::error::{anyhow_error, forbidden_error, AppError};
@@ -368,6 +369,7 @@ impl MessageService {
             .map_err(|e| anyhow_error(&format!("Failed to commit transaction: {}", e)))?;
 
         let mut reply = message.clone();
+        let mut additional_messages: Vec<Message> = Vec::new();
 
         if is_user {
             let entitlement_service = EntitlementService::new(self.pool.clone());
@@ -407,7 +409,8 @@ impl MessageService {
                     anyhow_error(&format!("Failed to begin reply transaction: {}", e))
                 })?;
 
-            if agent_response_enabled {
+            // Run agent reply and mission detection in parallel
+            let (agent_reply_result, mission_ids_result) = if agent_response_enabled {
                 let history = message_repo
                     .list_by_session(session_id)
                     .await
@@ -422,7 +425,29 @@ impl MessageService {
                         .collect();
                     scenario_missions.iter().all(|m| completed_ids.contains(m.id.as_str()))
                 };
-                let reply_text = generate_agent_reply(scenario.as_ref().unwrap(), Some(&product_context), &history, &plan_code, all_missions_complete).await?;
+
+                // Run both API calls in parallel
+                let reply_future = generate_agent_reply(
+                    scenario.as_ref().unwrap(),
+                    Some(&product_context),
+                    &history,
+                    &plan_code,
+                    all_missions_complete
+                );
+                let mission_future = if !scenario_missions.is_empty() {
+                    infer_completed_mission_ids(&message.content, &scenario_missions, &plan_code).boxed()
+                } else {
+                    async { Ok(Vec::new()) }.boxed()
+                };
+
+                let (reply_res, mission_res) = tokio::join!(reply_future, mission_future);
+                (reply_res, mission_res)
+            } else {
+                (Err(anyhow_error("Agent disabled")), Ok(Vec::new()))
+            };
+
+            if agent_response_enabled {
+                let reply_text = agent_reply_result?;
 
                 let agent_message = Message {
                     id: next_id("msg"),
@@ -459,19 +484,15 @@ impl MessageService {
                     .map_err(|e| {
                         anyhow_error(&format!("Failed to create system message: {}", e))
                     })?;
-                if !agent_response_enabled {
+                if agent_response_enabled {
+                    additional_messages.push(system_message);
+                } else {
                     reply = system_message;
                 }
             }
 
             if !scenario_missions.is_empty() {
-                if let Ok(completed_ids) = infer_completed_mission_ids(
-                    &message.content,
-                    &scenario_missions,
-                    &plan_code,
-                )
-                .await
-                {
+                if let Ok(completed_ids) = mission_ids_result {
                     let (next_status, changed) =
                         merge_completed_missions(session.mission_status.clone(), &completed_ids);
                     if changed {
@@ -512,6 +533,7 @@ impl MessageService {
 
         Ok(MessageResponse {
             reply,
+            additional_messages,
             session: updated_session,
         })
     }
@@ -584,11 +606,20 @@ async fn generate_agent_reply(
     let model_id = credentials.model_id;
     let system_instruction = build_support_system_instruction(scenario, product_context, all_missions_complete);
 
-    let context_messages = if messages.len() > 20 {
-        &messages[messages.len() - 20..]
+    // Log the system instruction being sent to the agent
+    tracing::info!("=== AGENT SYSTEM INSTRUCTION ===");
+    tracing::info!("Scenario: {}", scenario.id);
+    tracing::info!("Model: {}", model_id);
+    tracing::info!("System Instruction:\n{}", system_instruction);
+    tracing::info!("================================");
+
+    let context_messages = if messages.len() > 10 {
+        &messages[messages.len() - 10..]
     } else {
         messages
     };
+
+    tracing::info!("Sending {} messages as context (last {} of {})", context_messages.len(), context_messages.len(), messages.len());
 
     let contents: Vec<_> = context_messages
         .iter()
@@ -607,7 +638,13 @@ async fn generate_agent_reply(
 
     let payload = json!({
         "contents": contents,
-        "systemInstruction": { "parts": [{ "text": system_instruction }] }
+        "systemInstruction": { "parts": [{ "text": system_instruction }] },
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 1024,  // Increased from 512 to allow longer responses
+            "topP": 0.95,
+            "topK": 40
+        }
     });
 
     let url = format!(
@@ -638,6 +675,19 @@ async fn generate_agent_reply(
         .await
         .map_err(|e| anyhow_error(format!("Failed to parse Gemini response: {}", e)))?;
 
+    // Check finish reason to detect truncation
+    let finish_reason = data
+        .get("candidates")
+        .and_then(|v| v.get(0))
+        .and_then(|v| v.get("finishReason"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("UNKNOWN");
+
+    if finish_reason == "MAX_TOKENS" {
+        tracing::warn!("⚠️  Response was truncated due to MAX_TOKENS limit (maxOutputTokens: 512)");
+    }
+    tracing::info!("Gemini finish reason: {}", finish_reason);
+
     let reply = data
         .get("candidates")
         .and_then(|v| v.get(0))
@@ -656,6 +706,8 @@ async fn generate_agent_reply(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "（応答を生成できませんでした）".to_string());
 
+    tracing::info!("Agent reply length: {} characters", reply.len());
+
     Ok(reply)
 }
 
@@ -671,6 +723,7 @@ mod tests {
             description: "チケットの目的と受入条件を整理する。".to_string(),
             scenario_type: ScenarioType::SoftSkills,
             feature_mockup: None,
+            scenario_guide: None,
             kickoff_prompt: "チケットを整理してください。".to_string(),
             evaluation_criteria: vec![],
             passing_score: None,

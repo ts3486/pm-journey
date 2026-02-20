@@ -73,6 +73,7 @@ impl ScenarioRepository {
             description: r.get("description"),
             scenario_type,
             feature_mockup: None,
+            scenario_guide: None,
             kickoff_prompt: r.get("kickoff_prompt"),
             evaluation_criteria: evaluation_criteria
                 .into_iter()

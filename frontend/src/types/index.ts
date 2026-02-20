@@ -136,6 +136,7 @@ export type Scenario = {
   description: string;
   scenarioType: ScenarioType;
   featureMockup?: FeatureMockup;
+  scenarioGuide?: string;
   kickoffPrompt: string;
   agentOpeningMessage?: string;
   evaluationCriteria: RatingCriterion[];

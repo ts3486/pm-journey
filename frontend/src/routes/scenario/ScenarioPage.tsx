@@ -12,6 +12,7 @@ import {
   ScenarioCategoryGuideModal,
 } from "@/components/scenario/ScenarioCategoryGuideModal";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
+import { RequirementDefinitionScenarioLayout } from "@/components/scenario/RequirementDefinitionScenarioLayout";
 import {
   createLocalMessage,
   resetSession,
@@ -73,11 +74,7 @@ export function ScenarioPage() {
     (!agentResponseEnabled || hasAgentResponseAfterUser);
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
   const requiresMissionCompletion = missions.length > 0;
-  const canCompleteScenario =
-    hasActive &&
-    hasUserResponse &&
-    (!requiresMissionCompletion || allMissionsComplete) &&
-    (!isSingleResponseScenario || singleResponseScenarioEnded);
+  const canCompleteScenario = hasActive && (!requiresMissionCompletion || allMissionsComplete);
   const scenarioLocked = isSingleResponseScenario && singleResponseScenarioEnded;
 
   const clearPendingInitialReply = () => {
@@ -296,6 +293,29 @@ export function ScenarioPage() {
     );
   }
 
+  if (activeScenario.scenarioType === "requirement-definition") {
+    return (
+      <>
+        <RequirementDefinitionScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
+          missions={missions}
+          missionStatusMap={missionStatusMap}
+          onMissionToggle={handleMissionToggle}
+          canCompleteScenario={canCompleteScenario}
+          allMissionsComplete={allMissionsComplete}
+          requiresMissionCompletion={requiresMissionCompletion}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="space-y-6">
@@ -394,15 +414,7 @@ export function ScenarioPage() {
                   シナリオを完了する
                 </button>
               </div>
-              {!hasUserResponse ? (
-                <p className="mt-2 text-xs text-slate-500">評価を開始するには、先に1件以上メッセージを送信してください。</p>
-              ) : null}
-              {hasUserResponse && isSingleResponseScenario && !singleResponseScenarioEnded ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  エージェントの返答とシナリオ終了メッセージの表示を待ってから完了してください。
-                </p>
-              ) : null}
-              {hasUserResponse && requiresMissionCompletion && !allMissionsComplete ? (
+              {requiresMissionCompletion && !allMissionsComplete ? (
                 <p className="mt-2 text-xs text-slate-500">
                   エージェントがミッション達成を判定すると自動でチェックされます。必要であれば手動でチェックして完了できます。
                 </p>

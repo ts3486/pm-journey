@@ -229,6 +229,7 @@ export function HistoryDetailPage() {
     queryKey: ["history", sessionId],
     queryFn: () => getHistoryItem(sessionId ?? ""),
     enabled: Boolean(sessionId),
+    staleTime: 0,
   });
 
   const scenario = item?.scenarioId ? findScenarioById(scenarios, item.scenarioId) : undefined;
