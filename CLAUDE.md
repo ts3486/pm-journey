@@ -115,6 +115,31 @@ docker-compose up # Start all services
 - **Integration**: Tests in `tests/` directory
 - Test files: `*_test.rs`, `tests/*.rs`
 
+## TDD Workflow
+
+Follow TDD for all new implementations to prevent breaking existing tests.
+
+### Before Starting Any Implementation
+
+1. Run existing tests to establish a baseline:
+   ```bash
+   cd frontend && pnpm test run    # Unit tests
+   cd frontend && pnpm e2e         # E2E tests (for UI/user-facing changes)
+   cd backend && cargo test        # Backend tests
+   ```
+2. For new features, write the failing test(s) first, verify they fail, then implement code to make them pass.
+
+### After Implementation
+
+3. Run all relevant tests and confirm they pass before considering the task done.
+4. Add E2E tests for new user-facing flows if none exist.
+
+### Rules (enforce strictly)
+
+- NEVER delete or modify existing tests to make an implementation pass — fix the implementation instead.
+- NEVER skip tests with `.skip`, `xit`, `test.only` (unless debugging), or Rust `#[ignore]` to work around failures — fix the root cause.
+- If an implementation genuinely requires changing an existing test's expected behavior, explain why and confirm with the user before changing the test.
+
 ## API Patterns
 - REST API with Axum
 - OpenAPI documentation via utoipa

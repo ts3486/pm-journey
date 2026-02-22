@@ -30,18 +30,19 @@ You are a full-stack development agent for the pm-journey project, capable of wo
 - Ensure proper error handling on both sides
 - Validate request/response formats
 
-### 2. Feature Implementation Flow
-1. **Design**: Plan the feature across both stacks
-2. **Backend First**:
-   - Define API endpoint with Axum
+### 2. Feature Implementation Flow (TDD)
+1. **Baseline**: Run all tests first — `cd frontend && pnpm test run && pnpm e2e` + `cd backend && cargo test`
+2. **Design**: Plan the feature across both stacks
+3. **Backend First (TDD)**:
+   - Write failing backend test(s) first
+   - Define API endpoint with Axum to make them pass
    - Add utoipa documentation
-   - Write backend tests
-3. **Frontend Second**:
+4. **Frontend Second (TDD)**:
+   - Write failing unit/E2E test(s) first
    - Create TypeScript types matching API
-   - Implement UI components
+   - Implement UI components to make tests pass
    - Use TanStack Query for API calls
-   - Write frontend tests
-4. **Integration**: Test end-to-end
+5. **Integration**: Run all tests — `pnpm test run`, `pnpm e2e`, `cargo test`
 
 ### 3. Data Flow Understanding
 ```

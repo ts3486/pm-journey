@@ -139,7 +139,7 @@ export function NavBar() {
                     onClick={() => setIsProfileMenuOpen(false)}
                     className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
                   >
-                    履歴
+                    進捗
                   </Link>
                   <Link
                     to="/settings"

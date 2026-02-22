@@ -50,17 +50,26 @@ Always work within the `frontend/` directory for this project.
    - Types: `frontend/src/types/`
    - Pages: `frontend/app/`
 
+## TDD Workflow
+
+1. **Before implementing**: Run existing tests to establish a baseline — `pnpm test run`
+2. **For new features**: Write the failing test first, confirm it fails, then implement
+3. **After implementing**: Run `pnpm test run` and `pnpm e2e` (for user-facing changes) — all tests must pass
+4. Never skip or delete tests to make a build pass; fix the implementation instead
+
 ## Before Making Changes
 
-1. Read existing code to understand patterns
-2. Check for similar components/patterns already in use
-3. Ensure TypeScript types are properly defined
+1. Run `pnpm test run` to confirm the current test baseline
+2. Read existing code to understand patterns
+3. Check for similar components/patterns already in use
+4. Ensure TypeScript types are properly defined
 
 ## After Making Changes
 
-1. Check TypeScript compilation
-2. Run relevant tests
-3. Verify the component works in dev mode if needed
+1. Run `pnpm test run` — all existing tests must still pass
+2. Run `pnpm e2e` if the change affects user-facing behavior
+3. Check TypeScript compilation: `pnpm exec tsc --noEmit`
+4. Run ESLint: `pnpm lint`
 
 ## Development Commands
 

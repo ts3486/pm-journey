@@ -50,16 +50,24 @@ Always work within the `backend/` directory for this project.
    - Tests: `backend/tests/`
    - Config: `backend/.env`
 
+## TDD Workflow
+
+1. **Before implementing**: Run `cargo test` to establish a baseline
+2. **For new features**: Write the failing test first (in `tests/` or as a `#[test]` fn), confirm it fails, then implement
+3. **After implementing**: Run `cargo test` — all tests must pass
+4. Never use `#[ignore]` or delete tests to make a build pass; fix the implementation instead
+
 ## Before Making Changes
 
-1. Read existing code to understand patterns
-2. Check for similar functionality already implemented
-3. Ensure you understand the async patterns in use
+1. Run `cargo test` to confirm the current test baseline
+2. Read existing code to understand patterns
+3. Check for similar functionality already implemented
+4. Ensure you understand the async patterns in use
 
 ## After Making Changes
 
-1. Run `cargo clippy` for linting
-2. Run `cargo test` for tests
+1. Run `cargo test` — all existing tests must still pass
+2. Run `cargo clippy -- -D warnings` for linting
 3. Verify `cargo build` succeeds
 4. Check that API documentation is updated (utoipa)
 
