@@ -75,15 +75,7 @@ impl ScenarioRepository {
             feature_mockup: None,
             scenario_guide: None,
             kickoff_prompt: r.get("kickoff_prompt"),
-            evaluation_criteria: evaluation_criteria
-                .into_iter()
-                .map(|c| crate::models::EvaluationCategory {
-                    name: c.name,
-                    weight: c.weight,
-                    score: None,
-                    feedback: None,
-                })
-                .collect(),
+            evaluation_criteria,
             passing_score: r.try_get::<Option<f32>, _>("passing_score").ok().flatten(),
             missions,
             agent_prompt: None,

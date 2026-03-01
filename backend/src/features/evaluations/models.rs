@@ -2,15 +2,7 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 
 pub use crate::models::Evaluation;
-
-#[derive(Deserialize, ToSchema, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ScoringGuidelines {
-    pub excellent: String,
-    pub good: String,
-    pub needs_improvement: String,
-    pub poor: String,
-}
+pub use crate::models::ScoringGuidelines;
 
 #[derive(Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -34,4 +26,7 @@ pub struct EvaluationRequest {
     #[allow(dead_code)]
     pub scenario_type: Option<String>,
     pub test_cases_context: Option<String>,
+    pub requirement_definition_context: Option<String>,
+    pub incident_response_context: Option<String>,
+    pub business_execution_context: Option<String>,
 }

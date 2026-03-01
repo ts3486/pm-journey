@@ -163,7 +163,6 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         TestCase,
         TestCaseResponse,
         CreateTestCaseRequest,
-        crate::models::ScoringGuidelines,
         crate::models::RatingCriterion,
         ProductConfig,
         UpdateProductConfigRequest,

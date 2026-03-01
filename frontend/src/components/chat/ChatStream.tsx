@@ -1,5 +1,6 @@
 import type { Message } from "@/types";
 import { useEffect, useRef } from "react";
+import Markdown from "react-markdown";
 
 type ChatStreamProps = {
   messages: Message[];
@@ -64,7 +65,19 @@ export function ChatStream({ messages, maxHeight = "60vh", isTyping = false }: C
                     </span>
                   )}
                 </div>
-                <div className="mt-1 whitespace-pre-wrap">{m.content}</div>
+                <div className="mt-1 space-y-2">
+                  <Markdown
+                    components={{
+                      a: ({ href, children }) => (
+                        <a href={href} download className="text-orange-600 underline hover:text-orange-800">
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {m.content}
+                  </Markdown>
+                </div>
               </div>
             </article>
           );

@@ -121,6 +121,8 @@ const businessExecutionScenarioIds = new Set([
   "coming-priority-tradeoff-workshop",
   "coming-stakeholder-negotiation",
   "coming-decision-log-alignment",
+  "adv-data-roi",
+  "adv-strategy-diagnosis",
 ]);
 
 const normalizeCriteriaLine = (line: string) =>
@@ -199,6 +201,9 @@ export const resolveScenarioEvaluationCategoryKey = (
   scenario: Pick<Scenario, "id" | "scenarioType">
 ): ScenarioEvaluationCategoryKey => {
   if (scenario.scenarioType === "test-cases") return "testCases";
+  if (scenario.scenarioType === "requirement-definition") return "requirementDefinition";
+  if (scenario.scenarioType === "incident-response") return "incidentResponse";
+  if (scenario.scenarioType === "business-execution") return "businessExecution";
   if (requirementDefinitionScenarioIds.has(scenario.id)) return "requirementDefinition";
   if (incidentResponseScenarioIds.has(scenario.id)) return "incidentResponse";
   if (businessExecutionScenarioIds.has(scenario.id)) return "businessExecution";

@@ -291,6 +291,9 @@ export async function evaluateSessionById(
   sessionId: string,
   scenarioId?: string,
   testCasesContext?: string,
+  requirementDefinitionContext?: string,
+  incidentResponseContext?: string,
+  businessExecutionContext?: string,
 ): Promise<Evaluation> {
   const scenario = scenarioId ? await getScenarioById(scenarioId) : undefined;
   const productConfig = scenario ? await getProductConfigSnapshot() : undefined;
@@ -311,6 +314,9 @@ export async function evaluateSessionById(
         scenarioPrompt: scenario.kickoffPrompt,
         scenarioType: resolveScenarioType(scenario),
         testCasesContext,
+        requirementDefinitionContext,
+        incidentResponseContext,
+        businessExecutionContext,
       }
     : undefined;
   const evaluation = await api.evaluate(sessionId, payload);

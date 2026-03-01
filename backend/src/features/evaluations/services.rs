@@ -16,7 +16,7 @@ use crate::features::sessions::repository::SessionRepository;
 use crate::models::{default_scenarios, Evaluation, EvaluationCategory, Message, MessageRole};
 use crate::shared::gemini::resolve_eval_credentials;
 
-use super::models::{EvaluationCriterion, EvaluationRequest, ScoringGuidelines};
+use super::models::{EvaluationCriterion, EvaluationRequest};
 
 #[derive(Clone)]
 pub struct EvaluationService {
@@ -67,28 +67,22 @@ impl EvaluationService {
         let criteria = if let Some(criteria) = criteria {
             criteria
         } else {
-            let fallback = default_scenarios()
+            default_scenarios()
                 .into_iter()
                 .find(|s| s.id == session.scenario_id)
                 .map(|s| {
                     s.evaluation_criteria
                         .into_iter()
                         .map(|c| EvaluationCriterion {
-                            id: None,
+                            id: c.id,
                             name: c.name,
                             weight: c.weight,
-                            description: String::new(),
-                            scoring_guidelines: ScoringGuidelines {
-                                excellent: String::new(),
-                                good: String::new(),
-                                needs_improvement: String::new(),
-                                poor: String::new(),
-                            },
+                            description: c.description,
+                            scoring_guidelines: c.scoring_guidelines,
                         })
                         .collect::<Vec<_>>()
                 })
-                .unwrap_or_default();
-            fallback
+                .unwrap_or_default()
         };
 
         if criteria.is_empty() {
@@ -104,9 +98,26 @@ impl EvaluationService {
             .test_cases_context
             .as_ref()
             .is_some_and(|tc| !tc.trim().is_empty());
-        if !has_evaluable_messages && !has_test_cases {
+        let has_requirement_definition = request
+            .requirement_definition_context
+            .as_ref()
+            .is_some_and(|rd| !rd.trim().is_empty());
+        let has_incident_response = request
+            .incident_response_context
+            .as_ref()
+            .is_some_and(|ir| !ir.trim().is_empty());
+        let has_business_execution = request
+            .business_execution_context
+            .as_ref()
+            .is_some_and(|be| !be.trim().is_empty());
+        if !has_evaluable_messages
+            && !has_test_cases
+            && !has_requirement_definition
+            && !has_incident_response
+            && !has_business_execution
+        {
             return Err(client_error(
-                "評価対象のメッセージまたはテストケースがありません。",
+                "評価対象のメッセージまたは成果物がありません。",
             ));
         }
 
@@ -194,6 +205,18 @@ fn build_evaluation_instruction(
     }
     if let Some(test_cases_context) = &request.test_cases_context {
         sections.push(format!("## 作成されたテストケース\n{}", test_cases_context));
+    }
+    if let Some(req_def_context) = &request.requirement_definition_context {
+        sections.push(format!("## 提出された要件定義書\n{}", req_def_context));
+    }
+    if let Some(incident_context) = &request.incident_response_context {
+        sections.push(format!(
+            "## 提出された障害対応レポート\n{}",
+            incident_context
+        ));
+    }
+    if let Some(business_context) = &request.business_execution_context {
+        sections.push(format!("## 提出された意思決定ログ\n{}", business_context));
     }
 
     let mut criteria_lines = Vec::new();

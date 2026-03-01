@@ -238,6 +238,9 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
         scenarioPrompt?: string;
         scenarioType?: string;
         testCasesContext?: string;
+        requirementDefinitionContext?: string;
+        incidentResponseContext?: string;
+        businessExecutionContext?: string;
       }
     ): Promise<Evaluation> {
       return request<Evaluation>(`/sessions/${sessionId}/evaluate`, {

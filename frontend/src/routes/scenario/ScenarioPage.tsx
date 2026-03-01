@@ -13,6 +13,8 @@ import {
 } from "@/components/scenario/ScenarioCategoryGuideModal";
 import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLayout";
 import { RequirementDefinitionScenarioLayout } from "@/components/scenario/RequirementDefinitionScenarioLayout";
+import { IncidentResponseScenarioLayout } from "@/components/scenario/IncidentResponseScenarioLayout";
+import { BusinessExecutionScenarioLayout } from "@/components/scenario/BusinessExecutionScenarioLayout";
 import {
   createLocalMessage,
   resetSession,
@@ -299,17 +301,48 @@ export function ScenarioPage() {
         <RequirementDefinitionScenarioLayout
           scenario={activeScenario}
           state={state}
+          sessionId={state?.session?.id}
           awaitingReply={awaitingReply}
           onSend={handleSend}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
           onOpenGuide={handleOpenGuide}
-          missions={missions}
-          missionStatusMap={missionStatusMap}
-          onMissionToggle={handleMissionToggle}
-          canCompleteScenario={canCompleteScenario}
-          allMissionsComplete={allMissionsComplete}
-          requiresMissionCompletion={requiresMissionCompletion}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
+  if (activeScenario.scenarioType === "incident-response") {
+    return (
+      <>
+        <IncidentResponseScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          sessionId={state?.session?.id}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
+  if (activeScenario.scenarioType === "business-execution") {
+    return (
+      <>
+        <BusinessExecutionScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          sessionId={state?.session?.id}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
         />
         {guideModal}
       </>

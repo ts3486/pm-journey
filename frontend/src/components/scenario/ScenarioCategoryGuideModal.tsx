@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { env } from "@/config/env";
 import { getScenarioDiscipline } from "@/queries/scenarios";
 import type { Mission, Scenario, ScenarioDiscipline } from "@/types";
@@ -21,9 +23,17 @@ const GUIDE_SEEN_STORAGE_SUFFIX = "scenario-guide-seen";
 const GUIDE_MODAL_APPEAR_DELAY_MS = 140;
 const GUIDE_MODAL_CLOSE_DURATION_MS = 200;
 
+const scenarioTypesWithDedicatedBriefing = new Set([
+  "incident-response",
+  "business-execution",
+]);
+
 export function buildScenarioGuide(scenario: Scenario): ScenarioGuide {
   const fallbackMessage = `${scenario.description}このシナリオに取り組みましょう。`;
-  const guidanceSentence = scenario.scenarioGuide?.trim() || scenario.agentOpeningMessage?.trim() || scenario.kickoffPrompt?.trim() || fallbackMessage;
+  const hasDedicatedBriefing = scenarioTypesWithDedicatedBriefing.has(scenario.scenarioType);
+  const guidanceSentence = hasDedicatedBriefing
+    ? scenario.kickoffPrompt?.trim() || scenario.description
+    : scenario.scenarioGuide?.trim() || scenario.agentOpeningMessage?.trim() || scenario.kickoffPrompt?.trim() || fallbackMessage;
 
   return {
     scenarioId: scenario.id,
@@ -159,7 +169,20 @@ export function ScenarioCategoryGuideModal({
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
                 シナリオ概要
               </p>
-              <p className="text-base leading-7 text-slate-800">{guide.guidanceSentence}</p>
+              <div className="prose prose-sm max-w-none text-base leading-7 text-slate-800">
+                <Markdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ href, children }) => (
+                      <a href={href} download className="text-orange-600 underline hover:text-orange-800">
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {guide.guidanceSentence}
+                </Markdown>
+              </div>
             </div>
 
             {guide.missions.length > 0 && (
@@ -190,8 +213,7 @@ export function ScenarioCategoryGuideModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-orange-100/80 px-6 py-4 sm:px-8">
-          <p className="text-xs text-slate-400">Esc で閉じる</p>
+        <div className="flex items-center justify-end border-t border-orange-100/80 px-6 py-4 sm:px-8">
           <button type="button" className="btn-primary" onClick={onClose}>
             シナリオを開始する
           </button>

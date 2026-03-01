@@ -234,6 +234,9 @@ export function HistoryDetailPage() {
 
   const scenario = item?.scenarioId ? findScenarioById(scenarios, item.scenarioId) : undefined;
   const isTestCaseScenario = scenario?.scenarioType === "test-cases";
+  const isRequirementDefinitionScenario = scenario?.scenarioType === "requirement-definition";
+  const isIncidentResponseScenario = scenario?.scenarioType === "incident-response";
+  const isBusinessExecutionScenario = scenario?.scenarioType === "business-execution";
   const isBasicScenario = scenario?.scenarioType === "soft-skills";
   const missionList =
     scenario?.missions && scenario.missions.length > 0
@@ -291,9 +294,9 @@ export function HistoryDetailPage() {
   });
 
   const evaluateMutation = useMutation({
-    mutationFn: async (payload: { scenarioId?: string; testCasesContext?: string }) => {
+    mutationFn: async (payload: { scenarioId?: string; testCasesContext?: string; requirementDefinitionContext?: string; incidentResponseContext?: string; businessExecutionContext?: string }) => {
       if (!sessionId) throw new Error("sessionId is required");
-      return evaluateSessionById(sessionId, payload.scenarioId, payload.testCasesContext);
+      return evaluateSessionById(sessionId, payload.scenarioId, payload.testCasesContext, payload.requirementDefinitionContext, payload.incidentResponseContext, payload.businessExecutionContext);
     },
     onSuccess: (evaluation) => {
       if (!sessionId) return;
@@ -306,7 +309,10 @@ export function HistoryDetailPage() {
 
   const hasMessages = (item?.actions?.length ?? 0) > 0;
   const hasTestCases = isTestCaseScenario && testCases.length > 0;
-  const canEvaluate = hasMessages || hasTestCases;
+  const hasRequirementDefinition = isRequirementDefinitionScenario && outputs.some((o) => o.note === "requirement-definition");
+  const hasIncidentResponse = isIncidentResponseScenario && outputs.some((o) => o.note === "incident-response");
+  const hasBusinessExecution = isBusinessExecutionScenario && outputs.some((o) => o.note === "business-execution");
+  const canEvaluate = hasMessages || hasTestCases || hasRequirementDefinition || hasIncidentResponse || hasBusinessExecution;
   const evaluating = evaluateMutation.isPending;
 
   const manualEvaluationRequested =
@@ -318,7 +324,13 @@ export function HistoryDetailPage() {
     ? missingActionsError
       ? isTestCaseScenario
         ? "評価対象のテストケースがありません。"
-        : "評価対象のメッセージがありません。"
+        : isRequirementDefinitionScenario
+          ? "評価対象の要件定義書がありません。"
+          : isIncidentResponseScenario
+            ? "評価対象の障害対応レポートがありません。"
+            : isBusinessExecutionScenario
+              ? "評価対象の意思決定ログがありません。"
+              : "評価対象のメッセージがありません。"
       : evaluateMutation.error?.message ?? null
     : null;
 
@@ -337,16 +349,40 @@ export function HistoryDetailPage() {
       .join("\n\n");
   }, [isTestCaseScenario, testCases]);
 
+  const formatRequirementDefinitionContext = useCallback(() => {
+    if (!isRequirementDefinitionScenario) return undefined;
+    const reqDefOutput = outputs.find((o) => o.note === "requirement-definition");
+    return reqDefOutput?.value;
+  }, [isRequirementDefinitionScenario, outputs]);
+
+  const formatIncidentResponseContext = useCallback(() => {
+    if (!isIncidentResponseScenario) return undefined;
+    const irOutput = outputs.find((o) => o.note === "incident-response");
+    return irOutput?.value;
+  }, [isIncidentResponseScenario, outputs]);
+
+  const formatBusinessExecutionContext = useCallback(() => {
+    if (!isBusinessExecutionScenario) return undefined;
+    const beOutput = outputs.find((o) => o.note === "business-execution");
+    return beOutput?.value;
+  }, [isBusinessExecutionScenario, outputs]);
+
   const runEvaluation = useCallback((): boolean => {
     if (!sessionId || !item || evaluating) return false;
     const testCasesContext = formatTestCasesContext();
+    const requirementDefinitionContext = formatRequirementDefinitionContext();
+    const incidentResponseContext = formatIncidentResponseContext();
+    const businessExecutionContext = formatBusinessExecutionContext();
     const hasActions = item.actions && item.actions.length > 0;
     const hasTestCasesForEval = !!testCasesContext;
+    const hasReqDefForEval = !!requirementDefinitionContext;
+    const hasIRForEval = !!incidentResponseContext;
+    const hasBEForEval = !!businessExecutionContext;
 
-    if (!hasActions && !hasTestCasesForEval) return false;
+    if (!hasActions && !hasTestCasesForEval && !hasReqDefForEval && !hasIRForEval && !hasBEForEval) return false;
 
     evaluateMutation.mutate(
-      { scenarioId: item.scenarioId, testCasesContext },
+      { scenarioId: item.scenarioId, testCasesContext, requirementDefinitionContext, incidentResponseContext, businessExecutionContext },
       {
         onSuccess: (evaluation) => {
           logEvent({
@@ -361,7 +397,7 @@ export function HistoryDetailPage() {
     );
 
     return true;
-  }, [evaluateMutation, evaluating, formatTestCasesContext, item, sessionId]);
+  }, [evaluateMutation, evaluating, formatTestCasesContext, formatRequirementDefinitionContext, formatIncidentResponseContext, formatBusinessExecutionContext, item, sessionId]);
 
   const handleRunEvaluation = useCallback(() => {
     if (!sessionId) return;
@@ -839,6 +875,39 @@ export function HistoryDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      ) : null}
+
+      {isRequirementDefinitionScenario && outputs.some((o) => o.note === "requirement-definition") ? (
+        <div className="card p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">提出された要件定義書</h2>
+          </div>
+          <div className="whitespace-pre-wrap rounded-xl border border-slate-200/70 bg-gradient-to-br from-slate-50/80 to-white p-4 text-sm leading-relaxed text-slate-700">
+            {outputs.find((o) => o.note === "requirement-definition")?.value}
+          </div>
+        </div>
+      ) : null}
+
+      {isIncidentResponseScenario && outputs.some((o) => o.note === "incident-response") ? (
+        <div className="card p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">提出された障害対応レポート</h2>
+          </div>
+          <div className="whitespace-pre-wrap rounded-xl border border-red-200/70 bg-gradient-to-br from-red-50/40 to-white p-4 text-sm leading-relaxed text-slate-700">
+            {outputs.find((o) => o.note === "incident-response")?.value}
+          </div>
+        </div>
+      ) : null}
+
+      {isBusinessExecutionScenario && outputs.some((o) => o.note === "business-execution") ? (
+        <div className="card p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-900">提出された意思決定ログ</h2>
+          </div>
+          <div className="whitespace-pre-wrap rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/40 to-white p-4 text-sm leading-relaxed text-slate-700">
+            {outputs.find((o) => o.note === "business-execution")?.value}
+          </div>
         </div>
       ) : null}
 

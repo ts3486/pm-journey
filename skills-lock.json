@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "auth0-quickstart": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "9f14539e1bc88b5766a760ccd0c2dc69df08125188b492ca8bd763e73c0c4dc5"
+    },
+    "auth0-react": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ffaff5d8c715f0d198af78c140b6a00374d5955ab4cd2b2f4d2019726f5f9de4"
+    }
+  }
+}

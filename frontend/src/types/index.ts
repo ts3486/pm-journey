@@ -6,7 +6,7 @@ export type ScoringGuidelines = {
 };
 
 export type RatingCriterion = {
-  id: string;
+  id?: string;
   name: string;
   weight: number;
   description: string;

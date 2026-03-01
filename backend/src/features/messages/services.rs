@@ -562,6 +562,13 @@ fn build_support_system_instruction(
         scenario.title, scenario.description
     ));
 
+    // 3.5. Scenario guide (detailed briefing when available)
+    if let Some(guide) = &scenario.scenario_guide {
+        if !guide.is_empty() {
+            sections.push(format!("## シナリオガイド\n{}", guide));
+        }
+    }
+
     // 4. Tone (always use hardcoded tone prompt)
     sections.push(format!("## 会話トーン\n{}", SUPPORT_TONE_PROMPT));
 
