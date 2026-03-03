@@ -14,14 +14,16 @@ import { useScenarios, buildHomeScenarioCatalog } from "@/queries/scenarios";
 import { useCurrentOrganization } from "@/queries/organizations";
 import { env } from "@/config/env";
 import { canViewTeamManagement } from "@/lib/teamAccess";
+import { computePassedScenarioIds, resolveHistoryTimestamp } from "@/lib/certificate";
+import {
+  type JourneyStage,
+  resolveJourneyStage,
+  getCategoryScenarios,
+  getCategoryTitle,
+} from "./homeHelpers";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
-
-type JourneyStage = {
-  role: string;
-  goal: string;
-};
 
 type RoadmapMilestone = {
   id: string;
@@ -35,6 +37,8 @@ type SequenceRoadmapCategory = ScenarioCatalogCategory & {
   title: string;
   totalCount: number;
   completedCount: number;
+  passedCount: number;
+  allPassed: boolean;
   progress: number;
 };
 
@@ -58,27 +62,6 @@ type MilestoneTone = {
   chipIdle: string;
   chipActive: string;
   chipReached: string;
-};
-
-const assistantJourneyStage: JourneyStage = {
-  role: "PM Assistant",
-  goal: "対話と段取りの基礎を固める",
-};
-
-const developingJourneyStage: JourneyStage = {
-  role: "Developing PM",
-  goal: "品質視点で仕様を検証できるようになる",
-};
-
-const trainedJourneyStage: JourneyStage = {
-  role: "Trained PM",
-  goal: "複雑な調整を主導して価値に繋げる",
-};
-
-const resolveJourneyStage = (index: number, totalCategories: number): JourneyStage => {
-  if (index <= 1) return assistantJourneyStage;
-  if (index === totalCategories - 1) return trainedJourneyStage;
-  return developingJourneyStage;
 };
 
 const roadmapMilestones: RoadmapMilestone[] = [
@@ -182,41 +165,12 @@ const milestoneTones: MilestoneTone[] = [
   },
 ];
 
-const getCategoryScenarios = (category: ScenarioCatalogCategory): ScenarioSummary[] => {
-  const uniqueById = new Map<string, ScenarioSummary>();
-  category.subcategories.forEach((subcategory) => {
-    subcategory.scenarios.forEach((scenario) => {
-      uniqueById.set(scenario.id, scenario);
-    });
-  });
-  return Array.from(uniqueById.values());
-};
-
-const getCategoryTitle = (category: ScenarioCatalogCategory, index: number): string => {
-  if (category.title.trim().length > 0) return category.title;
-  if (category.subcategories.length === 1) return category.subcategories[0].title;
-  return `ステージ ${index + 1}`;
-};
-
 const getMilestoneTone = (id: string): MilestoneTone => {
   const numericIndex = Number(id.replace("milestone-", "")) - 1;
   if (Number.isFinite(numericIndex) && numericIndex >= 0) {
     return milestoneTones[numericIndex % milestoneTones.length];
   }
   return milestoneTones[0];
-};
-
-const resolveHistoryTimestamp = (item: HistoryItem): number => {
-  const candidates: number[] = [];
-  if (item.metadata?.startedAt) {
-    const startedAt = Date.parse(item.metadata.startedAt);
-    if (!Number.isNaN(startedAt)) candidates.push(startedAt);
-  }
-  (item.actions ?? []).forEach((action) => {
-    const actionTimestamp = Date.parse(action.createdAt);
-    if (!Number.isNaN(actionTimestamp)) candidates.push(actionTimestamp);
-  });
-  return candidates.length > 0 ? Math.max(...candidates) : 0;
 };
 
 export function HomePage() {
@@ -282,11 +236,17 @@ export function HomePage() {
     [completedSessionIdsByScenario]
   );
 
+  const passedScenarioIds = useMemo(
+    () => computePassedScenarioIds(historyItems),
+    [historyItems]
+  );
+
   const roadmap = useMemo(
     () =>
       homeScenarioCatalog.map((category, index) => {
         const scenarios = getCategoryScenarios(category);
         const completedCount = scenarios.filter((scenario) => completedScenarioIds.has(scenario.id)).length;
+        const passedCount = scenarios.filter((scenario) => passedScenarioIds.has(scenario.id)).length;
         const totalCount = scenarios.length;
         return {
           ...category,
@@ -294,11 +254,13 @@ export function HomePage() {
           stage: resolveJourneyStage(index, homeScenarioCatalog.length),
           title: getCategoryTitle(category, index),
           completedCount,
+          passedCount,
+          allPassed: totalCount > 0 && passedCount === totalCount,
           totalCount,
           progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
         };
       }),
-    [completedScenarioIds, homeScenarioCatalog]
+    [completedScenarioIds, passedScenarioIds, homeScenarioCatalog]
   );
 
   const sequenceRoadmap = useMemo<SequenceRoadmapCategory[]>(() => roadmap, [roadmap]);
@@ -343,6 +305,11 @@ export function HomePage() {
     const totalRatio = milestoneProgress.reduce((sum, milestone) => sum + milestone.ratio, 0);
     return Math.round((totalRatio / milestoneProgress.length) * 100);
   }, [milestoneProgress]);
+
+  const allScenariosPassed = useMemo(
+    () => totalScenarios > 0 && passedScenarioIds.size >= totalScenarios,
+    [totalScenarios, passedScenarioIds]
+  );
 
   const currentMilestone = useMemo(
     () =>
@@ -427,9 +394,19 @@ export function HomePage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Progress</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">{overallProgress}%</p>
               </div>
-              <p className="text-xs text-slate-600">
-                現在地: {currentMilestone ? currentMilestone.title : "未開始"}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-600">
+                  現在地: {currentMilestone ? currentMilestone.title : "未開始"}
+                </p>
+                {allScenariosPassed ? (
+                  <Link
+                    to="/achievements"
+                    className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-200"
+                  >
+                    修了証を確認
+                  </Link>
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-4 overflow-x-auto pb-1">
@@ -519,11 +496,18 @@ export function HomePage() {
                       <h3 className="font-display text-xl text-slate-900">{category.title}</h3>
                       <p className="text-sm text-slate-600">{category.stage.goal}</p>
                     </div>
-                    <div className={`rounded-xl border px-3 py-2 text-right ${palette.metricPill}`}>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">完了数</p>
-                      <p className="text-lg font-semibold text-slate-900 tabular-nums">
-                        {category.completedCount} / {category.totalCount}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      {category.allPassed ? (
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          全合格
+                        </span>
+                      ) : null}
+                      <div className={`rounded-xl border px-3 py-2 text-right ${palette.metricPill}`}>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">完了数</p>
+                        <p className="text-lg font-semibold text-slate-900 tabular-nums">
+                          {category.completedCount} / {category.totalCount}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -570,6 +554,7 @@ export function HomePage() {
                                 {subcategory.scenarios.map((scenario) => {
                                   const completedSessionId = completedSessionIdsByScenario.get(scenario.id);
                                   const completed = Boolean(completedSessionId);
+                                  const passed = passedScenarioIds.has(scenario.id);
                                   const interrupted = savedByScenario[scenario.id] && !completed;
                                   return (
                                     <li
@@ -589,6 +574,11 @@ export function HomePage() {
                                           {completed ? (
                                             <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                                               完了
+                                            </span>
+                                          ) : null}
+                                          {passed ? (
+                                            <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                                              合格
                                             </span>
                                           ) : null}
                                           {interrupted ? (

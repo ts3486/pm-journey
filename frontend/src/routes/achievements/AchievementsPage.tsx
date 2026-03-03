@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { listHistory } from "@/services/history";
+import { useScenarios, buildHomeScenarioCatalog } from "@/queries/scenarios";
+import { useMyAccount } from "@/queries/account";
+import { computeCertificateStatus } from "@/lib/certificate";
+import type { CertificateStatus } from "@/lib/certificate";
+import { computeAchievementStats } from "./achievementsHelpers";
+import { CertificateCard } from "@/components/certificate/CertificateCard";
+import { CertificateProgressCard } from "@/components/certificate/CertificateProgressCard";
 
 type Achievement = {
   id: string;
@@ -27,51 +35,38 @@ function StatCard({ label, value, sublabel }: StatCardProps) {
   );
 }
 
+const buildPreviewCertificateStatus = (catalog: ReturnType<typeof buildHomeScenarioCatalog>): CertificateStatus => ({
+  categories: catalog.map((cat) => ({
+    categoryId: cat.id,
+    categoryTitle: cat.title || cat.subcategories[0]?.title || cat.id,
+    totalScenarios: 3,
+    passedCount: 3,
+    allPassed: true,
+  })),
+  totalRequired: 15,
+  totalPassed: 15,
+  allPassed: true,
+  earnedAt: new Date().toISOString(),
+});
+
 export function AchievementsPage() {
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get("preview") === "certificate";
+
   const { data: items = [], isLoading, isError, error } = useQuery({
     queryKey: ["history", "list"],
     queryFn: listHistory,
   });
+  const { data: scenarios = [] } = useScenarios();
+  const { data: account } = useMyAccount();
+  const scenarioCatalog = useMemo(() => buildHomeScenarioCatalog(scenarios), [scenarios]);
+  const realStatus = useMemo(
+    () => computeCertificateStatus(items, scenarioCatalog),
+    [items, scenarioCatalog]
+  );
+  const certificateStatus = isPreview ? buildPreviewCertificateStatus(scenarioCatalog) : realStatus;
 
-  const stats = useMemo(() => {
-    const scenarioIds = new Set<string>();
-    const scores: number[] = [];
-    let evaluatedSessions = 0;
-    let passingSessions = 0;
-
-    items.forEach((item) => {
-      if (item.scenarioId) {
-        scenarioIds.add(item.scenarioId);
-      }
-
-      if (item.evaluation) {
-        evaluatedSessions += 1;
-        if (item.evaluation.passing) {
-          passingSessions += 1;
-        }
-      }
-
-      if (typeof item.evaluation?.overallScore === "number") {
-        scores.push(item.evaluation.overallScore);
-      }
-    });
-
-    const highScoreSessions = scores.filter((score) => score >= 80).length;
-    const averageScore = scores.length > 0 ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
-    const bestScore = scores.length > 0 ? Math.max(...scores) : null;
-    const passRate = evaluatedSessions > 0 ? Math.round((passingSessions / evaluatedSessions) * 100) : 0;
-
-    return {
-      totalSessions: items.length,
-      uniqueScenarios: scenarioIds.size,
-      evaluatedSessions,
-      passingSessions,
-      highScoreSessions,
-      averageScore,
-      bestScore,
-      passRate,
-    };
-  }, [items]);
+  const stats = useMemo(() => computeAchievementStats(items), [items]);
 
   const achievements = useMemo<Achievement[]>(
     () => [
@@ -130,13 +125,32 @@ export function AchievementsPage() {
       </header>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600">読み込み中...</div>
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-6">
+          <div className="flex items-center gap-2.5">
+            <svg className="h-4 w-4 animate-spin text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm text-slate-500">実績を読み込んでいます...</span>
+          </div>
+        </div>
       ) : isError ? (
         <div className="rounded-2xl border border-rose-200/70 bg-rose-50/80 p-6 text-sm text-rose-700">
           {error instanceof Error ? error.message : "実績の取得に失敗しました"}
         </div>
       ) : (
         <>
+          <section className="space-y-3">
+            {certificateStatus.allPassed ? (
+              <CertificateCard
+                certificateStatus={certificateStatus}
+                userName={account?.name}
+              />
+            ) : (
+              <CertificateProgressCard certificateStatus={certificateStatus} />
+            )}
+          </section>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="総セッション" value={String(stats.totalSessions)} sublabel="完了したシナリオ数" />
             <StatCard label="評価取得" value={String(stats.evaluatedSessions)} sublabel="フィードバック済みの回数" />

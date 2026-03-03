@@ -7,7 +7,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates build-essential \
     && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-chef
-COPY backend/ backend/
+COPY . backend/
 WORKDIR /app/backend
 RUN cargo chef prepare --recipe-path recipe.json
 
@@ -23,7 +23,7 @@ COPY --from=chef /app/backend/recipe.json ./recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/backend/target \
     cargo chef cook --release --recipe-path recipe.json
-COPY backend/ .
+COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/backend/target \
     cargo build --release && \

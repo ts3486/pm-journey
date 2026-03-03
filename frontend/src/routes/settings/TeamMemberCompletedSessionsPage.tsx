@@ -8,45 +8,8 @@ import {
 } from "@/queries/organizations";
 import type { HistoryItem, ScenarioCatalogCategory, ScenarioSummary } from "@/types";
 import { useMemo } from "react";
-
-// ---- Date helpers ----
-
-const formatStartedAt = (value?: string) => {
-  if (!value) return "開始日不明";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "開始日不明";
-  return date.toLocaleString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-  });
-};
-
-const resolveStartedAt = (item: HistoryItem) => {
-  if (item.metadata?.startedAt) return item.metadata.startedAt;
-  const actionTimes = (item.actions ?? [])
-    .map((action) => action.createdAt)
-    .filter((value) => Boolean(value))
-    .map((value) => new Date(value))
-    .filter((value) => !Number.isNaN(value.getTime()))
-    .map((value) => value.getTime());
-  if (actionTimes.length === 0) return undefined;
-  return new Date(Math.min(...actionTimes)).toISOString();
-};
-
-const resolveHistoryTimestamp = (item: HistoryItem): number => {
-  const candidates: number[] = [];
-  if (item.metadata?.startedAt) {
-    const startedAt = Date.parse(item.metadata.startedAt);
-    if (!Number.isNaN(startedAt)) candidates.push(startedAt);
-  }
-  (item.actions ?? []).forEach((action) => {
-    const actionTimestamp = Date.parse(action.createdAt);
-    if (!Number.isNaN(actionTimestamp)) candidates.push(actionTimestamp);
-  });
-  return candidates.length > 0 ? Math.max(...candidates) : 0;
-};
+import { computeCertificateStatus, resolveHistoryTimestamp } from "@/lib/certificate";
+import { formatStartedAt, resolveStartedAt, normalizeOptionalText } from "./teamMemberHelpers";
 
 // ---- Catalog helpers ----
 
@@ -168,13 +131,6 @@ const categoryPalettes: CategoryPalette[] = [
   },
 ];
 
-// ---- Utility ----
-
-const normalizeOptionalText = (value?: string | null): string | null => {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
-};
-
 // ---- Page ----
 
 export function TeamMemberCompletedSessionsPage() {
@@ -223,6 +179,11 @@ export function TeamMemberCompletedSessionsPage() {
   );
 
   const completedCount = completedItemByScenario.size;
+
+  const certificateStatus = useMemo(
+    () => computeCertificateStatus(sessions, homeScenarioCatalog),
+    [sessions, homeScenarioCatalog]
+  );
 
   const categoryById = useMemo(() => {
     const map = new Map<string, ScenarioCatalogCategory>();
@@ -302,8 +263,12 @@ export function TeamMemberCompletedSessionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
+        <div className="flex items-center justify-center gap-2.5 py-12">
+          <svg className="h-5 w-5 animate-spin text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm text-slate-500">完了セッションを読み込んでいます...</span>
         </div>
       ) : errorMessage ? (
         <div className="rounded-2xl border border-red-200/60 bg-red-50/70 p-6 text-sm text-red-700">
@@ -312,6 +277,17 @@ export function TeamMemberCompletedSessionsPage() {
         </div>
       ) : (
         <>
+          {/* Certificate status banner */}
+          {certificateStatus.allPassed ? (
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-4 text-sm font-semibold text-emerald-700">
+              修了証取得済み
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 text-sm font-semibold text-amber-700">
+              修了証未取得 - {certificateStatus.totalPassed}/{certificateStatus.totalRequired} 合格
+            </div>
+          )}
+
           {/* Milestone progress strip */}
           <div className="rounded-2xl border border-orange-200/70 bg-white/80 px-4 py-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -423,6 +399,15 @@ export function TeamMemberCompletedSessionsPage() {
                                           ? `${completedItem.evaluation.overallScore} / 100`
                                           : "採点なし"}
                                       </span>
+                                      {completedItem.evaluation?.passing === true ? (
+                                        <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                                          合格
+                                        </span>
+                                      ) : completedItem.evaluation ? (
+                                        <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                          不合格
+                                        </span>
+                                      ) : null}
                                       {completedItem.comments && completedItem.comments.length > 0 ? (
                                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 tabular-nums">
                                           💬 {completedItem.comments.length}

@@ -18,6 +18,32 @@ vi.mock("@/queries/organizations", () => ({
 vi.mock("@/queries/scenarios", () => ({
   useScenarios: () => ({ data: [], isLoading: false }),
   findScenarioById: () => undefined,
+  buildHomeScenarioCatalog: () => [
+    {
+      id: "soft-skills",
+      title: "基礎ソフトスキル",
+      subcategories: [
+        {
+          id: "sub-1",
+          title: "基礎",
+          scenarios: [{ id: "unknown_scenario", title: "unknown_scenario", description: "" }],
+        },
+      ],
+    },
+  ],
+}));
+
+vi.mock("@/lib/certificate", () => ({
+  computeCertificateStatus: () => ({
+    categories: [],
+    totalRequired: 15,
+    totalPassed: 0,
+    allPassed: false,
+  }),
+  resolveHistoryTimestamp: (item: any) => {
+    const ts = item?.metadata?.startedAt ?? item?.evaluation?.createdAt;
+    return ts ? new Date(ts).getTime() : 0;
+  },
 }));
 
 const useCurrentOrganizationMock = vi.mocked(useCurrentOrganization);
@@ -132,10 +158,10 @@ describe("TeamMemberCompletedSessionsPage", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText("完了シナリオ詳細")).toBeInTheDocument();
+    expect(screen.getByText("進捗マップ")).toBeInTheDocument();
     expect(screen.getByText("Member One")).toBeInTheDocument();
     expect(screen.getByText("unknown_scenario")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "セッション詳細を開く" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "詳細" })).toHaveAttribute(
       "href",
       "/history/session_completed_1",
     );

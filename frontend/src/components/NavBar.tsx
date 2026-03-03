@@ -75,6 +75,15 @@ export function NavBar() {
     };
   }, [location.pathname, storage]);
 
+  const navLinkBase =
+    "rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]";
+  const navLinkActive = "bg-orange-100/70 text-slate-900";
+
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <header className="sticky top-0 z-30 border-b border-orange-200/70 bg-[#fff7ec]/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
@@ -90,23 +99,30 @@ export function NavBar() {
         <nav className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Link
             to="/"
-            className="rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]"
+            className={`${navLinkBase} ${isActive("/") ? navLinkActive : ""}`}
+            aria-current={isActive("/") ? "page" : undefined}
           >
             ロードマップ
           </Link>
                     {user && showTeamManagementButton ? (
             <Link
               to="/settings/team"
-              className="rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec]"
+              className={`${navLinkBase} ${isActive("/settings/team") ? navLinkActive : ""}`}
+              aria-current={isActive("/settings/team") ? "page" : undefined}
             >
               チーム管理
             </Link>
           ) : null}
           <Link
             to="/scenario"
-            className={`rounded-md px-4 py-2 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7ec] ${
-              hasActiveSession ? "bg-orange-200/80 text-slate-900 shadow-[0_8px_18px_rgba(176,95,35,0.18)]" : ""
+            className={`${navLinkBase} ${
+              isActive("/scenario")
+                ? "bg-orange-200/80 text-slate-900 shadow-[0_8px_18px_rgba(176,95,35,0.18)]"
+                : hasActiveSession
+                  ? "bg-orange-200/80 text-slate-900 shadow-[0_8px_18px_rgba(176,95,35,0.18)]"
+                  : ""
             }`}
+            aria-current={isActive("/scenario") ? "page" : undefined}
           >
             進行中のシナリオ
           </Link>
@@ -137,7 +153,8 @@ export function NavBar() {
                     to="/history"
                     role="menuitem"
                     onClick={() => setIsProfileMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                    className={`block rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 ${isActive("/history") ? "bg-orange-100/70 text-slate-900" : "text-slate-700"}`}
+                    aria-current={isActive("/history") ? "page" : undefined}
                   >
                     進捗
                   </Link>
@@ -145,7 +162,8 @@ export function NavBar() {
                     to="/settings"
                     role="menuitem"
                     onClick={() => setIsProfileMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                    className={`block rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 ${location.pathname === "/settings" ? "bg-orange-100/70 text-slate-900" : "text-slate-700"}`}
+                    aria-current={location.pathname === "/settings" ? "page" : undefined}
                   >
                     プロンプト設定
                   </Link>
@@ -153,7 +171,8 @@ export function NavBar() {
                     to="/settings/account"
                     role="menuitem"
                     onClick={() => setIsProfileMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                    className={`block rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 ${isActive("/settings/account") ? "bg-orange-100/70 text-slate-900" : "text-slate-700"}`}
+                    aria-current={isActive("/settings/account") ? "page" : undefined}
                   >
                     アカウント情報
                   </Link>
@@ -163,7 +182,8 @@ export function NavBar() {
                         to="/settings/billing"
                         role="menuitem"
                         onClick={() => setIsProfileMenuOpen(false)}
-                        className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                        className={`block rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 ${isActive("/settings/billing") ? "bg-orange-100/70 text-slate-900" : "text-slate-700"}`}
+                        aria-current={isActive("/settings/billing") ? "page" : undefined}
                       >
                         請求設定
                       </Link>
@@ -171,7 +191,8 @@ export function NavBar() {
                         to="/pricing"
                         role="menuitem"
                         onClick={() => setIsProfileMenuOpen(false)}
-                        className="block rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80"
+                        className={`block rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-orange-100/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/80 ${isActive("/pricing") ? "bg-orange-100/70 text-slate-900" : "text-slate-700"}`}
+                        aria-current={isActive("/pricing") ? "page" : undefined}
                       >
                         料金
                       </Link>

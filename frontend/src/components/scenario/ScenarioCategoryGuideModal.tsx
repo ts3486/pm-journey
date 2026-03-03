@@ -141,10 +141,10 @@ export function ScenarioCategoryGuideModal({
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-700">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-700">
                   シナリオガイド
                 </p>
-                <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[10px] font-semibold text-orange-600">
+                <span className="rounded-full bg-orange-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-orange-800">
                   {guide.discipline === "CHALLENGE" ? "実践" : "基本"}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export function ScenarioCategoryGuideModal({
         <div className="max-h-[60vh] overflow-y-auto px-6 py-6 sm:px-8">
           <div className="space-y-5">
             <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-slate-600">
                 シナリオ概要
               </p>
               <div className="prose prose-sm max-w-none text-base leading-7 text-slate-800">
@@ -187,7 +187,7 @@ export function ScenarioCategoryGuideModal({
 
             {guide.missions.length > 0 && (
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-600">
                   達成目標
                 </p>
                 <ol className="space-y-1.5">
@@ -196,13 +196,13 @@ export function ScenarioCategoryGuideModal({
                     .sort((a, b) => a.order - b.order)
                     .map((mission, index) => (
                       <li key={mission.id} className="flex items-start gap-2.5">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-700">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-800">
                           {index + 1}
                         </span>
                         <div>
                           <p className="text-sm font-medium leading-5 text-slate-800">{mission.title}</p>
                           {mission.description && (
-                            <p className="mt-0.5 text-xs leading-4 text-slate-500">{mission.description}</p>
+                            <p className="mt-0.5 text-xs leading-5 text-slate-600">{mission.description}</p>
                           )}
                         </div>
                       </li>

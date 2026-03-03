@@ -571,3 +571,237 @@ async fn generate_ai_evaluation(
         improvement_advice: output.improvement_advice.filter(|s| !s.trim().is_empty()),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::ScoringGuidelines;
+
+    // ---------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------
+
+    fn make_criterion(name: &str, weight: f32) -> EvaluationCriterion {
+        EvaluationCriterion {
+            id: None,
+            name: name.to_string(),
+            weight,
+            description: format!("{} description", name),
+            scoring_guidelines: ScoringGuidelines::default(),
+        }
+    }
+
+    fn make_request() -> EvaluationRequest {
+        EvaluationRequest {
+            criteria: None,
+            passing_score: None,
+            scenario_title: None,
+            scenario_description: None,
+            product_context: None,
+            scenario_prompt: None,
+            scenario_type: None,
+            test_cases_context: None,
+            requirement_definition_context: None,
+            incident_response_context: None,
+            business_execution_context: None,
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // extract_json_value
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn extract_json_value_valid_json_string() {
+        let text = r#"{"categories":[],"overallScore":80}"#;
+        let result = extract_json_value(text);
+        assert!(result.is_some());
+        let v = result.unwrap();
+        assert_eq!(v["overallScore"], 80);
+    }
+
+    #[test]
+    fn extract_json_value_json_embedded_in_text() {
+        let text = r#"Here is the result: {"categories":[],"overallScore":55} end"#;
+        let result = extract_json_value(text);
+        assert!(result.is_some());
+        let v = result.unwrap();
+        assert_eq!(v["overallScore"], 55);
+    }
+
+    #[test]
+    fn extract_json_value_invalid_text_returns_none() {
+        let text = "This is just plain text with no JSON at all.";
+        let result = extract_json_value(text);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn extract_json_value_empty_string_returns_none() {
+        let result = extract_json_value("");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn extract_json_value_leading_whitespace_succeeds() {
+        let text = "   \n  {\"overallScore\":42}  ";
+        let result = extract_json_value(text);
+        assert!(result.is_some());
+        let v = result.unwrap();
+        assert_eq!(v["overallScore"], 42);
+    }
+
+    // ---------------------------------------------------------------------------
+    // build_evaluation_template
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn build_evaluation_template_empty_criteria_has_empty_categories() {
+        let template = build_evaluation_template(&[]);
+        let categories = template["categories"].as_array().unwrap();
+        assert!(categories.is_empty());
+        assert_eq!(template["overallScore"], 0);
+        assert_eq!(template["summary"], "");
+        assert_eq!(template["improvementAdvice"], "");
+    }
+
+    #[test]
+    fn build_evaluation_template_single_criterion_has_one_entry() {
+        let criteria = vec![make_criterion("Communication", 50.0)];
+        let template = build_evaluation_template(&criteria);
+        let categories = template["categories"].as_array().unwrap();
+        assert_eq!(categories.len(), 1);
+        assert_eq!(categories[0]["name"], "Communication");
+        assert_eq!(categories[0]["score"], 0);
+        assert_eq!(categories[0]["feedback"], "");
+    }
+
+    #[test]
+    fn build_evaluation_template_multiple_criteria_all_names_present_in_order() {
+        let criteria = vec![
+            make_criterion("Analysis", 40.0),
+            make_criterion("Planning", 30.0),
+            make_criterion("Execution", 30.0),
+        ];
+        let template = build_evaluation_template(&criteria);
+        let categories = template["categories"].as_array().unwrap();
+        assert_eq!(categories.len(), 3);
+        assert_eq!(categories[0]["name"], "Analysis");
+        assert_eq!(categories[1]["name"], "Planning");
+        assert_eq!(categories[2]["name"], "Execution");
+    }
+
+    // ---------------------------------------------------------------------------
+    // build_evaluation_instruction
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn build_evaluation_instruction_includes_scenario_title_when_provided() {
+        let mut request = make_request();
+        request.scenario_title = Some("My Scenario".to_string());
+        let criteria = vec![make_criterion("Quality", 100.0)];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, false);
+
+        assert!(instruction.contains("My Scenario"));
+    }
+
+    #[test]
+    fn build_evaluation_instruction_uses_default_passing_score_when_not_set() {
+        let request = make_request();
+        let criteria = vec![make_criterion("Quality", 100.0)];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, false);
+
+        // Default passing score is 70.0
+        assert!(instruction.contains("70"));
+    }
+
+    #[test]
+    fn build_evaluation_instruction_uses_provided_passing_score() {
+        let mut request = make_request();
+        request.passing_score = Some(85.0);
+        let criteria = vec![make_criterion("Quality", 100.0)];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, false);
+
+        assert!(instruction.contains("85"));
+    }
+
+    #[test]
+    fn build_evaluation_instruction_includes_criteria_names() {
+        let request = make_request();
+        let criteria = vec![
+            make_criterion("Problem Solving", 50.0),
+            make_criterion("Leadership", 50.0),
+        ];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, false);
+
+        assert!(instruction.contains("Problem Solving"));
+        assert!(instruction.contains("Leadership"));
+    }
+
+    #[test]
+    fn build_evaluation_instruction_strict_mode_includes_template() {
+        let request = make_request();
+        let criteria = vec![make_criterion("Quality", 100.0)];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, true);
+
+        // Strict mode appends the JSON template and related rules
+        assert!(instruction.contains("JSONテンプレート"));
+        assert!(instruction.contains("Quality"));
+    }
+
+    #[test]
+    fn build_evaluation_instruction_non_strict_mode_does_not_include_template_section() {
+        let request = make_request();
+        let criteria = vec![make_criterion("Quality", 100.0)];
+
+        let instruction = build_evaluation_instruction(&request, &criteria, false);
+
+        // The "JSONテンプレート:" label is only added in strict mode
+        assert!(!instruction.contains("JSONテンプレート:"));
+    }
+
+    // ---------------------------------------------------------------------------
+    // preview_for_log
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn preview_for_log_short_text_under_limit_is_unchanged() {
+        let text = "hello world";
+        let result = preview_for_log(text, 100);
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn preview_for_log_long_text_over_limit_is_truncated_with_ellipsis() {
+        let text = "a".repeat(50);
+        let result = preview_for_log(&text, 20);
+        // The truncated result should end with the ellipsis character
+        assert!(result.ends_with('…'));
+        // The truncated portion should be exactly `limit` bytes of the original
+        let without_ellipsis: &str = result.trim_end_matches('…');
+        assert_eq!(without_ellipsis.len(), 20);
+    }
+
+    #[test]
+    fn preview_for_log_text_with_newlines_are_escaped() {
+        let text = "line one\nline two\r\nline three";
+        let result = preview_for_log(text, 200);
+        assert!(!result.contains('\n'));
+        assert!(!result.contains('\r'));
+        assert!(result.contains("\\n"));
+        assert!(result.contains("\\r"));
+    }
+
+    #[test]
+    fn preview_for_log_text_exactly_at_limit_is_not_truncated() {
+        let text = "abcde";
+        let result = preview_for_log(text, 5);
+        assert_eq!(result, "abcde");
+        assert!(!result.ends_with('…'));
+    }
+}

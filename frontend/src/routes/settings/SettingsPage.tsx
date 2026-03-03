@@ -135,7 +135,15 @@ export function SettingsPage() {
       </header>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600">読み込み中...</div>
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-6">
+          <div className="flex items-center gap-2.5">
+            <svg className="h-4 w-4 animate-spin text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm text-slate-500">設定を読み込んでいます...</span>
+          </div>
+        </div>
       ) : isError ? (
         <div className="rounded-2xl border border-rose-200/70 bg-rose-50/80 p-6 text-sm text-rose-700">
           {error instanceof Error ? error.message : "設定の取得に失敗しました"}
