@@ -11,13 +11,18 @@ function makeResponse(
   body: unknown,
   options: { ok?: boolean } = {}
 ): Response {
-  const isOk = options.ok ?? status >= 200 && status < 300;
+  const isOk = options.ok ?? (status >= 200 && status < 300);
   const text = typeof body === "string" ? body : JSON.stringify(body);
+  // Resolve the JSON value eagerly only for non-string bodies (objects/arrays).
+  // For string bodies the source data is not guaranteed to be valid JSON, so we
+  // skip pre-parsing and let the mock return undefined — the real code path for
+  // error responses only calls res.text(), never res.json().
+  const jsonValue = typeof body === "string" ? undefined : body;
   return {
     ok: isOk,
     status,
     text: vi.fn().mockResolvedValue(text),
-    json: vi.fn().mockResolvedValue(typeof body === "string" ? JSON.parse(body) : body),
+    json: vi.fn().mockResolvedValue(jsonValue),
   } as unknown as Response;
 }
 

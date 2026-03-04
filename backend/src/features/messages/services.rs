@@ -797,4 +797,295 @@ mod tests {
 
         assert!(result.contains("ミッション完了"), "should include mission complete message when all done");
     }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    fn make_product_config() -> ProductConfig {
+        use crate::features::product_config::models::ScenarioEvaluationCriteriaConfig;
+        ProductConfig {
+            id: None,
+            name: String::new(),
+            summary: String::new(),
+            audience: String::new(),
+            problems: vec![],
+            goals: vec![],
+            differentiators: vec![],
+            scope: vec![],
+            constraints: vec![],
+            timeline: None,
+            success_criteria: vec![],
+            unique_edge: None,
+            tech_stack: vec![],
+            core_features: vec![],
+            product_prompt: None,
+            scenario_evaluation_criteria: ScenarioEvaluationCriteriaConfig::default_criteria(),
+            is_default: true,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    // ── merge_completed_missions ──────────────────────────────────────────────
+
+    #[test]
+    fn merge_missions_empty_completed_ids_returns_existing_unchanged() {
+        let existing = Some(vec![MissionStatus {
+            mission_id: "m1".to_string(),
+            completed_at: Some("2024-01-01T00:00:00Z".to_string()),
+        }]);
+        let (result, changed) = merge_completed_missions(existing.clone(), &[]);
+
+        assert!(!changed, "should report no change when completed_ids is empty");
+        let statuses = result.expect("should preserve existing list");
+        assert_eq!(statuses.len(), 1);
+        assert_eq!(statuses[0].mission_id, "m1");
+    }
+
+    #[test]
+    fn merge_missions_new_mission_id_is_added_with_completed_at() {
+        let (result, changed) = merge_completed_missions(None, &["m1".to_string()]);
+
+        assert!(changed, "should report a change when a new mission is added");
+        let statuses = result.expect("should return Some list");
+        assert_eq!(statuses.len(), 1);
+        assert_eq!(statuses[0].mission_id, "m1");
+        assert!(
+            statuses[0].completed_at.is_some(),
+            "completed_at should be set for newly completed mission"
+        );
+    }
+
+    #[test]
+    fn merge_missions_already_completed_mission_is_not_changed() {
+        let fixed_ts = "2024-01-01T00:00:00Z".to_string();
+        let existing = Some(vec![MissionStatus {
+            mission_id: "m1".to_string(),
+            completed_at: Some(fixed_ts.clone()),
+        }]);
+
+        let (result, changed) =
+            merge_completed_missions(existing, &["m1".to_string()]);
+
+        assert!(!changed, "should not report a change when mission was already completed");
+        let statuses = result.expect("should return Some list");
+        assert_eq!(statuses.len(), 1, "should not duplicate the mission");
+        assert_eq!(
+            statuses[0].completed_at.as_deref(),
+            Some(fixed_ts.as_str()),
+            "original completed_at timestamp should be preserved"
+        );
+    }
+
+    #[test]
+    fn merge_missions_existing_none_creates_new_list() {
+        let ids = vec!["m1".to_string(), "m2".to_string()];
+        let (result, changed) = merge_completed_missions(None, &ids);
+
+        assert!(changed, "should report a change when list is created from None");
+        let statuses = result.expect("should return Some list");
+        assert_eq!(statuses.len(), 2);
+        let ids_out: Vec<&str> = statuses.iter().map(|s| s.mission_id.as_str()).collect();
+        assert!(ids_out.contains(&"m1"));
+        assert!(ids_out.contains(&"m2"));
+    }
+
+    #[test]
+    fn merge_missions_multiple_ids_some_new_some_existing() {
+        let existing = Some(vec![MissionStatus {
+            mission_id: "m1".to_string(),
+            completed_at: Some("2024-01-01T00:00:00Z".to_string()),
+        }]);
+
+        let ids = vec!["m1".to_string(), "m2".to_string()];
+        let (result, changed) = merge_completed_missions(existing, &ids);
+
+        assert!(changed, "should report a change because m2 is new");
+        let statuses = result.expect("should return Some list");
+        assert_eq!(statuses.len(), 2, "existing entry plus new entry");
+    }
+
+    // ── extract_json_value ────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_json_value_bare_object_returns_value() {
+        let text = r#"{"completedMissionIds":["m1","m2"]}"#;
+        let result = extract_json_value(text);
+        assert!(result.is_some(), "should parse a bare JSON object");
+        let val = result.unwrap();
+        assert_eq!(
+            val["completedMissionIds"][0].as_str().unwrap(),
+            "m1"
+        );
+    }
+
+    #[test]
+    fn extract_json_value_json_preceded_by_prose_is_found() {
+        let text = "Here is the result: {\"completedMissionIds\":[]} and nothing else.";
+        let result = extract_json_value(text);
+        assert!(
+            result.is_some(),
+            "should find a JSON object embedded after prose"
+        );
+    }
+
+    #[test]
+    fn extract_json_value_no_json_returns_none() {
+        let text = "No JSON object in this string at all.";
+        let result = extract_json_value(text);
+        assert!(result.is_none(), "should return None when there is no JSON object");
+    }
+
+    #[test]
+    fn extract_json_value_empty_string_returns_none() {
+        let result = extract_json_value("");
+        assert!(result.is_none(), "should return None for an empty string");
+    }
+
+    #[test]
+    fn extract_json_value_leading_whitespace_succeeds() {
+        let text = "   {\"key\": 42}";
+        let result = extract_json_value(text);
+        assert!(result.is_some(), "should parse JSON that starts after whitespace");
+        assert_eq!(result.unwrap()["key"].as_i64().unwrap(), 42);
+    }
+
+    // ── format_product_context ────────────────────────────────────────────────
+
+    #[test]
+    fn format_product_context_empty_config_returns_empty_string() {
+        let config = make_product_config();
+        let result = format_product_context(&config, "シナリオタイトル");
+        assert!(result.is_empty(), "empty config should produce an empty context string");
+    }
+
+    #[test]
+    fn format_product_context_with_product_prompt_renders_template_variables() {
+        let mut config = make_product_config();
+        config.name = "テストプロダクト".to_string();
+        config.summary = "テスト概要".to_string();
+        config.audience = "テストユーザー".to_string();
+        config.product_prompt = Some(
+            "プロダクト: {{productName}} / 概要: {{productSummary}} / シナリオ: {{scenarioTitle}}"
+                .to_string(),
+        );
+
+        let result = format_product_context(&config, "チケット要件整理");
+
+        assert!(
+            result.contains("テストプロダクト"),
+            "should replace {{productName}} with config.name"
+        );
+        assert!(
+            result.contains("テスト概要"),
+            "should replace {{productSummary}} with config.summary"
+        );
+        assert!(
+            result.contains("チケット要件整理"),
+            "should replace {{scenarioTitle}} with the provided title"
+        );
+        assert!(
+            result.contains("プロジェクトメモ"),
+            "should include the project memo section header"
+        );
+    }
+
+    #[test]
+    fn format_product_context_with_product_info_fields_includes_them() {
+        let mut config = make_product_config();
+        config.name = "保険サービス".to_string();
+        config.summary = "請求サポート".to_string();
+        config.audience = "契約者".to_string();
+        config.problems = vec!["証跡不足".to_string()];
+        config.goals = vec!["提出完了率向上".to_string()];
+
+        let result = format_product_context(&config, "テストシナリオ");
+
+        assert!(
+            result.contains("プロダクト情報"),
+            "should include the product info section header"
+        );
+        assert!(result.contains("保険サービス"), "should include product name");
+        assert!(result.contains("請求サポート"), "should include summary");
+        assert!(result.contains("契約者"), "should include audience");
+        assert!(result.contains("証跡不足"), "should include problems");
+        assert!(result.contains("提出完了率向上"), "should include goals");
+    }
+
+    #[test]
+    fn format_product_context_with_timeline_includes_it() {
+        let mut config = make_product_config();
+        config.name = "プロダクト".to_string();
+        config.timeline = Some("今四半期MVP".to_string());
+
+        let result = format_product_context(&config, "タイトル");
+
+        assert!(
+            result.contains("今四半期MVP"),
+            "should include timeline when set"
+        );
+    }
+
+    #[test]
+    fn format_product_context_product_prompt_and_info_both_appear() {
+        let mut config = make_product_config();
+        config.name = "複合プロダクト".to_string();
+        config.summary = "複合概要".to_string();
+        config.audience = "複合ユーザー".to_string();
+        config.product_prompt = Some("カスタムプロンプト本文".to_string());
+
+        let result = format_product_context(&config, "テスト");
+
+        assert!(
+            result.contains("プロジェクトメモ"),
+            "should have project memo section from product_prompt"
+        );
+        assert!(
+            result.contains("プロダクト情報"),
+            "should also have product info section when fields are non-empty"
+        );
+    }
+
+    // ── single_turn_completion_message ────────────────────────────────────────
+
+    #[test]
+    fn single_turn_completion_message_with_title_uses_title_in_quotes() {
+        let result = single_turn_completion_message(Some("チケット要件整理"));
+
+        assert!(
+            result.contains("『チケット要件整理』"),
+            "should wrap the title in Japanese quotation marks"
+        );
+        assert!(
+            result.contains("シナリオを完了する"),
+            "should include completion button instruction"
+        );
+    }
+
+    #[test]
+    fn single_turn_completion_message_with_none_uses_default_text() {
+        let result = single_turn_completion_message(None);
+
+        assert!(
+            result.contains("このベーシックシナリオ"),
+            "should use default fallback text when title is None"
+        );
+        assert!(
+            result.contains("シナリオを完了する"),
+            "should include completion button instruction"
+        );
+    }
+
+    #[test]
+    fn single_turn_completion_message_with_empty_title_uses_default_text() {
+        let result = single_turn_completion_message(Some(""));
+
+        assert!(
+            result.contains("このベーシックシナリオ"),
+            "should use default fallback text when title is empty"
+        );
+        assert!(
+            !result.contains("『』"),
+            "should not produce empty Japanese quotes"
+        );
+    }
 }
