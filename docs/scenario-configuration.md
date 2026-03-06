@@ -4,7 +4,7 @@ This document explains how scenarios are configured in pm-journey, including age
 
 ## Overview
 
-Scenarios are the core learning units in pm-journey. Each scenario simulates a real PM/PMO situation with AI-powered guidance. The configuration is split across several files:
+Scenarios are the core learning units in pm-journey. Each scenario simulates a real PM situation with AI-powered guidance. The configuration is split across several files:
 
 | Aspect | Location |
 |--------|----------|
@@ -76,11 +76,11 @@ Used for `discipline: "CHALLENGE"` scenarios.
 ```typescript
 {
   modelId: "gemini-3-flash-preview",
-  systemPrompt: "あなたはチャレンジシナリオのPM/PMOアドバイザーです。難易度の高い状況で、交渉・リスク判断・意思決定を支援します。前提を確認し、根拠を添えて提案してください。"
+  systemPrompt: "あなたはチャレンジシナリオのPMアドバイザーです。難易度の高い状況で、交渉・リスク判断・意思決定を支援します。前提を確認し、根拠を添えて提案してください。"
 }
 ```
 
-**Character:** PM/PMO Advisor for high-difficulty situations, supporting negotiation, risk assessment, and decision-making.
+**Character:** PM Advisor for high-difficulty situations, supporting negotiation, risk assessment, and decision-making.
 
 ### DEFAULT Profile
 Fallback when scenario discipline is unknown.
@@ -113,12 +113,12 @@ The first message context comes from the `kickoffPrompt` field in each scenario.
 
 **basic-intro-alignment:**
 ```
-あなたは新規PJに参加するPM/PMOとして、初回ミーティングで役割と期待値を揃えます。短時間で目的・進め方・次アクションを決めてください。
+あなたは新規PJに参加するPMとして、初回ミーティングで役割と期待値を揃えます。短時間で目的・進め方・次アクションを決めてください。
 ```
 
 **challenge-project-rescue:**
 ```
-あなたは遅延しているプロジェクトのPM/PMOです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。
+あなたは遅延しているプロジェクトのPMです。遅延要因を整理し、スコープ再交渉とリカバリ計画をまとめてください。
 ```
 
 ### How the System Prompt is Composed

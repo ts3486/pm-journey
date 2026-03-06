@@ -8,6 +8,7 @@ import { useStorage } from "@/hooks/useStorage";
 import { Link } from "react-router-dom";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth0 } from "@auth0/auth0-react";
 import { listHistory } from "@/services/history";
 import { useEntitlements } from "@/queries/entitlements";
 import { useScenarios, buildHomeScenarioCatalog } from "@/queries/scenarios";
@@ -15,6 +16,10 @@ import { useCurrentOrganization } from "@/queries/organizations";
 import { env } from "@/config/env";
 import { canViewTeamManagement } from "@/lib/teamAccess";
 import { computePassedScenarioIds, resolveHistoryTimestamp } from "@/lib/certificate";
+import { computeAchievementStats } from "@/routes/achievements/achievementsHelpers";
+import { StatsBar } from "@/components/dashboard/StatsBar";
+import { AchievementWidget } from "@/components/dashboard/AchievementWidget";
+import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
 import {
   type JourneyStage,
   resolveJourneyStage,
@@ -24,6 +29,22 @@ import {
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "おはようございます";
+  if (hour < 18) return "こんにちは";
+  return "こんばんは";
+}
+
+function getFormattedDate(): string {
+  return new Date().toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+}
 
 type RoadmapMilestone = {
   id: string;
@@ -174,6 +195,7 @@ const getMilestoneTone = (id: string): MilestoneTone => {
 };
 
 export function HomePage() {
+  const { user } = useAuth0();
   const storage = useStorage();
   const [savedByScenario, setSavedByScenario] = useState<Record<string, boolean>>({});
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Record<string, boolean>>({});
@@ -306,6 +328,8 @@ export function HomePage() {
     return Math.round((totalRatio / milestoneProgress.length) * 100);
   }, [milestoneProgress]);
 
+  const achievementStats = useMemo(() => computeAchievementStats(historyItems), [historyItems]);
+
   const allScenariosPassed = useMemo(
     () => totalScenarios > 0 && passedScenarioIds.size >= totalScenarios,
     [totalScenarios, passedScenarioIds]
@@ -329,6 +353,24 @@ export function HomePage() {
 
   return (
     <div className="space-y-8">
+      <section className="space-y-2 reveal" style={revealDelay(0)}>
+        <p className="text-sm text-slate-500">{getFormattedDate()}</p>
+        <h1 className="font-display text-2xl text-slate-900">
+          {getGreeting()}、{user?.name ?? "ゲスト"}さん
+        </h1>
+      </section>
+
+      <section className="reveal" style={revealDelay(60)}>
+        <StatsBar
+          completedCount={completedScenarios}
+          totalCount={totalScenarios}
+          passRate={achievementStats.passRate}
+          overallProgress={overallProgress}
+        />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="lg:col-span-2 space-y-8">
       {!isEntitlementsLoading && currentPlanCode === "FREE" ? (
         <section className="card p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -610,6 +652,12 @@ export function HomePage() {
           })}
         </div>
       </section>
+      </div>
+      <aside className="space-y-6">
+        <AchievementWidget />
+        <RecentActivityWidget />
+      </aside>
+      </div>
     </div>
   );
 }

@@ -8,16 +8,28 @@ test.describe("Navigation", () => {
     await expect(page.getByText("Product Leadership")).toBeVisible();
   });
 
-  test("has a roadmap link in the top nav", async ({ page }) => {
+  test("has a roadmap link in the sidebar", async ({ page }) => {
     const roadmapLink = page.getByRole("link", { name: "ロードマップ" });
     await expect(roadmapLink).toBeVisible();
     await expect(roadmapLink).toHaveAttribute("href", "/");
   });
 
-  test("has a scenario link in the top nav", async ({ page }) => {
+  test("has a scenario link in the sidebar", async ({ page }) => {
     await expect(
       page.getByRole("link", { name: "進行中のシナリオ" }),
     ).toBeVisible();
+  });
+
+  test("has a history link in the sidebar", async ({ page }) => {
+    const historyLink = page.getByRole("link", { name: "進捗" });
+    await expect(historyLink).toBeVisible();
+    await expect(historyLink).toHaveAttribute("href", "/history");
+  });
+
+  test("has an achievements link in the sidebar", async ({ page }) => {
+    const achievementsLink = page.getByRole("link", { name: "実績" });
+    await expect(achievementsLink).toBeVisible();
+    await expect(achievementsLink).toHaveAttribute("href", "/achievements");
   });
 
   test("profile menu button is visible when authenticated", async ({
@@ -30,7 +42,6 @@ test.describe("Navigation", () => {
 
   test("profile menu opens and shows navigation items", async ({ page }) => {
     await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
-    await expect(page.getByRole("menuitem", { name: "履歴" })).toBeVisible();
     await expect(
       page.getByRole("menuitem", { name: "プロンプト設定" }),
     ).toBeVisible();
@@ -50,12 +61,6 @@ test.describe("Navigation", () => {
     await expect(accountLink).toHaveAttribute("href", "/settings/account");
   });
 
-  test("profile menu history link points to correct URL", async ({ page }) => {
-    await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
-    const historyLink = page.getByRole("menuitem", { name: "履歴" });
-    await expect(historyLink).toHaveAttribute("href", "/history");
-  });
-
   test("billing links are hidden when billing is disabled", async ({ page }) => {
     await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
     // VITE_BILLING_ENABLED=false — billing entries must not appear
@@ -67,9 +72,8 @@ test.describe("Navigation", () => {
     ).not.toBeVisible();
   });
 
-  test("can navigate to the history page via profile menu", async ({ page }) => {
-    await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
-    await page.getByRole("menuitem", { name: "履歴" }).click();
+  test("can navigate to the history page via sidebar link", async ({ page }) => {
+    await page.getByRole("link", { name: "進捗" }).click();
     await expect(page).toHaveURL("/history");
     await expect(
       page.getByRole("heading", { name: "シナリオ履歴" }),
@@ -78,10 +82,10 @@ test.describe("Navigation", () => {
 
   test("profile menu closes after navigation", async ({ page }) => {
     await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
-    await page.getByRole("menuitem", { name: "履歴" }).click();
+    await page.getByRole("menuitem", { name: "アカウント情報" }).click();
 
     // Menu should be closed after clicking a link
-    await expect(page.getByRole("menuitem", { name: "アカウント情報" })).not.toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "プロンプト設定" })).not.toBeVisible();
   });
 
   test("team management link is hidden for users without an organization", async ({

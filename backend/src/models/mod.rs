@@ -340,11 +340,11 @@ pub fn default_scenarios() -> Vec<Scenario> {
         Scenario {
             id: "basic-intro-alignment".to_string(),
             title: "自己紹介".to_string(),
-            description: "新規PJに参加するPM/PMOとして、自己紹介を行う。".to_string(),
+            description: "新規PJに参加するPMとして、自己紹介を行う。".to_string(),
             scenario_type: ScenarioType::SoftSkills,
             feature_mockup: None,
             scenario_guide: None,
-            kickoff_prompt: "新規PJに参加するPM/PMOとして、自己紹介をしてみてください！".to_string(),
+            kickoff_prompt: "新規PJに参加するPMとして、自己紹介をしてみてください！".to_string(),
             evaluation_criteria: vec![
                 criterion("礼儀", 25.0),
                 criterion("自己紹介の明確さ", 25.0),

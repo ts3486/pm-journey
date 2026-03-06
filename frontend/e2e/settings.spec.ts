@@ -203,13 +203,12 @@ test.describe("Settings — Navigation between pages", () => {
     ).toBeVisible();
   });
 
-  test("team management link is not visible in profile menu when user has no org", async ({
+  test("team management link is not visible in sidebar when user has no org", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "プロフィールメニューを開く" }).click();
     // Our API mock returns 404 for /organizations/current → no role → no team link
     await expect(
-      page.getByRole("menuitem", { name: "チーム管理" }),
+      page.getByRole("link", { name: "チーム管理" }),
     ).not.toBeVisible();
   });
 });

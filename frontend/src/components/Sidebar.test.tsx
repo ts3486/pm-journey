@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NavBar } from "@/components/NavBar";
+import { Sidebar } from "@/components/Sidebar";
 import { env } from "@/config/env";
 import { useCurrentOrganization } from "@/queries/organizations";
 
@@ -25,7 +25,7 @@ vi.mock("@/contexts/StorageContext", () => ({
 const useAuth0Mock = vi.mocked(useAuth0);
 const useCurrentOrganizationMock = vi.mocked(useCurrentOrganization);
 
-describe("NavBar", () => {
+describe("Sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     loadLastSessionIdMock.mockResolvedValue(null);
@@ -67,7 +67,7 @@ describe("NavBar", () => {
   it("shows team management button in header for manager role", async () => {
     render(
       <MemoryRouter>
-        <NavBar />
+        <Sidebar isCollapsed={false} isOpen={false} onClose={vi.fn()} />
       </MemoryRouter>,
     );
 
@@ -107,7 +107,7 @@ describe("NavBar", () => {
 
     render(
       <MemoryRouter>
-        <NavBar />
+        <Sidebar isCollapsed={false} isOpen={false} onClose={vi.fn()} />
       </MemoryRouter>,
     );
 
@@ -121,7 +121,7 @@ describe("NavBar", () => {
   it("shows pricing link only inside profile menu", async () => {
     render(
       <MemoryRouter>
-        <NavBar />
+        <Sidebar isCollapsed={false} isOpen={false} onClose={vi.fn()} />
       </MemoryRouter>,
     );
 
@@ -146,7 +146,7 @@ describe("NavBar", () => {
   it("keeps billing settings entry in profile menu", async () => {
     render(
       <MemoryRouter>
-        <NavBar />
+        <Sidebar isCollapsed={false} isOpen={false} onClose={vi.fn()} />
       </MemoryRouter>,
     );
 
@@ -169,7 +169,7 @@ describe("NavBar", () => {
   it("shows account settings entry in profile menu", async () => {
     render(
       <MemoryRouter>
-        <NavBar />
+        <Sidebar isCollapsed={false} isOpen={false} onClose={vi.fn()} />
       </MemoryRouter>,
     );
 

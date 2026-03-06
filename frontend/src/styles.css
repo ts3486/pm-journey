@@ -14,6 +14,11 @@
   --font-sans: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-display: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sidebar-bg: #3d2a1a;
+  --sidebar-fg: #f5e6d3;
+  --sidebar-hover: rgba(217, 119, 42, 0.15);
+  --sidebar-active: rgba(217, 119, 42, 0.25);
+  --sidebar-border: rgba(245, 230, 211, 0.12);
 }
 
 @theme inline {
@@ -30,12 +35,6 @@ html {
 
 body {
   background-color: var(--background);
-  background-image:
-    radial-gradient(1200px 420px at 12% -10%, rgba(255, 200, 140, 0.55), transparent 60%),
-    radial-gradient(900px 520px at 90% 12%, rgba(238, 157, 91, 0.35), transparent 55%),
-    linear-gradient(180deg, #fbf3e8 0%, #f3dfc7 100%);
-  background-repeat: no-repeat;
-  background-size: cover;
   color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.6;
@@ -88,6 +87,16 @@ body {
 }
 
 @layer components {
+  .main-content {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(1200px 420px at 12% -10%, rgba(255, 200, 140, 0.55), transparent 60%),
+      radial-gradient(900px 520px at 90% 12%, rgba(238, 157, 91, 0.35), transparent 55%),
+      linear-gradient(180deg, #fbf3e8 0%, #f3dfc7 100%);
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
   .hero {
     position: relative;
     overflow: hidden;
