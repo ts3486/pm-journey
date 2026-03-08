@@ -5,6 +5,7 @@ import type { Components } from "react-markdown";
 import type { Scenario } from "@/types";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { addOutput } from "@/services/outputs";
 import type { SessionState } from "@/services/sessions";
 
@@ -216,6 +217,7 @@ export function PrdScenarioLayout({
             disabled={!hasActive || awaitingReply}
             quickPrompts={quickPrompts}
           />
+          <ProjectOverviewSection scenario={scenario} />
         </div>
       </div>
     </div>

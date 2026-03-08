@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Scenario } from "@/types";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import {
@@ -169,6 +170,7 @@ export function RequirementDefinitionScenarioLayout({
             disabled={!hasActive || awaitingReply}
             quickPrompts={quickPrompts}
           />
+          <ProjectOverviewSection scenario={scenario} />
         </div>
       </div>
     </div>

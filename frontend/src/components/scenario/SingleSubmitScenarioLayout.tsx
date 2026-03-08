@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Scenario, Mission } from "@/types";
 import { MeetingLogViewer } from "@/components/scenario/MeetingLogViewer";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { addOutput } from "@/services/outputs";
 import type { SessionState } from "@/services/sessions";
 
@@ -189,6 +190,8 @@ export function SingleSubmitScenarioLayout({
               </p>
             ) : null}
           </div>
+
+          <ProjectOverviewSection scenario={scenario} />
 
           {hasActive ? (
             <div className="flex justify-end">

@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { Scenario } from "@/types";
+import { ProjectOverviewSection } from "@/components/scenario/ProjectOverviewSection";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatStream } from "@/components/chat/ChatStream";
 import {
@@ -228,6 +229,7 @@ export function BusinessExecutionScenarioLayout({
             disabled={!hasActive || awaitingReply}
             quickPrompts={quickPrompts}
           />
+          <ProjectOverviewSection scenario={scenario} />
         </div>
       </div>
     </div>

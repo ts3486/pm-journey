@@ -731,6 +731,7 @@ mod tests {
             missions: None,
             agent_prompt: agent_prompt.map(|s| s.to_string()),
             single_response: None,
+            agent_opening_message: None,
         }
     }
 

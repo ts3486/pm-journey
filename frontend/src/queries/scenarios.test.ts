@@ -100,9 +100,10 @@ describe("buildHomeScenarioCatalog", () => {
     "test-login",
     "test-form",
     "test-file-upload",
+    "prd-notification-settings",
+    "prd-onboarding-wizard",
     "basic-requirement-definition-doc",
     "basic-requirement-hearing-plan",
-    "basic-requirement-user-story",
     "coming-incident-response",
     "coming-incident-triage-escalation",
     "coming-postmortem-followup",
@@ -131,21 +132,28 @@ describe("buildHomeScenarioCatalog", () => {
     ]);
   });
 
-  it("has 3 scenarios per category", () => {
+  it("has expected scenario counts per category", () => {
     const catalog = buildHomeScenarioCatalog(scenarios);
+    const expectedCounts: Record<string, number> = {
+      "soft-skills": 3,
+      "test-cases": 3,
+      "requirement-definition": 4,
+      "incident-response": 3,
+      "business-execution": 3,
+    };
     catalog.forEach((category) => {
       const allScenarios = category.subcategories.flatMap((sub) => sub.scenarios);
-      expect(allScenarios).toHaveLength(3);
+      expect(allScenarios).toHaveLength(expectedCounts[category.id]);
     });
   });
 
-  it("total across all categories is 15 scenarios", () => {
+  it("total across all categories is 16 scenarios", () => {
     const catalog = buildHomeScenarioCatalog(scenarios);
     const total = catalog.reduce(
       (sum, cat) => sum + cat.subcategories.reduce((s, sub) => s + sub.scenarios.length, 0),
       0
     );
-    expect(total).toBe(15);
+    expect(total).toBe(16);
   });
 
   it("resolves scenario titles from the input array", () => {
