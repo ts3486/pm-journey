@@ -37,7 +37,7 @@ describe("useAsyncAction", () => {
   });
 
   it("returns the resolved value from the action", async () => {
-    const action = vi.fn().mockResolvedValue(42);
+    const action = vi.fn<() => Promise<number>>().mockResolvedValue(42);
     const { result } = renderHook(() => useAsyncAction(action));
 
     let returnValue: number | undefined;
