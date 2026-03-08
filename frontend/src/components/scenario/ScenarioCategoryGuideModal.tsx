@@ -3,14 +3,13 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { env } from "@/config/env";
 import { getScenarioDiscipline } from "@/queries/scenarios";
-import type { Mission, Scenario, ScenarioDiscipline } from "@/types";
+import type { Scenario, ScenarioDiscipline } from "@/types";
 
 export type ScenarioGuide = {
   scenarioId: string;
   scenarioTitle: string;
   guidanceSentence: string;
   discipline: ScenarioDiscipline;
-  missions: Mission[];
 };
 
 type ScenarioCategoryGuideModalProps = {
@@ -40,7 +39,6 @@ export function buildScenarioGuide(scenario: Scenario): ScenarioGuide {
     scenarioTitle: scenario.title,
     guidanceSentence,
     discipline: getScenarioDiscipline(scenario),
-    missions: scenario.missions ?? [],
   };
 }
 
@@ -132,7 +130,7 @@ export function ScenarioCategoryGuideModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`relative z-10 flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-orange-200/80 bg-[#fffaf4] shadow-2xl transition-all duration-300 ease-out ${
+        className={`relative z-10 flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl transition-all duration-300 ease-out ${
           isVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-3 scale-[0.98] opacity-0"
         }`}
         onClick={(event) => event.stopPropagation()}
@@ -164,56 +162,23 @@ export function ScenarioCategoryGuideModal({
         </header>
 
         <div className="max-h-[60vh] overflow-y-auto px-6 py-6 sm:px-8">
-          <div className="space-y-5">
-            <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-slate-600">
-                シナリオ概要
-              </p>
-              <div className="prose prose-sm max-w-none text-base leading-7 text-slate-800">
-                <Markdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children }) => (
-                      <a href={href} download className="text-orange-600 underline hover:text-orange-800">
-                        {children}
-                      </a>
-                    ),
-                  }}
-                >
-                  {guide.guidanceSentence}
-                </Markdown>
-              </div>
-            </div>
-
-            {guide.missions.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-600">
-                  達成目標
-                </p>
-                <ol className="space-y-1.5">
-                  {guide.missions
-                    .slice()
-                    .sort((a, b) => a.order - b.order)
-                    .map((mission, index) => (
-                      <li key={mission.id} className="flex items-start gap-2.5">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-800">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium leading-5 text-slate-800">{mission.title}</p>
-                          {mission.description && (
-                            <p className="mt-0.5 text-xs leading-5 text-slate-600">{mission.description}</p>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                </ol>
-              </div>
-            )}
+          <div className="prose prose-sm prose-headings:text-slate-800 prose-headings:font-semibold prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2 prose-p:text-slate-700 prose-li:text-slate-700 prose-strong:text-slate-800 prose-hr:border-orange-100 max-w-none leading-7">
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ href, children }) => (
+                  <a href={href} download className="text-orange-600 underline hover:text-orange-800">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {guide.guidanceSentence}
+            </Markdown>
           </div>
         </div>
 
-        <div className="flex items-center justify-end border-t border-orange-100/80 px-6 py-4 sm:px-8">
+        <div className="flex items-center justify-end border-t border-gray-100 px-6 py-4 sm:px-8">
           <button type="button" className="btn-primary" onClick={onClose}>
             シナリオを開始する
           </button>

@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document catalogs platforms and services that share similar concepts, UI patterns, or target audiences with PM Journey. PM Journey uniquely combines **PM-specific scenarios**, **AI chat-based evaluation**, and a **gamified roadmap with achievements/certificates** -- a combination not found in any single competitor.
+This document catalogs platforms and services that share similar concepts, UI patterns, or target audiences with PM Journey. PM Journey uniquely combines **PM-specific scenario tasks**, **AI agent support during task execution**, **AI-powered evaluation**, and a **gamified roadmap with achievements/certificates** -- a combination not found in any single competitor.
 
 ---
 
@@ -94,12 +94,13 @@ Japanese platforms with gamification, badge, and certificate features.
 
 ### PM Journey's Unique Value Proposition
 
-PM Journey combines three capabilities that no single competitor offers together:
+PM Journey combines four capabilities that no single competitor offers together:
 
 | Capability | PM Journey | PM Simulators (SimulTrain, 富士通) | AI Roleplay (Virti, exaBase) | Gamified LMS (AcademyOcean, UMU) |
 |------------|-----------|-----------------------------------|------------------------------|-----------------------------------|
-| PM-specific scenarios | Yes | Yes | No (sales/general) | No (general) |
-| AI chat-based evaluation | Yes | No | Yes | No |
+| PM-specific scenario tasks | Yes | Yes | No (sales/general) | No (general) |
+| AI agent support during tasks | Yes | No | Partial | No |
+| AI-powered evaluation | Yes | No | Yes | No |
 | Gamified roadmap + achievements | Yes | No | Partial | Yes |
 | Certificates | Yes | No | No | Yes |
 | Self-paced online access | Yes | Partial | Yes | Yes |
@@ -107,7 +108,7 @@ PM Journey combines three capabilities that no single competitor offers together
 
 ### Key Gap in the Japanese Market
 
-The Japanese market has PM simulation (富士通ラーニングメディア) and AI roleplay training (exaBase, SAPI) as **separate products**, but no Japanese platform combines all three elements. This represents a clear market opportunity for PM Journey.
+The Japanese market has PM simulation (富士通ラーニングメディア) and AI roleplay training (exaBase, SAPI) as **separate products**, but no Japanese platform combines PM-specific tasks with AI agent support, AI evaluation, and gamification. This represents a clear market opportunity for PM Journey.
 
 ### Closest Competitors by Overall Similarity
 

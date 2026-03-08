@@ -1,7 +1,7 @@
-# pm-journey - Project Management Simulation Platform
+# pm-journey - PM Skill Training Platform
 
 ## Project Overview
-A full-stack web application for project management simulation and learning, featuring scenario-based challenges with AI-powered guidance and evaluation.
+A full-stack web application for project management skill training, featuring scenario-based tasks where users work with AI agent support and receive AI-powered evaluation and feedback.
 
 ## Tech Stack
 
@@ -94,14 +94,15 @@ docker-compose up # Start all services
 
 ### Scenario System
 - Scenario selection and management
-- AI-powered scenario evaluation
+- AI agent-supported task execution
+- AI-powered evaluation and feedback
 - History tracking
 - Multi-step challenge flows
 
 ### AI Integration
-- Mastra agents for intelligent guidance
+- Mastra agents for task support and guidance
 - Gemini LLM integration
-- Real-time feedback and evaluation
+- Post-task evaluation and feedback
 
 ## Testing Strategy
 
