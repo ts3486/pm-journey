@@ -10,8 +10,10 @@ import { TeamManagementPage } from "@/routes/settings/TeamManagementPage";
 import { TeamMemberCompletedSessionsPage } from "@/routes/settings/TeamMemberCompletedSessionsPage";
 import { ScenarioPage } from "@/routes/scenario/ScenarioPage";
 import { AchievementsPage } from "@/routes/achievements/AchievementsPage";
+import { AboutPage } from "@/routes/about/AboutPage";
 import { PricingPage } from "@/routes/pricing/PricingPage";
 import { TeamOnboardingPage } from "@/routes/team/TeamOnboardingPage";
+import { LecturePage } from "@/routes/lecture/LecturePage";
 import { ErrorPage } from "@/routes/ErrorPage";
 
 export const router = createBrowserRouter([
@@ -37,8 +39,16 @@ export const router = createBrowserRouter([
         element: <AchievementsPage />,
       },
       {
+        path: "about",
+        element: <AboutPage />,
+      },
+      {
         path: "scenario",
         element: <ScenarioPage />,
+      },
+      {
+        path: "lecture",
+        element: <LecturePage />,
       },
       {
         path: "settings",

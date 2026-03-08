@@ -6,7 +6,7 @@ import type {
 } from "@/types";
 import { useStorage } from "@/hooks/useStorage";
 import { Link } from "react-router-dom";
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth0 } from "@auth0/auth0-react";
 import { listHistory } from "@/services/history";
@@ -17,15 +17,13 @@ import { env } from "@/config/env";
 import { canViewTeamManagement } from "@/lib/teamAccess";
 import { computePassedScenarioIds, resolveHistoryTimestamp } from "@/lib/certificate";
 import { computeAchievementStats } from "@/routes/achievements/achievementsHelpers";
-import { StatsBar } from "@/components/dashboard/StatsBar";
-import { AchievementWidget } from "@/components/dashboard/AchievementWidget";
-import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
 import {
   type JourneyStage,
   resolveJourneyStage,
   getCategoryScenarios,
   getCategoryTitle,
 } from "./homeHelpers";
+import { lectureSummaries } from "@/routes/lecture/LecturePage";
 
 const revealDelay = (delay: number): CSSProperties => ({ "--delay": `${delay}ms` } as CSSProperties);
 const scrollableSubcategoryIds = new Set(["test-case-creation"]);
@@ -344,6 +342,9 @@ export function HomePage() {
     [milestoneProgress]
   );
 
+  const [isPreliminaryExpanded, setIsPreliminaryExpanded] = useState(false);
+  const togglePreliminaryExpanded = useCallback(() => setIsPreliminaryExpanded((v) => !v), []);
+
   const toggleCategoryExpanded = (categoryId: string) => {
     setExpandedCategoryIds((current) => ({
       ...current,
@@ -360,17 +361,7 @@ export function HomePage() {
         </h1>
       </section>
 
-      <section className="reveal" style={revealDelay(60)}>
-        <StatsBar
-          completedCount={completedScenarios}
-          totalCount={totalScenarios}
-          passRate={achievementStats.passRate}
-          overallProgress={overallProgress}
-        />
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-8">
+      <div className="space-y-8">
       {!isEntitlementsLoading && currentPlanCode === "FREE" ? (
         <section className="card p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -513,6 +504,70 @@ export function HomePage() {
         </div>
 
         <div className="space-y-6">
+          {/* Step 0 – Optional preliminary lectures */}
+          <article className="relative pl-12">
+            <div
+              aria-hidden="true"
+              className="absolute left-[1.05rem] top-10 h-[calc(100%+1.5rem)] w-px bg-gradient-to-b from-violet-300/70 via-slate-300/50 to-slate-200/10"
+            />
+            <div className="absolute left-0 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-violet-300/80 bg-violet-100 text-sm font-semibold text-violet-700 shadow-[0_8px_16px_rgba(109,40,217,0.12)]">
+              0
+            </div>
+
+            <div className="card space-y-4 border border-violet-200/70 bg-gradient-to-br from-violet-50/60 via-white/90 to-slate-50/70 p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-700/85">Preliminary</p>
+                    <span className="rounded-full border border-violet-200/80 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
+                      任意
+                    </span>
+                  </div>
+                  <h3 className="font-display text-xl text-slate-900">PMの役割とスキルを知る</h3>
+                  <p className="text-sm text-slate-600">
+                    シナリオに取り組む前に、プロダクトマネージャーの役割・必要スキル・日常業務を理解するための予備知識です。
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200/70 pt-2">
+                <button
+                  type="button"
+                  onClick={togglePreliminaryExpanded}
+                  aria-expanded={isPreliminaryExpanded}
+                  aria-controls="preliminary-panel"
+                  className="inline-flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-white/65"
+                >
+                  <span>{isPreliminaryExpanded ? "コンテンツを閉じる" : "コンテンツを表示"}</span>
+                  <span className={`text-xs text-slate-500 transition ${isPreliminaryExpanded ? "rotate-180" : ""}`}>▼</span>
+                </button>
+              </div>
+
+              {isPreliminaryExpanded ? (
+                <div id="preliminary-panel" className="space-y-2">
+                  {lectureSummaries.map((lecture) => (
+                    <Link
+                      key={lecture.id}
+                      to={`/lecture?id=${lecture.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-violet-200/70 bg-white/75 px-3 py-3 transition hover:border-violet-300 hover:bg-violet-50/60 sm:px-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">{lecture.title}</p>
+                        <p className="mt-0.5 truncate text-xs text-slate-600">{lecture.subtitle}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                          {lecture.readingTime}
+                        </span>
+                        <span className="text-xs text-violet-400">&rarr;</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </article>
+
           {sequenceRoadmap.map((category, categoryIndex) => {
             const hasNext = categoryIndex < sequenceRoadmap.length - 1;
             const palette = categoryPalettes[categoryIndex % categoryPalettes.length];
@@ -652,11 +707,6 @@ export function HomePage() {
           })}
         </div>
       </section>
-      </div>
-      <aside className="space-y-6">
-        <AchievementWidget />
-        <RecentActivityWidget />
-      </aside>
       </div>
     </div>
   );

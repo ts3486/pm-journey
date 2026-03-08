@@ -15,6 +15,7 @@ import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLa
 import { RequirementDefinitionScenarioLayout } from "@/components/scenario/RequirementDefinitionScenarioLayout";
 import { IncidentResponseScenarioLayout } from "@/components/scenario/IncidentResponseScenarioLayout";
 import { BusinessExecutionScenarioLayout } from "@/components/scenario/BusinessExecutionScenarioLayout";
+import { SingleSubmitScenarioLayout } from "@/components/scenario/SingleSubmitScenarioLayout";
 import {
   createLocalMessage,
   resetSession,
@@ -346,6 +347,22 @@ export function ScenarioPage() {
           sessionId={state?.session?.id}
           awaitingReply={awaitingReply}
           onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
+  if (isSingleResponseScenario) {
+    return (
+      <>
+        <SingleSubmitScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          sessionId={state?.session?.id}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
           onOpenGuide={handleOpenGuide}
