@@ -79,11 +79,12 @@ export function buildHomeScenarioCatalog(scenarios: Scenario[]): ScenarioCatalog
       subcategories: [
         {
           id: "requirement-definition-foundation",
-          title: "要件定義",
+          title: "PRD&要件定義",
           scenarios: [
+            require("prd-notification-settings"),
+            require("prd-onboarding-wizard"),
             require("basic-requirement-definition-doc"),
             require("basic-requirement-hearing-plan"),
-            require("basic-requirement-user-story"),
           ],
         },
       ],

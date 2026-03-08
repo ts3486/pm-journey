@@ -34,18 +34,21 @@ export function ChatComposer({ onSend, disabled, quickPrompts }: ChatComposerPro
         onChange={(e) => setValue(e.target.value)}
         placeholder="メッセージを入力…"
       />
-      <div className="flex flex-wrap gap-2">
-        {quickPrompts?.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="rounded-full border border-orange-200/70 bg-white/90 px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-orange-300 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff9f1]"
-            onClick={() => setValue(prompt)}
-          >
-            {prompt}
-          </button>
-        ))}
-        <div className="flex-1" />
+      {quickPrompts && quickPrompts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {quickPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              className="w-full rounded-full border border-orange-200/70 bg-white/90 px-4 py-1.5 text-xs font-semibold text-slate-600 text-center transition hover:border-orange-300 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff9f1]"
+              onClick={() => setValue(prompt)}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end">
         <button
           type="button"
           className="btn-primary disabled:opacity-50"

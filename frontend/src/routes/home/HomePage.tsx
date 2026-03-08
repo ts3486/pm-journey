@@ -86,7 +86,7 @@ type MilestoneTone = {
 const roadmapMilestones: RoadmapMilestone[] = [
   { id: "milestone-1", title: "基礎ソフトスキル", categoryId: "soft-skills" },
   { id: "milestone-2", title: "テスト設計", categoryId: "test-cases" },
-  { id: "milestone-3", title: "要件定義", categoryId: "requirement-definition" },
+  { id: "milestone-3", title: "PRD&要件定義", categoryId: "requirement-definition" },
   { id: "milestone-4", title: "障害対応", categoryId: "incident-response" },
   { id: "milestone-5", title: "事業推進", categoryId: "business-execution" },
 ];

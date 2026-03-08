@@ -80,6 +80,7 @@ impl ScenarioRepository {
             missions,
             agent_prompt: None,
             single_response: None,
+            agent_opening_message: None,
             id,
         }
     }

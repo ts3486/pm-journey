@@ -15,6 +15,7 @@ import { TestCaseScenarioLayout } from "@/components/scenario/TestCaseScenarioLa
 import { RequirementDefinitionScenarioLayout } from "@/components/scenario/RequirementDefinitionScenarioLayout";
 import { IncidentResponseScenarioLayout } from "@/components/scenario/IncidentResponseScenarioLayout";
 import { BusinessExecutionScenarioLayout } from "@/components/scenario/BusinessExecutionScenarioLayout";
+import { PrdScenarioLayout } from "@/components/scenario/PrdScenarioLayout";
 import { SingleSubmitScenarioLayout } from "@/components/scenario/SingleSubmitScenarioLayout";
 import {
   createLocalMessage,
@@ -302,6 +303,24 @@ export function ScenarioPage() {
     );
   }
 
+  if (activeScenario.scenarioType === "requirement-definition" && activeScenario.id.startsWith("prd-")) {
+    return (
+      <>
+        <PrdScenarioLayout
+          scenario={activeScenario}
+          state={state}
+          sessionId={state?.session?.id}
+          awaitingReply={awaitingReply}
+          onSend={handleSend}
+          onComplete={handleCompleteScenario}
+          onReset={handleReset}
+          onOpenGuide={handleOpenGuide}
+        />
+        {guideModal}
+      </>
+    );
+  }
+
   if (activeScenario.scenarioType === "requirement-definition") {
     return (
       <>
@@ -363,9 +382,15 @@ export function ScenarioPage() {
           scenario={activeScenario}
           state={state}
           sessionId={state?.session?.id}
+          missions={missions}
+          missionStatusMap={missionStatusMap}
+          allMissionsComplete={allMissionsComplete}
+          requiresMissionCompletion={requiresMissionCompletion}
+          canCompleteScenario={canCompleteScenario}
           onComplete={handleCompleteScenario}
           onReset={handleReset}
           onOpenGuide={handleOpenGuide}
+          onMissionToggle={handleMissionToggle}
         />
         {guideModal}
       </>
@@ -476,7 +501,9 @@ export function ScenarioPage() {
                 </p>
               ) : null}
             </div>
-            <ProjectOverviewSection scenario={activeScenario} />
+            {activeScenario.id !== "basic-product-understanding" && (
+              <ProjectOverviewSection scenario={activeScenario} />
+            )}
 
             {hasActive ? (
               <div className="flex justify-end">
