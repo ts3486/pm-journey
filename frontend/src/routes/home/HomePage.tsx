@@ -357,7 +357,7 @@ export function HomePage() {
       <section className="space-y-2 reveal" style={revealDelay(0)}>
         <p className="text-sm text-slate-500">{getFormattedDate()}</p>
         <h1 className="font-display text-2xl text-slate-900">
-          {getGreeting()}、{user?.name ?? "ゲスト"}さん
+          {getGreeting()}、{user?.given_name ?? user?.nickname ?? user?.name ?? "ゲスト"}さん
         </h1>
       </section>
 
