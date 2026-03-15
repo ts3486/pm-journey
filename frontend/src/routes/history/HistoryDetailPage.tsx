@@ -794,6 +794,24 @@ export function HistoryDetailPage() {
         )}
       </div>
 
+      {evaluation && scenario?.modelAnswer ? (
+        <div className="card overflow-hidden">
+          <details>
+            <summary className="cursor-pointer bg-gradient-to-r from-blue-50/80 to-indigo-50/50 px-5 py-4 transition hover:from-blue-100/80 hover:to-indigo-100/50">
+              <div className="inline-flex items-center gap-2">
+                <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Model Answer</p>
+                <span className="text-sm font-semibold text-slate-700">模範解答を表示</span>
+              </div>
+            </summary>
+            <div className="border-t border-blue-100/50 px-5 py-4">
+              <div className="prose prose-sm max-w-none text-slate-700">
+                <ReactMarkdown className="markdown-preview">{scenario.modelAnswer}</ReactMarkdown>
+              </div>
+            </div>
+          </details>
+        </div>
+      ) : null}
+
       {isTestCaseScenario ? (
         <div className="card p-5">
           <div className="mb-4 flex items-center justify-between">

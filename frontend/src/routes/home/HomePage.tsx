@@ -256,6 +256,21 @@ export function HomePage() {
     [completedSessionIdsByScenario]
   );
 
+  const scoreByScenario = useMemo(() => {
+    const latestByScenario = new Map<string, { score: number; timestamp: number }>();
+    historyItems.forEach((item) => {
+      if (!item.scenarioId || !item.evaluation?.overallScore) return;
+      const timestamp = resolveHistoryTimestamp(item);
+      const existing = latestByScenario.get(item.scenarioId);
+      if (!existing || timestamp > existing.timestamp) {
+        latestByScenario.set(item.scenarioId, { score: item.evaluation.overallScore, timestamp });
+      }
+    });
+    return new Map(
+      Array.from(latestByScenario.entries()).map(([scenarioId, value]) => [scenarioId, value.score])
+    );
+  }, [historyItems]);
+
   const passedScenarioIds = useMemo(
     () => computePassedScenarioIds(historyItems),
     [historyItems]
@@ -653,14 +668,18 @@ export function HomePage() {
                                   const completed = Boolean(completedSessionId);
                                   const passed = passedScenarioIds.has(scenario.id);
                                   const interrupted = savedByScenario[scenario.id] && !completed;
+                                  const score = completed ? scoreByScenario.get(scenario.id) : undefined;
+                                  const completedBorderBg = (() => {
+                                    if (!completed) return palette.incompleteScenario;
+                                    if (passed || (score != null && score >= 80)) return "border-emerald-200/80 bg-emerald-50/60";
+                                    if (score != null && score >= 60) return "border-amber-200/80 bg-amber-50/60";
+                                    if (score != null && score < 60) return "border-rose-200/80 bg-rose-50/60";
+                                    return "border-slate-200/80 bg-slate-50/60";
+                                  })();
                                   return (
                                     <li
                                       key={scenario.id}
-                                      className={`rounded-xl border px-3 py-3 transition sm:px-4 ${
-                                        completed
-                                          ? "border-emerald-200/80 bg-emerald-50/60"
-                                          : palette.incompleteScenario
-                                      }`}
+                                      className={`rounded-xl border px-3 py-3 transition sm:px-4 ${completedBorderBg}`}
                                     >
                                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
@@ -668,16 +687,37 @@ export function HomePage() {
                                           <p className="text-xs text-slate-600">{scenario.description}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          {completed ? (
-                                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                              完了
-                                            </span>
-                                          ) : null}
+                                          {completed ? (() => {
+                                            if (score != null) {
+                                              const scoreColor = score >= 80
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : score >= 60
+                                                  ? "bg-amber-100 text-amber-700"
+                                                  : "bg-rose-100 text-rose-700";
+                                              return (
+                                                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${scoreColor}`}>
+                                                  {Math.round(score)}点
+                                                </span>
+                                              );
+                                            }
+                                            return (
+                                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                完了
+                                              </span>
+                                            );
+                                          })() : null}
                                           {passed ? (
                                             <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
                                               合格
                                             </span>
                                           ) : null}
+                                          {completed && (() => {
+                                            return score != null && score < 60 ? (
+                                              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 border border-rose-200">
+                                                要改善
+                                              </span>
+                                            ) : null;
+                                          })()}
                                           {interrupted ? (
                                             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${palette.interruptedBadge}`}>
                                               中断中

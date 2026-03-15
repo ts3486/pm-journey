@@ -113,6 +113,33 @@ impl TestCaseRepository {
             .collect())
     }
 
+    pub async fn update(
+        &self,
+        id: &str,
+        name: &str,
+        preconditions: &str,
+        steps: &str,
+        expected_result: &str,
+    ) -> Result<Option<TestCase>> {
+        sqlx::query(
+            r#"
+            UPDATE test_cases
+            SET name = $2, preconditions = $3, steps = $4, expected_result = $5
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .bind(name)
+        .bind(preconditions)
+        .bind(steps)
+        .bind(expected_result)
+        .execute(&self.pool)
+        .await
+        .context("Failed to update test case")?;
+
+        self.get(id).await
+    }
+
     pub async fn delete(&self, id: &str) -> Result<bool> {
         let result = sqlx::query("DELETE FROM test_cases WHERE id = $1")
             .bind(id)

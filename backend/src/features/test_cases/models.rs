@@ -12,6 +12,15 @@ pub struct CreateTestCaseRequest {
     pub expected_result: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTestCaseRequest {
+    pub name: String,
+    pub preconditions: String,
+    pub steps: String,
+    pub expected_result: String,
+}
+
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TestCaseResponse {

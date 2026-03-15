@@ -73,6 +73,14 @@ export function TestCaseScenarioLayout({
     setTestCases((prev) => prev.filter((testCase) => testCase.id !== id));
   };
 
+  const handleUpdateTestCase = async (
+    id: string,
+    payload: { name: string; preconditions: string; steps: string; expectedResult: string }
+  ) => {
+    const updated = await api.updateTestCase(id, payload);
+    setTestCases((prev) => prev.map((tc) => (tc.id === id ? updated : tc)));
+  };
+
   const renderMockup = () => {
     const description = scenario.featureMockup?.description;
     switch (mockupComponent) {
@@ -134,6 +142,7 @@ export function TestCaseScenarioLayout({
             <TestCaseForm
               testCases={testCases}
               onAdd={handleAddTestCase}
+              onUpdate={handleUpdateTestCase}
               onDelete={handleDeleteTestCase}
               isLoading={isLoadingTestCases}
             />

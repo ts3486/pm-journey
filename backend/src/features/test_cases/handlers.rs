@@ -8,7 +8,7 @@ use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::state::SharedState;
 
-use super::models::{CreateTestCaseRequest, TestCaseResponse};
+use super::models::{CreateTestCaseRequest, TestCaseResponse, UpdateTestCaseRequest};
 
 #[utoipa::path(
     get,
@@ -47,6 +47,26 @@ pub async fn create_test_case(
         .create_test_case(&id, &auth.user_id, body)
         .await?;
     Ok((StatusCode::CREATED, Json(created.into())))
+}
+
+#[utoipa::path(
+    put,
+    path = "/test-cases/{id}",
+    request_body = UpdateTestCaseRequest,
+    responses((status = 200, body = TestCaseResponse))
+)]
+pub async fn update_test_case(
+    State(state): State<SharedState>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<UpdateTestCaseRequest>,
+) -> Result<Json<TestCaseResponse>, AppError> {
+    let updated = state
+        .services()
+        .test_cases()
+        .update_test_case(&id, &auth.user_id, body)
+        .await?;
+    Ok(Json(updated.into()))
 }
 
 #[utoipa::path(

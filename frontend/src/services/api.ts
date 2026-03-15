@@ -47,6 +47,7 @@ export const api: ApiClient = {
   listTestCases: call("listTestCases"),
   createTestCase: call("createTestCase"),
   deleteTestCase: call("deleteTestCase"),
+  updateTestCase: call("updateTestCase"),
   getProductConfig: call("getProductConfig"),
   updateProductConfig: call("updateProductConfig"),
   resetProductConfig: call("resetProductConfig"),

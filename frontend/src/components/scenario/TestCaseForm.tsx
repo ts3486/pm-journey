@@ -4,11 +4,12 @@ import type { TestCase } from "@/types";
 type TestCaseFormProps = {
   testCases: TestCase[];
   onAdd: (data: { name: string; preconditions: string; steps: string; expectedResult: string }) => Promise<void>;
+  onUpdate: (id: string, data: { name: string; preconditions: string; steps: string; expectedResult: string }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isLoading?: boolean;
 };
 
-export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCaseFormProps) {
+export function TestCaseForm({ testCases, onAdd, onUpdate, onDelete, isLoading }: TestCaseFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     preconditions: "",
@@ -17,6 +18,7 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -25,12 +27,18 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
     }
     setIsSubmitting(true);
     try {
-      await onAdd({
+      const data = {
         name: formData.name.trim(),
         preconditions: formData.preconditions.trim(),
         steps: formData.steps.trim(),
         expectedResult: formData.expectedResult.trim(),
-      });
+      };
+      if (editingId) {
+        await onUpdate(editingId, data);
+        setEditingId(null);
+      } else {
+        await onAdd(data);
+      }
       setFormData({ name: "", preconditions: "", steps: "", expectedResult: "" });
     } finally {
       setIsSubmitting(false);
@@ -46,6 +54,31 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
     }
   };
 
+  const handleEdit = (testCase: TestCase) => {
+    setFormData({
+      name: testCase.name,
+      preconditions: testCase.preconditions,
+      steps: testCase.steps,
+      expectedResult: testCase.expectedResult,
+    });
+    setEditingId(testCase.id);
+  };
+
+  const handleDuplicate = (testCase: TestCase) => {
+    setFormData({
+      name: testCase.name,
+      preconditions: testCase.preconditions,
+      steps: testCase.steps,
+      expectedResult: testCase.expectedResult,
+    });
+    setEditingId(null);
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: "", preconditions: "", steps: "", expectedResult: "" });
+    setEditingId(null);
+  };
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -54,7 +87,9 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900">テストケース追加</h3>
+        <h3 className="mb-4 text-sm font-semibold text-gray-900">
+          {editingId ? "テストケース編集" : "テストケース追加"}
+        </h3>
         <div className="space-y-3">
           <div>
             <label htmlFor="tc-name" className="mb-1 block text-xs font-medium text-gray-700">
@@ -112,18 +147,29 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
               className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <button
-            type="submit"
-            disabled={
-              isSubmitting ||
-              !formData.name.trim() ||
-              !formData.steps.trim() ||
-              !formData.expectedResult.trim()
-            }
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmitting ? "追加中..." : "テストケースを追加"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                !formData.name.trim() ||
+                !formData.steps.trim() ||
+                !formData.expectedResult.trim()
+              }
+              className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? (editingId ? "更新中..." : "追加中...") : (editingId ? "更新" : "テストケースを追加")}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
         </div>
       </form>
 
@@ -160,14 +206,30 @@ export function TestCaseForm({ testCases, onAdd, onDelete, isLoading }: TestCase
                       <span className="font-medium">期待結果:</span> {testCase.expectedResult}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(testCase.id)}
-                    disabled={deletingId === testCase.id}
-                    className="text-sm text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {deletingId === testCase.id ? "..." : "✕"}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(testCase)}
+                      className="text-sm text-gray-400 transition hover:text-blue-500"
+                    >
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicate(testCase)}
+                      className="text-sm text-gray-400 transition hover:text-green-500"
+                    >
+                      複製
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(testCase.id)}
+                      disabled={deletingId === testCase.id}
+                      className="text-sm text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === testCase.id ? "..." : "✕"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

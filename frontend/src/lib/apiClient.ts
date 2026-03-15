@@ -295,6 +295,20 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     async deleteTestCase(id: string): Promise<void> {
       await request(`/test-cases/${id}`, { method: "DELETE" });
     },
+    async updateTestCase(
+      id: string,
+      payload: {
+        name: string;
+        preconditions: string;
+        steps: string;
+        expectedResult: string;
+      }
+    ): Promise<TestCase> {
+      return request<TestCase>(`/test-cases/${id}`, {
+        method: "PUT",
+        body: payload,
+      });
+    },
     async getProductConfig(): Promise<ProductConfig> {
       return request<ProductConfig>("/product-config");
     },

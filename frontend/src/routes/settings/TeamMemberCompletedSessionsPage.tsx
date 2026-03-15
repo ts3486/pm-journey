@@ -7,7 +7,7 @@ import {
   useCurrentOrganizationProgress,
 } from "@/queries/organizations";
 import type { HistoryItem, ScenarioCatalogCategory, ScenarioSummary } from "@/types";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { computeCertificateStatus, resolveHistoryTimestamp } from "@/lib/certificate";
 import { formatStartedAt, resolveStartedAt, normalizeOptionalText } from "./teamMemberHelpers";
 
@@ -131,6 +131,72 @@ const categoryPalettes: CategoryPalette[] = [
   },
 ];
 
+// ---- CSV export ----
+
+const escapeCsvField = (value: string): string => {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+};
+
+const buildCompletedSessionsCsv = (
+  catalog: ScenarioCatalogCategory[],
+  completedByScenario: Map<string, HistoryItem>,
+): string => {
+  const header = [
+    "カテゴリ",
+    "サブカテゴリ",
+    "シナリオ",
+    "ステータス",
+    "スコア",
+    "合否",
+    "評価サマリー",
+    "改善アドバイス",
+    "コメント数",
+    "完了日時",
+    "セッションID",
+  ];
+
+  const rows: string[][] = [header];
+
+  for (const category of catalog) {
+    const categoryTitle = getCategoryTitle(category, catalog.indexOf(category));
+    for (const subcategory of category.subcategories) {
+      for (const scenario of subcategory.scenarios) {
+        const item = completedByScenario.get(scenario.id);
+        const startedAt = item ? resolveStartedAt(item) : undefined;
+        rows.push([
+          categoryTitle,
+          subcategory.title,
+          scenario.title,
+          item ? "完了" : "未完了",
+          item?.evaluation?.overallScore != null ? String(item.evaluation.overallScore) : "",
+          item?.evaluation?.passing === true ? "合格" : item?.evaluation?.passing === false ? "不合格" : "",
+          item?.evaluation?.summary ?? "",
+          item?.evaluation?.improvementAdvice ?? "",
+          item?.comments ? String(item.comments.length) : "0",
+          startedAt ? formatStartedAt(startedAt) : "",
+          item?.sessionId ?? "",
+        ]);
+      }
+    }
+  }
+
+  return rows.map((row) => row.map(escapeCsvField).join(",")).join("\n");
+};
+
+const downloadCsv = (csvContent: string, filename: string) => {
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 // ---- Page ----
 
 export function TeamMemberCompletedSessionsPage() {
@@ -222,6 +288,12 @@ export function TeamMemberCompletedSessionsPage() {
     [milestoneProgress]
   );
 
+  const handleExportCsv = useCallback(() => {
+    const csv = buildCompletedSessionsCsv(homeScenarioCatalog, completedItemByScenario);
+    const safeName = memberName.replace(/[^a-zA-Z0-9\u3000-\u9FFF]/g, "_");
+    downloadCsv(csv, `completed_scenarios_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`);
+  }, [homeScenarioCatalog, completedItemByScenario, memberName]);
+
   if (!memberId) {
     return (
       <section className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -256,6 +328,14 @@ export function TeamMemberCompletedSessionsPage() {
           <span className="text-xs text-slate-500">
             {completedCount} / {totalScenarios} シナリオ完了
           </span>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleExportCsv}
+            disabled={isLoading}
+          >
+            CSV出力
+          </button>
           <Link to="/settings/team" className="btn-secondary">
             Team管理へ戻る
           </Link>
@@ -373,17 +453,25 @@ export function TeamMemberCompletedSessionsPage() {
                           {subcategory.scenarios.map((scenario) => {
                             const completedItem = completedItemByScenario.get(scenario.id);
                             const isCompleted = Boolean(completedItem);
+                            const score = completedItem?.evaluation?.overallScore;
+                            const completedBorderBg = (() => {
+                              if (!isCompleted) return palette.incompleteScenario;
+                              if (score != null && score >= 80) return "border-emerald-200/80 bg-emerald-50/60";
+                              if (score != null && score >= 60) return "border-amber-200/80 bg-amber-50/60";
+                              if (score != null && score < 60) return "border-rose-200/80 bg-rose-50/60";
+                              return "border-slate-200/80 bg-slate-50/60";
+                            })();
                             return (
                               <li
                                 key={scenario.id}
-                                className={`rounded-xl border px-3 py-3 sm:px-4 ${
-                                  isCompleted ? "border-emerald-200/80 bg-emerald-50/60" : palette.incompleteScenario
-                                }`}
+                                className={`rounded-xl border px-3 py-3 sm:px-4 ${completedBorderBg}`}
                               >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                   <div className="flex items-center gap-3">
                                     {isCompleted ? (
-                                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
+                                      <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                                        score != null && score < 60 ? "bg-rose-500" : score != null && score < 80 ? "bg-amber-500" : "bg-emerald-500"
+                                      }`}>
                                         ✓
                                       </span>
                                     ) : (
@@ -394,11 +482,25 @@ export function TeamMemberCompletedSessionsPage() {
 
                                   {isCompleted && completedItem ? (
                                     <div className="flex items-center gap-2 pl-9 sm:pl-0">
-                                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 tabular-nums">
-                                        {completedItem.evaluation?.overallScore != null
-                                          ? `${completedItem.evaluation.overallScore} / 100`
-                                          : "採点なし"}
-                                      </span>
+                                      {(() => {
+                                        const scoreColor = score != null
+                                          ? score >= 80
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : score >= 60
+                                              ? "bg-amber-100 text-amber-700"
+                                              : "bg-rose-100 text-rose-700"
+                                          : "bg-slate-100 text-slate-600";
+                                        return (
+                                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${scoreColor}`}>
+                                            {score != null ? `${score} / 100` : "採点なし"}
+                                          </span>
+                                        );
+                                      })()}
+                                      {score != null && score < 60 && (
+                                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 border border-rose-200">
+                                          要改善
+                                        </span>
+                                      )}
                                       {completedItem.evaluation?.passing === true ? (
                                         <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
                                           合格

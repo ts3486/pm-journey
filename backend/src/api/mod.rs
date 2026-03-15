@@ -63,10 +63,12 @@ use crate::features::sessions::handlers::{
     create_session, delete_session, get_session, list_sessions,
 };
 use crate::features::test_cases::handlers::{
-    __path_create_test_case, __path_delete_test_case, __path_list_test_cases, create_test_case,
-    delete_test_case, list_test_cases,
+    __path_create_test_case, __path_delete_test_case, __path_list_test_cases,
+    __path_update_test_case, create_test_case, delete_test_case, list_test_cases, update_test_case,
 };
-use crate::features::test_cases::models::{CreateTestCaseRequest, TestCaseResponse};
+use crate::features::test_cases::models::{
+    CreateTestCaseRequest, TestCaseResponse, UpdateTestCaseRequest,
+};
 use crate::features::users::handlers::{
     __path_delete_my_account, __path_get_my_account, delete_my_account, get_my_account,
 };
@@ -121,6 +123,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         list_test_cases,
         create_test_case,
         delete_test_case,
+        update_test_case,
         get_product_config,
         update_product_config,
         reset_product_config
@@ -163,6 +166,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         TestCase,
         TestCaseResponse,
         CreateTestCaseRequest,
+        UpdateTestCaseRequest,
         crate::models::RatingCriterion,
         ProductConfig,
         UpdateProductConfigRequest,
@@ -237,7 +241,10 @@ pub fn router_with_state(state: SharedState) -> Router {
             "/sessions/:id/test-cases",
             get(list_test_cases).post(create_test_case),
         )
-        .route("/test-cases/:id", axum::routing::delete(delete_test_case))
+        .route(
+            "/test-cases/:id",
+            axum::routing::delete(delete_test_case).put(update_test_case),
+        )
         .route("/import", post(import_sessions))
         .route(
             "/product-config",

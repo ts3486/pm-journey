@@ -81,6 +81,7 @@ impl ScenarioRepository {
             agent_prompt: None,
             single_response: None,
             agent_opening_message: None,
+            model_answer: None,
             id,
         }
     }

@@ -144,6 +144,7 @@ export type Scenario = {
   missions?: Mission[];
   agentPrompt?: string;
   singleResponse?: boolean;
+  modelAnswer?: string;
 };
 
 export type ManagerComment = {

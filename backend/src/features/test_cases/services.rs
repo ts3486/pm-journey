@@ -5,7 +5,7 @@ use crate::features::sessions::authorization::authorize_session_access;
 use crate::models::TestCase;
 use crate::shared::helpers::{next_id, now_ts};
 
-use super::models::CreateTestCaseRequest;
+use super::models::{CreateTestCaseRequest, UpdateTestCaseRequest};
 use super::repository::TestCaseRepository;
 
 #[derive(Clone)]
@@ -34,7 +34,7 @@ impl TestCaseService {
         let test_cases = repo
             .list_by_session(session_id)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to list test cases: {}", e)))?;
+            .map_err(|e| anyhow_error(format!("Failed to list test cases: {e}")))?;
         Ok(test_cases)
     }
 
@@ -66,9 +66,44 @@ impl TestCaseService {
         let created = repo
             .create(&test_case)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to create test case: {}", e)))?;
+            .map_err(|e| anyhow_error(format!("Failed to create test case: {e}")))?;
 
         Ok(created)
+    }
+
+    pub async fn update_test_case(
+        &self,
+        id: &str,
+        user_id: &str,
+        body: UpdateTestCaseRequest,
+    ) -> Result<TestCase, AppError> {
+        let repo = TestCaseRepository::new(self.pool.clone());
+        let test_case = repo
+            .get(id)
+            .await
+            .map_err(|e| anyhow_error(format!("Failed to get test case: {e}")))?
+            .ok_or_else(|| anyhow_error("Test case not found"))?;
+
+        let access = authorize_session_access(&self.pool, &test_case.session_id, user_id).await?;
+        if !access.can_edit_session() {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for test case update",
+            ));
+        }
+
+        let updated = repo
+            .update(
+                id,
+                &body.name,
+                &body.preconditions,
+                &body.steps,
+                &body.expected_result,
+            )
+            .await
+            .map_err(|e| anyhow_error(format!("Failed to update test case: {e}")))?
+            .ok_or_else(|| anyhow_error("Test case not found after update"))?;
+
+        Ok(updated)
     }
 
     pub async fn delete_test_case(&self, id: &str, user_id: &str) -> Result<bool, AppError> {
@@ -76,7 +111,7 @@ impl TestCaseService {
         let test_case = match repo
             .get(id)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to get test case: {}", e)))?
+            .map_err(|e| anyhow_error(format!("Failed to get test case: {e}")))?
         {
             Some(test_case) => test_case,
             None => return Ok(false),
@@ -92,7 +127,7 @@ impl TestCaseService {
         let deleted = repo
             .delete(id)
             .await
-            .map_err(|e| anyhow_error(&format!("Failed to delete test case: {}", e)))?;
+            .map_err(|e| anyhow_error(format!("Failed to delete test case: {e}")))?;
         Ok(deleted)
     }
 }

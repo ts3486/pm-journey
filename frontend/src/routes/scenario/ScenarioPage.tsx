@@ -78,7 +78,7 @@ export function ScenarioPage() {
     (!agentResponseEnabled || hasAgentResponseAfterUser);
   const allMissionsComplete = missions.length > 0 && missions.every((mission) => missionStatusMap.get(mission.id));
   const requiresMissionCompletion = missions.length > 0;
-  const canCompleteScenario = hasActive && (!requiresMissionCompletion || allMissionsComplete);
+  const canCompleteScenario = hasActive;
   const scenarioLocked = isSingleResponseScenario && singleResponseScenarioEnded;
 
   const clearPendingInitialReply = () => {

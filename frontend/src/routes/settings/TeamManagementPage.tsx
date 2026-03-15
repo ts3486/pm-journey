@@ -55,27 +55,35 @@ const normalizeOptionalText = (value?: string | null): string | null => {
 };
 
 const memberDisplayName = (member: OrganizationMember): string => {
-  return normalizeOptionalText(member.userName) ?? normalizeOptionalText(member.userEmail) ?? "ユーザー";
+  return normalizeOptionalText(member.userName) ?? normalizeOptionalText(member.userEmail) ?? member.userId;
 };
 
 const memberSecondaryLabel = (member: OrganizationMember): string | null => {
   const name = normalizeOptionalText(member.userName);
   const email = normalizeOptionalText(member.userEmail);
-  if (name) {
+  if (name && email) {
     return email;
   }
-  return null;
+  if (name || email) {
+    return member.userId;
+  }
+  return null; // userId is already the primary display
 };
 
 const progressDisplayName = (progress: OrganizationMemberProgress): string => {
-  return normalizeOptionalText(progress.name) ?? normalizeOptionalText(progress.email) ?? "ユーザー";
+  return normalizeOptionalText(progress.name) ?? normalizeOptionalText(progress.email) ?? progress.userId;
 };
 
 const progressSecondaryLabel = (progress: OrganizationMemberProgress): string | null => {
-  if (!normalizeOptionalText(progress.name)) {
-    return null;
+  const name = normalizeOptionalText(progress.name);
+  const email = normalizeOptionalText(progress.email);
+  if (name && email) {
+    return email;
   }
-  return normalizeOptionalText(progress.email);
+  if (name || email) {
+    return progress.userId;
+  }
+  return null;
 };
 
 const progressCompletionLabel = (progress: OrganizationMemberProgress) => {

@@ -360,19 +360,25 @@ export function HistoryPage() {
                             const status = getStatus(scenario.id);
                             const completedItem = completedItemByScenario.get(scenario.id);
                             const inProgressItem = inProgressItemByScenario.get(scenario.id);
+                            const score = completedItem?.evaluation?.overallScore;
+                            const completedBorderBg = (() => {
+                              if (status !== "completed") return palette.incompleteScenario;
+                              if (score != null && score >= 80) return "border-emerald-200/80 bg-emerald-50/60";
+                              if (score != null && score >= 60) return "border-amber-200/80 bg-amber-50/60";
+                              if (score != null && score < 60) return "border-rose-200/80 bg-rose-50/60";
+                              return "border-slate-200/80 bg-slate-50/60";
+                            })();
                             return (
                               <li
                                 key={scenario.id}
-                                className={`rounded-xl border px-3 py-3 sm:px-4 ${
-                                  status === "completed"
-                                    ? "border-emerald-200/80 bg-emerald-50/60"
-                                    : palette.incompleteScenario
-                                }`}
+                                className={`rounded-xl border px-3 py-3 sm:px-4 ${completedBorderBg}`}
                               >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                   <div className="flex items-center gap-3">
                                     {status === "completed" ? (
-                                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
+                                      <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                                        score != null && score < 60 ? "bg-rose-500" : score != null && score < 80 ? "bg-amber-500" : "bg-emerald-500"
+                                      }`}>
                                         ✓
                                       </span>
                                     ) : status === "in-progress" ? (
@@ -388,11 +394,25 @@ export function HistoryPage() {
                                   <div className="flex items-center gap-2 pl-9 sm:pl-0">
                                     {status === "completed" && completedItem ? (
                                       <>
-                                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 tabular-nums">
-                                          {completedItem.evaluation?.overallScore != null
-                                            ? `${completedItem.evaluation.overallScore} / 100`
-                                            : "採点なし"}
-                                        </span>
+                                        {(() => {
+                                          const scoreColor = score != null
+                                            ? score >= 80
+                                              ? "bg-emerald-100 text-emerald-700"
+                                              : score >= 60
+                                                ? "bg-amber-100 text-amber-700"
+                                                : "bg-rose-100 text-rose-700"
+                                            : "bg-slate-100 text-slate-600";
+                                          return (
+                                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${scoreColor}`}>
+                                              {score != null ? `${score} / 100` : "採点なし"}
+                                            </span>
+                                          );
+                                        })()}
+                                        {score != null && score < 60 && (
+                                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 border border-rose-200">
+                                            要改善
+                                          </span>
+                                        )}
                                         <span className="text-xs text-slate-500">
                                           {formatStartedAt(resolveStartedAt(completedItem))}
                                         </span>

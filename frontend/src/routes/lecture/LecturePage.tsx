@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 /* ------------------------------------------------------------------ */
@@ -121,63 +121,6 @@ function LifecycleDiagram() {
   );
 }
 
-function SkillRadarDiagram() {
-  // Simple radar/pentagon showing 5 skill areas
-  const skills = [
-    { label: "コミュニケーション", angle: -90 },
-    { label: "品質管理", angle: -18 },
-    { label: "仕様策定", angle: 54 },
-    { label: "危機対応", angle: 126 },
-    { label: "戦略思考", angle: 198 },
-  ];
-  const cx = 160, cy = 140, r = 100;
-  const toXY = (angle: number, radius: number) => ({
-    x: cx + radius * Math.cos((angle * Math.PI) / 180),
-    y: cy + radius * Math.sin((angle * Math.PI) / 180),
-  });
-  const outerPoints = skills.map((s) => toXY(s.angle, r));
-  const innerPoints = skills.map((s) => toXY(s.angle, r * 0.55));
-  const polygon = (pts: { x: number; y: number }[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
-
-  return (
-    <figure className="flex flex-col items-center gap-3 py-2">
-      <svg viewBox="0 0 320 280" className="w-full max-w-[20rem]" aria-label="PdMスキルレーダー">
-        {/* grid lines */}
-        {[0.33, 0.66, 1].map((scale) => (
-          <polygon
-            key={scale}
-            points={polygon(skills.map((s) => toXY(s.angle, r * scale)))}
-            fill="none"
-            stroke="rgba(138,96,61,0.15)"
-            strokeWidth="1"
-          />
-        ))}
-        {/* axis lines */}
-        {outerPoints.map((p, i) => (
-          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(138,96,61,0.12)" strokeWidth="1" />
-        ))}
-        {/* filled area */}
-        <polygon points={polygon(innerPoints)} fill="rgba(217,119,42,0.15)" stroke="rgba(217,119,42,0.6)" strokeWidth="1.5" />
-        {/* dots */}
-        {innerPoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#d9772a" />
-        ))}
-        {/* labels */}
-        {skills.map((s, i) => {
-          const labelPos = toXY(s.angle, r + 24);
-          return (
-            <text key={i} x={labelPos.x} y={labelPos.y} textAnchor="middle" dominantBaseline="middle" className="fill-gray-800 text-[11px] font-medium">
-              {s.label}
-            </text>
-          );
-        })}
-      </svg>
-      <figcaption className="text-center text-xs text-[#7b6856]">
-        pm-journeyで鍛える5つのスキル領域
-      </figcaption>
-    </figure>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Lecture Data                                                        */
@@ -249,20 +192,19 @@ const lectures: LectureDefinition[] = [
     id: "core-skills",
     number: 2,
     title: "PdMに必要なコアスキル",
-    subtitle: "6つのスキル領域と、それぞれの鍛え方",
+    subtitle: "5つのスキル領域と、それぞれの鍛え方",
     readingTime: "7 min read",
     heroAccent: "rgba(59,130,246,0.06)",
     blocks: [
       {
         kind: "lead",
-        text: "「顧客が求めているのは速い馬ではなく、早く目的地に着くこと」——ヘンリー・フォードの言葉は、PdMの本質を的確に表しています。表面的な要望の裏にある本当の課題を見つけ出し、限られたリソースで最大のインパクトを出す。そのために必要な6つのスキル領域を見ていきます。",
+        text: "「顧客が求めているのは速い馬ではなく、早く目的地に着くこと」——ヘンリー・フォードの言葉は、PdMの本質を的確に表しています。表面的な要望の裏にある本当の課題を見つけ出し、限られたリソースで最大のインパクトを出す。pm-journeyではこの力を5つのスキル領域に分解し、段階的に鍛えていきます。",
       },
-      { kind: "diagram", component: SkillRadarDiagram },
       { kind: "divider" },
-      { kind: "heading", text: "課題発見と仮説構築" },
+      { kind: "heading", text: "① 基礎ソフトスキル" },
       {
         kind: "prose",
-        text: "ユーザーが言葉にする要望の裏にある、根本的な課題を見つけ出す力です。インタビュー、行動データ分析、カスタマーサポートのログなど、複数のソースから仮説を立て、検証していきます。",
+        text: "PdMの仕事の土台はコミュニケーションです。自分の役割を的確に伝える自己紹介、ステークホルダーへのヒアリングで本質的なニーズを引き出す力、会議の要点を整理して共有する議事録作成——これらはすべての業務に通底する基礎スキルです。",
       },
       {
         kind: "pullquote",
@@ -271,62 +213,51 @@ const lectures: LectureDefinition[] = [
       {
         kind: "callout",
         label: "pm-journeyでの鍛え方",
-        text: "「基礎ソフトスキル」カテゴリで、ステークホルダーとの対話を通じて課題を整理し、本質的なニーズを特定する練習を行います。",
+        text: "自己紹介でのポジショニング、プロダクト理解のヒアリング、会議の議事録作成を通じて、対話と段取りの基礎を固めます。",
       },
       { kind: "divider" },
-      { kind: "heading", text: "優先順位付け" },
+      { kind: "heading", text: "② テストケース作成" },
       {
         kind: "prose",
-        text: "やりたいことは常にリソースを超えます。RICE（Reach, Impact, Confidence, Effort）やICE（Impact, Confidence, Ease）などのフレームワークを使い、客観的な基準で優先順位を決定します。「何をやらないか」を決める勇気もPdMに必要な資質です。",
+        text: "PdMはQAエンジニアではありませんが、テスト観点を理解し、品質基準を設定する責任があります。ユーザーに届く前に致命的な問題を見つけるために、正常系・異常系・境界値といったテストケースの考え方を身につけておくことが重要です。品質への意識は、要件定義や障害対応にもつながるスキルです。",
       },
       {
         kind: "callout",
         label: "pm-journeyでの鍛え方",
-        text: "「事業推進・戦略」カテゴリの優先度トレードオフシナリオで、競合する要求の中から最適な判断を下す経験を積みます。",
+        text: "ログイン機能・フォーム・ファイルアップロードなど具体的な機能に対するテストケースを設計し、品質視点で仕様を検証する力を養います。",
       },
       { kind: "divider" },
-      { kind: "heading", text: "データ分析とKPI設計" },
+      { kind: "heading", text: "③ PRD&要件定義" },
       {
         kind: "prose",
-        text: "直感に頼らず、定量データでプロダクトの状態を把握し、改善の方向を決める力です。DAU/MAU、コンバージョン率、リテンション率、NPSなど、プロダクトの健康状態を示す指標を設計・モニタリングします。",
+        text: "ステークホルダーの曖昧なニーズを「PRD（プロダクト要件ドキュメント）」や「要件定義書」に落とし込み、開発チームが実装可能な形にする力です。何を作るか・なぜ作るかを明確にし、関係者全員が同じゴールを共有できるドキュメントを作成します。ヒアリング計画の策定も含め、合意形成のプロセス全体を設計するスキルが求められます。",
       },
       {
         kind: "callout",
         label: "pm-journeyでの鍛え方",
-        text: "「事業推進・戦略」カテゴリのデータROI分析シナリオで、実際のデータを読み解きながらビジネス判断を行う体験ができます。",
+        text: "通知設定やオンボーディングウィザードのPRD作成、要件定義書の作成、ヒアリング計画の策定など、実践的なシナリオでドキュメント力を磨きます。",
       },
       { kind: "divider" },
-      { kind: "heading", text: "要件定義とユーザーストーリー" },
+      { kind: "heading", text: "④ 障害対応" },
       {
         kind: "prose",
-        text: "ステークホルダーの曖昧なニーズを「ユーザーストーリー」や「要件定義書」に落とし込み、開発チームが実装可能な形にする力です。関係者全員が同じゴールを共有できるドキュメントを作成します。",
+        text: "プロダクト障害が起きた時、PdMはエンジニアリングチームとビジネスチーム・顧客の間に立ちます。影響範囲の把握、優先度判定、ステークホルダーへの報告、再発防止策の策定——パニックにならず体系的に対処する力が求められます。障害の深刻度に応じた判断の引き出しを持っておくことが、信頼されるPdMの条件です。",
       },
       {
         kind: "callout",
         label: "pm-journeyでの鍛え方",
-        text: "「要件定義」カテゴリでは、ログイン機能・お問い合わせフォーム・ファイルアップロード機能の要件を実際に定義するシナリオを用意しています。",
+        text: "P1重大インシデントの初動対応、P2障害のトリアージ・エスカレーション、P3障害のポストモーテムまで、実際の障害対応フローを体験します。",
       },
       { kind: "divider" },
-      { kind: "heading", text: "品質保証の視点" },
+      { kind: "heading", text: "⑤ 事業推進・戦略" },
       {
         kind: "prose",
-        text: "PdMはQAエンジニアではありませんが、テスト観点を理解し、品質基準を設定する責任があります。ユーザーに届く前に致命的な問題を見つけるために、テストケースの考え方を知っておくことが重要です。",
+        text: "やりたいことは常にリソースを超えます。RICE（Reach, Impact, Confidence, Effort）などのフレームワークで優先順位を決定し、定量データでプロダクトの状態を把握し改善の方向を決める力です。DAU/MAU、コンバージョン率、リテンション率などの指標を設計・モニタリングしながら、「何をやらないか」を決める勇気もPdMに必要な資質です。",
       },
       {
         kind: "callout",
         label: "pm-journeyでの鍛え方",
-        text: "「テストケース作成」カテゴリで、具体的な機能に対するテストケースを設計。正常系・異常系・境界値の考え方を身につけます。",
-      },
-      { kind: "divider" },
-      { kind: "heading", text: "危機管理とコミュニケーション" },
-      {
-        kind: "prose",
-        text: "プロダクト障害が起きた時、PdMはエンジニアリングチームとビジネスチーム・顧客の間に立ち、影響範囲の把握・優先度判定・ステークホルダーへの報告・再発防止策の策定を行います。パニックにならず、体系的に対処する力が求められます。",
-      },
-      {
-        kind: "callout",
-        label: "pm-journeyでの鍛え方",
-        text: "「障害対応」カテゴリで、P1〜P3レベルのインシデント対応シナリオを用意。トリアージからポストモーテムまで、実際の障害対応フローを体験します。",
+        text: "優先度トレードオフ、データに基づくROI分析、プロダクト戦略の診断を通じて、ビジネスレベルの意思決定スキルを総合的に鍛えます。",
       },
     ],
   },
@@ -415,7 +346,7 @@ const lectures: LectureDefinition[] = [
         cards: [
           { step: "Step 1", title: "基礎ソフトスキル", skill: "自己紹介でのポジショニング、プロダクト理解のヒアリング、会議の議事録作成。すべてのカテゴリの土台となるコミュニケーション力を鍛える。", color: "#d9772a" },
           { step: "Step 2", title: "テストケース作成", skill: "ログイン・フォーム・ファイルアップロードなど具体的な機能に対するテストケース設計。正常系・異常系・境界値テストの考え方を学ぶ。", color: "#3b82f6" },
-          { step: "Step 3", title: "要件定義", skill: "要件定義書の作成、ヒアリング計画の策定、ユーザーストーリーの作成。ステークホルダーのニーズを開発可能な形に変換するスキル。", color: "#e11d48" },
+          { step: "Step 3", title: "PRD&要件定義", skill: "通知設定やオンボーディングウィザードのPRD作成、要件定義書の作成、ヒアリング計画の策定。ステークホルダーのニーズを開発可能な形に変換するスキル。", color: "#e11d48" },
           { step: "Step 4", title: "障害対応", skill: "P1重大インシデントの初動対応、P2障害のトリアージ・エスカレーション、P3障害のポストモーテム。プレッシャー下での判断力を磨く。", color: "#10b981" },
           { step: "Step 5", title: "事業推進・戦略", skill: "優先度トレードオフ、データに基づくROI分析、プロダクト戦略の診断。ビジネスレベルの意思決定スキルを総合的に鍛える。", color: "#8b5cf6" },
         ],
@@ -455,7 +386,7 @@ function renderBlock(block: ContentBlock, index: number) {
   switch (block.kind) {
     case "lead":
       return (
-        <p key={key} className="text-base leading-[1.95] text-gray-800 sm:text-lg sm:leading-[2]">
+        <p key={key} className="pb-2 text-base leading-[1.95] text-gray-800 sm:text-lg sm:leading-[2]">
           {block.text}
         </p>
       );
@@ -463,7 +394,7 @@ function renderBlock(block: ContentBlock, index: number) {
       return (
         <h2
           key={key}
-          className="font-display text-xl text-gray-900 sm:text-2xl"
+          className="font-display pt-2 text-xl text-gray-900 sm:text-2xl"
         >
           {block.text}
         </h2>
@@ -472,7 +403,7 @@ function renderBlock(block: ContentBlock, index: number) {
       return (
         <h3
           key={key}
-          className="text-[15px] font-semibold text-gray-800 sm:text-base"
+          className="pt-1 text-[15px] font-semibold text-gray-800 sm:text-base"
         >
           {block.text}
         </h3>
@@ -487,7 +418,7 @@ function renderBlock(block: ContentBlock, index: number) {
       return (
         <blockquote
           key={key}
-          className="relative my-2 border-l-[3px] border-[#d9772a] py-1 pl-5 sm:pl-6"
+          className="relative my-1 border-l-[3px] border-[#d9772a] py-2 pl-5 sm:pl-6"
         >
           <p className="text-[15px] font-medium leading-[1.85] text-gray-800 sm:text-base">
             {block.text}
@@ -512,7 +443,7 @@ function renderBlock(block: ContentBlock, index: number) {
         </aside>
       );
     case "diagram":
-      return <div key={key}>{block.component()}</div>;
+      return <div key={key} className="py-2">{block.component()}</div>;
     case "comparison":
       return (
         <div key={key} className="grid gap-3 sm:grid-cols-3">
@@ -521,14 +452,14 @@ function renderBlock(block: ContentBlock, index: number) {
               key={item.label}
               className="rounded-xl border border-gray-200 bg-gray-50/80 p-4"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-white"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
                   style={{ backgroundColor: item.color }}
                 >
                   {item.label}
                 </span>
-                <span className="text-xs font-medium text-gray-500">{item.role}</span>
+                <span className="text-xs font-semibold text-gray-600">{item.role}</span>
               </div>
               <p className="mt-3 text-[13px] leading-[1.8] text-gray-700">{item.focus}</p>
             </div>
@@ -537,21 +468,12 @@ function renderBlock(block: ContentBlock, index: number) {
       );
     case "timeline":
       return (
-        <div key={key} className="relative space-y-0 pl-8 sm:pl-10">
-          {/* vertical line */}
-          <div
-            className="absolute bottom-2 left-3 top-2 w-px bg-gradient-to-b from-[#d9772a]/50 to-[#d9772a]/10 sm:left-4"
-          />
+        <div key={key} className="space-y-4">
           {block.steps.map((step, i) => (
-            <div key={i} className="relative pb-5">
-              {/* dot */}
-              <div className="absolute -left-5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-[#d9772a] text-[9px] font-bold text-white shadow-sm sm:-left-6 sm:h-6 sm:w-6 sm:text-[10px]">
-                {step.label}
-              </div>
-              <div>
-                <p className="text-[15px] font-semibold text-gray-900">{step.title}</p>
-                <p className="mt-1 text-[13.5px] leading-[1.8] text-gray-600">{step.body}</p>
-              </div>
+            <div key={i} className="rounded-lg border border-gray-200 bg-gray-50/80 px-4 py-3.5">
+              <p className="text-xs font-semibold text-[#d9772a]">{step.label}</p>
+              <p className="mt-1 text-[15px] font-semibold text-gray-900">{step.title}</p>
+              <p className="mt-1.5 text-[13.5px] leading-[1.85] text-gray-600">{step.body}</p>
             </div>
           ))}
         </div>
@@ -562,11 +484,11 @@ function renderBlock(block: ContentBlock, index: number) {
           {block.cards.map((card, i) => (
             <div
               key={i}
-              className="flex gap-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 sm:p-5"
+              className="flex gap-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 sm:gap-5 sm:p-5"
             >
-              <div className="flex shrink-0 flex-col items-center gap-1 pt-0.5">
+              <div className="flex shrink-0 flex-col items-center pt-0.5">
                 <div
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-[11px] font-bold text-white shadow-sm"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-[11px] font-bold text-white shadow-sm sm:h-11 sm:w-11 sm:text-xs"
                   style={{ backgroundColor: card.color }}
                 >
                   {card.step.replace("Step ", "")}
@@ -574,7 +496,7 @@ function renderBlock(block: ContentBlock, index: number) {
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] font-semibold text-gray-900">{card.title}</p>
-                <p className="mt-1 text-[13.5px] leading-[1.8] text-gray-600">{card.skill}</p>
+                <p className="mt-1.5 text-[13.5px] leading-[1.85] text-gray-600">{card.skill}</p>
               </div>
             </div>
           ))}
@@ -582,7 +504,7 @@ function renderBlock(block: ContentBlock, index: number) {
       );
     case "divider":
       return (
-        <div key={key} className="flex items-center justify-center py-1">
+        <div key={key} className="flex items-center justify-center py-3">
           <div className="h-px w-12 bg-gray-200" />
           <div className="mx-3 h-1 w-1 rounded-full bg-gray-300" />
           <div className="h-px w-12 bg-gray-200" />
@@ -607,6 +529,10 @@ export function LecturePage() {
   const lectureId = searchParams.get("id");
   const lecture = useMemo(() => findLecture(lectureId), [lectureId]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [lectureId]);
+
   const currentIndex = lectures.findIndex((l) => l.id === lectureId);
   const prevLecture = currentIndex > 0 ? lectures[currentIndex - 1] : undefined;
   const nextLecture =
@@ -628,10 +554,13 @@ export function LecturePage() {
   }
 
   return (
-    <article className="mx-auto max-w-4xl pb-8">
+    <article className="mx-auto max-w-4xl pb-10">
       {/* ---- Single white card: hero + content ---- */}
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <header className="px-6 pb-6 pt-6 sm:px-10 sm:pt-8">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <header
+          className="px-6 pb-6 pt-6 sm:px-10 sm:pt-8"
+          style={{ backgroundColor: lecture.heroAccent }}
+        >
           <div className="flex items-center gap-3">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#d9772a] text-xs font-bold text-white shadow-sm">
               {lecture.number}
@@ -648,49 +577,47 @@ export function LecturePage() {
           </p>
         </header>
 
-        <div className="mx-6 border-t border-gray-100 sm:mx-10" />
-
         <div className="px-6 py-8 sm:px-10 sm:py-10">
-          <div className="space-y-5">
+          <div className="space-y-4">
             {lecture.blocks.map((block, i) => renderBlock(block, i))}
           </div>
         </div>
       </div>
 
       {/* ---- Navigation ---- */}
-      <nav className="mt-6 flex items-stretch gap-3">
+      <nav className="mt-8 grid grid-cols-2 gap-3">
         {prevLecture ? (
           <Link
             to={`/lecture?id=${prevLecture.id}`}
-            className="group flex flex-1 flex-col rounded-xl border border-gray-200 bg-white px-4 py-3.5 transition hover:border-[#d9772a]/40 hover:shadow-sm"
+            className="group flex flex-col rounded-xl border border-gray-200 bg-white px-4 py-4 transition hover:border-[#d9772a]/40 hover:shadow-sm"
           >
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">前のレクチャー</span>
-            <span className="mt-1 text-sm font-medium text-gray-700 group-hover:text-[#d9772a]">{prevLecture.title}</span>
+            <span className="mt-1.5 text-sm font-medium leading-snug text-gray-700 group-hover:text-[#d9772a]">{prevLecture.title}</span>
           </Link>
         ) : (
           <Link
             to="/"
-            className="group flex flex-1 flex-col rounded-xl border border-gray-200 bg-white px-4 py-3.5 transition hover:border-[#d9772a]/40 hover:shadow-sm"
+            className="group flex flex-col rounded-xl border border-gray-200 bg-white px-4 py-4 transition hover:border-[#d9772a]/40 hover:shadow-sm"
           >
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">戻る</span>
-            <span className="mt-1 text-sm font-medium text-gray-700 group-hover:text-[#d9772a]">ホーム</span>
+            <span className="mt-1.5 text-sm font-medium leading-snug text-gray-700 group-hover:text-[#d9772a]">ホーム</span>
           </Link>
         )}
         {nextLecture ? (
           <Link
             to={`/lecture?id=${nextLecture.id}`}
-            className="group flex flex-1 flex-col items-end rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-right transition hover:border-[#d9772a]/40 hover:shadow-sm"
+            className="group flex flex-col items-end rounded-xl border border-gray-200 bg-white px-4 py-4 text-right transition hover:border-[#d9772a]/40 hover:shadow-sm"
           >
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">次のレクチャー</span>
-            <span className="mt-1 text-sm font-medium text-gray-700 group-hover:text-[#d9772a]">{nextLecture.title}</span>
+            <span className="mt-1.5 text-sm font-medium leading-snug text-gray-700 group-hover:text-[#d9772a]">{nextLecture.title}</span>
           </Link>
         ) : (
           <Link
             to="/"
-            className="group flex flex-1 flex-col items-end rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-right transition hover:border-[#d9772a]/40 hover:shadow-sm"
+            className="group flex flex-col items-end rounded-xl border border-gray-200 bg-white px-4 py-4 text-right transition hover:border-[#d9772a]/40 hover:shadow-sm"
           >
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">完了</span>
-            <span className="mt-1 text-sm font-medium text-gray-700 group-hover:text-[#d9772a]">ロードマップへ進む</span>
+            <span className="mt-1.5 text-sm font-medium leading-snug text-gray-700 group-hover:text-[#d9772a]">ロードマップへ進む</span>
           </Link>
         )}
       </nav>
