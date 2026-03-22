@@ -83,6 +83,13 @@ pub struct UpdateMemberRequest {
     pub status: Option<String>,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AddMemberRequest {
+    pub email: String,
+    pub role: String,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrentOrganizationResponse {

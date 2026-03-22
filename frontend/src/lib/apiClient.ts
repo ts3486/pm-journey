@@ -1,4 +1,5 @@
 import type {
+  AddOrganizationMemberRequest,
   BillingPortalSessionResponse,
   CreateOrganizationRequest,
   CreateOrganizationInvitationRequest,
@@ -202,6 +203,14 @@ export function createApiClient(baseUrl: string, clientOptions: ApiClientOptions
     },
     async deleteCurrentOrganizationMember(memberId: string): Promise<void> {
       await request(`/organizations/current/members/${memberId}`, { method: "DELETE" });
+    },
+    async addCurrentOrganizationMember(
+      payload: AddOrganizationMemberRequest
+    ): Promise<OrganizationMember> {
+      return request<OrganizationMember>("/organizations/current/members", {
+        method: "POST",
+        body: payload,
+      });
     },
     async listSessions(): Promise<HistoryItem[]> {
       return request<HistoryItem[]>("/sessions");

@@ -30,19 +30,19 @@ use crate::features::messages::handlers::{
     __path_list_messages, __path_post_message, list_messages, post_message,
 };
 use crate::features::organizations::handlers::{
-    __path_accept_invitation, __path_create_invitation, __path_create_organization,
-    __path_delete_member, __path_get_current_organization, __path_get_current_progress,
-    __path_list_current_members, __path_list_member_completed_sessions,
-    __path_update_current_organization, __path_update_member, accept_invitation, create_invitation,
-    create_organization, delete_member, get_current_organization, get_current_progress,
-    list_current_members, list_member_completed_sessions, update_current_organization,
-    update_member,
+    __path_accept_invitation, __path_add_member, __path_create_invitation,
+    __path_create_organization, __path_delete_member, __path_get_current_organization,
+    __path_get_current_progress, __path_list_current_members, __path_list_member_completed_sessions,
+    __path_update_current_organization, __path_update_member, accept_invitation, add_member,
+    create_invitation, create_organization, delete_member, get_current_organization,
+    get_current_progress, list_current_members, list_member_completed_sessions,
+    update_current_organization, update_member,
 };
 use crate::features::organizations::models::{
-    CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
-    InvitationEmailDelivery, InvitationResponse, Organization, OrganizationMember,
-    OrganizationMemberProgress, OrganizationMembersResponse, OrganizationProgressResponse,
-    UpdateMemberRequest, UpdateOrganizationRequest,
+    AddMemberRequest, CreateInvitationRequest, CreateOrganizationRequest,
+    CurrentOrganizationResponse, InvitationEmailDelivery, InvitationResponse, Organization,
+    OrganizationMember, OrganizationMemberProgress, OrganizationMembersResponse,
+    OrganizationProgressResponse, UpdateMemberRequest, UpdateOrganizationRequest,
 };
 use crate::features::outputs::handlers::{
     __path_create_output, __path_delete_output, __path_list_outputs, create_output, delete_output,
@@ -106,6 +106,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         get_current_organization,
         update_current_organization,
         list_current_members,
+        add_member,
         get_current_progress,
         list_member_completed_sessions,
         create_invitation,
@@ -161,6 +162,7 @@ pub const OPENAPI_SPEC_PATH: &str = "../specs/001-pm-simulation-web/contracts/op
         InvitationResponse,
         CreateOrganizationRequest,
         UpdateOrganizationRequest,
+        AddMemberRequest,
         CreateInvitationRequest,
         UpdateMemberRequest,
         TestCase,
@@ -219,7 +221,10 @@ pub fn router_with_state(state: SharedState) -> Router {
             "/organizations/current",
             get(get_current_organization).patch(update_current_organization),
         )
-        .route("/organizations/current/members", get(list_current_members))
+        .route(
+            "/organizations/current/members",
+            get(list_current_members).post(add_member),
+        )
         .route("/organizations/current/progress", get(get_current_progress))
         .route(
             "/organizations/current/members/:memberId/sessions/completed",

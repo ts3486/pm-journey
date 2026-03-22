@@ -33,6 +33,7 @@ export const api: ApiClient = {
   acceptOrganizationInvitation: call("acceptOrganizationInvitation"),
   updateCurrentOrganizationMember: call("updateCurrentOrganizationMember"),
   deleteCurrentOrganizationMember: call("deleteCurrentOrganizationMember"),
+  addCurrentOrganizationMember: call("addCurrentOrganizationMember"),
   listSessions: call("listSessions"),
   getSession: call("getSession"),
   listMessages: call("listMessages"),

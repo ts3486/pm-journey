@@ -341,6 +341,11 @@ export type CreateOrganizationInvitationRequest = {
   role: "admin" | "manager" | "member" | "reviewer";
 };
 
+export type AddOrganizationMemberRequest = {
+  email: string;
+  role: "admin" | "manager" | "member" | "reviewer";
+};
+
 export type UpdateOrganizationMemberRequest = {
   role?: "owner" | "admin" | "manager" | "member" | "reviewer";
   status?: "active" | "invited" | "deactivated";

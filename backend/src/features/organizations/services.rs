@@ -6,14 +6,15 @@ use crate::features::comments::repository::CommentRepository;
 use crate::features::evaluations::repository::EvaluationRepository;
 use crate::features::messages::repository::MessageRepository;
 use crate::features::sessions::repository::SessionRepository;
+use crate::features::users::repository::UserRepository;
 use crate::models::{HistoryItem, HistoryMetadata, MessageRole};
 use crate::shared::helpers::{next_id, now_ts};
 
 use super::models::{
-    CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
-    InvitationEmailDelivery, InvitationResponse, Organization, OrganizationInvitation,
-    OrganizationMember, OrganizationMembersResponse, OrganizationProgressResponse,
-    UpdateMemberRequest, UpdateOrganizationRequest,
+    AddMemberRequest, CreateInvitationRequest, CreateOrganizationRequest,
+    CurrentOrganizationResponse, InvitationEmailDelivery, InvitationResponse, Organization,
+    OrganizationInvitation, OrganizationMember, OrganizationMembersResponse,
+    OrganizationProgressResponse, UpdateMemberRequest, UpdateOrganizationRequest,
 };
 use super::repository::OrganizationRepository;
 
@@ -454,6 +455,61 @@ impl OrganizationService {
             return Err(not_found("member not found"));
         }
         Ok(())
+    }
+
+    pub async fn add_member(
+        &self,
+        user_id: &str,
+        body: AddMemberRequest,
+    ) -> Result<OrganizationMember, AppError> {
+        let (organization, membership) = self.resolve_current_org_context(user_id).await?;
+        if !can_manage_members(&membership.role) {
+            return Err(forbidden_error(
+                "FORBIDDEN_ROLE: insufficient permission for adding members",
+            ));
+        }
+
+        let email = body.email.trim().to_lowercase();
+        if email.is_empty() {
+            return Err(client_error("email is required"));
+        }
+        if !is_assignable_role(&body.role) {
+            return Err(client_error("invalid member role"));
+        }
+
+        let user_repo = UserRepository::new(self.pool.clone());
+        let target_user = user_repo
+            .find_by_email(&email)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to look up user by email: {}", e)))?
+            .ok_or_else(|| client_error("no user found with this email address"))?;
+
+        let org_repo = OrganizationRepository::new(self.pool.clone());
+        if let Some(existing) = org_repo
+            .find_member(&organization.id, &target_user.id)
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to check existing membership: {}", e)))?
+        {
+            if existing.status == "active" {
+                return Err(client_error(
+                    "user is already an active member of this organization",
+                ));
+            }
+        }
+
+        self.enforce_seat_limit(&organization.id, false).await?;
+
+        let member = org_repo
+            .create_member(
+                &organization.id,
+                &target_user.id,
+                &body.role,
+                user_id,
+            )
+            .await
+            .map_err(|e| anyhow_error(&format!("Failed to add member: {}", e)))?;
+
+        Ok(member)
     }
 
     async fn send_invitation_email(

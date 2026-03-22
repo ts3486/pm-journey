@@ -25,6 +25,7 @@ vi.mock("@/queries/organizations", () => ({
 vi.mock("@/services/api", () => ({
   api: {
     createOrganizationInvitation: vi.fn(),
+    addCurrentOrganizationMember: vi.fn(),
     updateCurrentOrganizationMember: vi.fn(),
     deleteCurrentOrganizationMember: vi.fn(),
   },
@@ -230,10 +231,10 @@ describe("TeamManagementPage", () => {
       "/settings/team/members/member_owner/completed",
     );
 
-    fireEvent.change(screen.getByLabelText("メールアドレス"), {
+    fireEvent.change(screen.getAllByLabelText("メールアドレス")[1], {
       target: { value: "invitee@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("ロール"), {
+    fireEvent.change(screen.getAllByLabelText("ロール")[1], {
       target: { value: "member" },
     });
     fireEvent.click(screen.getByRole("button", { name: "招待を作成" }));

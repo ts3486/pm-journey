@@ -81,6 +81,42 @@ impl UserRepository {
         }))
     }
 
+    pub async fn find_by_email(&self, email: &str) -> Result<Option<MyAccountResponse>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                id,
+                email,
+                name,
+                picture,
+                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+                to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS updated_at
+            FROM users
+            WHERE LOWER(email) = LOWER($1)
+            LIMIT 1
+            "#,
+        )
+        .bind(email)
+        .fetch_optional(&self.pool)
+        .await
+        .context("Failed to fetch user by email")?;
+
+        Ok(row.map(|r| MyAccountResponse {
+            id: r.get("id"),
+            email: r.try_get::<Option<String>, _>("email").unwrap_or(None),
+            name: r.try_get::<Option<String>, _>("name").unwrap_or(None),
+            picture: r.try_get::<Option<String>, _>("picture").unwrap_or(None),
+            created_at: r
+                .try_get::<Option<String>, _>("created_at")
+                .unwrap_or(None)
+                .unwrap_or_default(),
+            updated_at: r
+                .try_get::<Option<String>, _>("updated_at")
+                .unwrap_or(None)
+                .unwrap_or_default(),
+        }))
+    }
+
     pub async fn find_blocking_owned_org(&self, user_id: &str) -> Result<Option<String>> {
         let row = sqlx::query(
             r#"

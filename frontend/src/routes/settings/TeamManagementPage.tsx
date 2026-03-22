@@ -10,6 +10,7 @@ import {
 } from "@/queries/organizations";
 import { api } from "@/services/api";
 import type {
+  AddOrganizationMemberRequest,
   CreateOrganizationInvitationRequest,
   OrganizationMember,
   OrganizationMemberProgress,
@@ -55,35 +56,19 @@ const normalizeOptionalText = (value?: string | null): string | null => {
 };
 
 const memberDisplayName = (member: OrganizationMember): string => {
-  return normalizeOptionalText(member.userName) ?? normalizeOptionalText(member.userEmail) ?? member.userId;
+  return normalizeOptionalText(member.userName) ?? member.userId;
 };
 
-const memberSecondaryLabel = (member: OrganizationMember): string | null => {
-  const name = normalizeOptionalText(member.userName);
-  const email = normalizeOptionalText(member.userEmail);
-  if (name && email) {
-    return email;
-  }
-  if (name || email) {
-    return member.userId;
-  }
-  return null; // userId is already the primary display
+const memberEmail = (member: OrganizationMember): string | null => {
+  return normalizeOptionalText(member.userEmail);
 };
 
 const progressDisplayName = (progress: OrganizationMemberProgress): string => {
-  return normalizeOptionalText(progress.name) ?? normalizeOptionalText(progress.email) ?? progress.userId;
+  return normalizeOptionalText(progress.name) ?? progress.userId;
 };
 
-const progressSecondaryLabel = (progress: OrganizationMemberProgress): string | null => {
-  const name = normalizeOptionalText(progress.name);
-  const email = normalizeOptionalText(progress.email);
-  if (name && email) {
-    return email;
-  }
-  if (name || email) {
-    return progress.userId;
-  }
-  return null;
+const progressEmail = (progress: OrganizationMemberProgress): string | null => {
+  return normalizeOptionalText(progress.email);
 };
 
 const progressCompletionLabel = (progress: OrganizationMemberProgress) => {
@@ -141,6 +126,9 @@ export function TeamManagementPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<CreateOrganizationInvitationRequest["role"]>("member");
   const [isInvitePending, setIsInvitePending] = useState(false);
+  const [addMemberEmail, setAddMemberEmail] = useState("");
+  const [addMemberRole, setAddMemberRole] = useState<AddOrganizationMemberRequest["role"]>("member");
+  const [isAddMemberPending, setIsAddMemberPending] = useState(false);
   const [pendingMemberActionId, setPendingMemberActionId] = useState<string | null>(null);
   const [roleDraftByMemberId, setRoleDraftByMemberId] = useState<
     Record<string, OrganizationMember["role"]>
@@ -210,6 +198,31 @@ export function TeamManagementPage() {
       setTeamActionError(error instanceof Error ? error.message : "招待の作成に失敗しました。");
     } finally {
       setIsInvitePending(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    setTeamActionError(null);
+    setTeamActionMessage(null);
+    const email = addMemberEmail.trim();
+    if (!email) {
+      setTeamActionError("メンバーのメールアドレスを入力してください。");
+      return;
+    }
+    if (!canManageTeam) {
+      setTeamActionError("メンバー追加は owner / admin / manager のみ実行できます。");
+      return;
+    }
+    setIsAddMemberPending(true);
+    try {
+      await api.addCurrentOrganizationMember({ email, role: addMemberRole });
+      setAddMemberEmail("");
+      setTeamActionMessage("メンバーを追加しました。");
+      await refreshTeamData();
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : "メンバーの追加に失敗しました。");
+    } finally {
+      setIsAddMemberPending(false);
     }
   };
 
@@ -379,7 +392,7 @@ export function TeamManagementPage() {
                   const statusPending = pendingMemberActionId === `status:${member.id}`;
                   const deletePending = pendingMemberActionId === `delete:${member.id}`;
                   const displayName = memberDisplayName(member);
-                  const secondaryLabel = memberSecondaryLabel(member);
+                  const email = memberEmail(member);
 
                   return (
                     <article
@@ -388,7 +401,7 @@ export function TeamManagementPage() {
                     >
                       <div className="flex flex-col gap-1">
                         <p className="font-semibold text-slate-900">{displayName}</p>
-                        {secondaryLabel ? <p className="text-xs text-slate-600">{secondaryLabel}</p> : null}
+                        {email ? <p className="text-xs text-slate-600">{email}</p> : null}
                         <p className="text-xs text-slate-600">
                           role: {roleLabel(member.role)} / status: {statusLabel(member.status)}
                         </p>
@@ -474,6 +487,49 @@ export function TeamManagementPage() {
           </section>
 
           <section className="space-y-3 border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-900">メンバー直接追加</h3>
+            <p className="text-xs text-slate-600">
+              既存ユーザーをメールアドレスで直接追加します（招待メール不要）。
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-slate-700">
+              メールアドレス
+              <input
+                type="email"
+                value={addMemberEmail}
+                onChange={(event) => setAddMemberEmail(event.target.value)}
+                placeholder="member@example.com"
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+                disabled={!canManageTeam || isAddMemberPending}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-700">
+              ロール
+              <select
+                value={addMemberRole}
+                onChange={(event) =>
+                  setAddMemberRole(event.target.value as AddOrganizationMemberRequest["role"])
+                }
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+                disabled={!canManageTeam || isAddMemberPending}
+              >
+                {memberRoleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="btn-secondary w-full"
+              onClick={() => void handleAddMember()}
+              disabled={!canManageTeam || isAddMemberPending}
+            >
+              {isAddMemberPending ? "追加中..." : "メンバーを追加"}
+            </button>
+          </section>
+
+          <section className="space-y-3 border-t border-slate-200 pt-4">
             <h3 className="text-sm font-semibold text-slate-900">メンバー招待</h3>
             <p className="text-xs text-slate-600">
               active + pending がメンバー上限を超える招待は作成できません。
@@ -543,7 +599,7 @@ export function TeamManagementPage() {
             ) : organizationProgress?.members?.length ? (
               <div className="space-y-2">
                 {organizationProgress.members.map((progress) => {
-                  const secondaryLabel = progressSecondaryLabel(progress);
+                  const email = progressEmail(progress);
                   return (
                     <article
                       key={progress.memberId}
@@ -551,7 +607,7 @@ export function TeamManagementPage() {
                     >
                       <div className="sm:col-span-2">
                         <p className="font-semibold text-slate-900">{progressDisplayName(progress)}</p>
-                        {secondaryLabel ? <p className="text-xs text-slate-600">{secondaryLabel}</p> : null}
+                        {email ? <p className="text-xs text-slate-600">{email}</p> : null}
                         <p className="text-xs text-slate-600">
                           role: {progress.role} / status: {progress.status}
                         </p>

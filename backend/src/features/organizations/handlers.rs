@@ -10,9 +10,10 @@ use crate::models::HistoryItem;
 use crate::state::SharedState;
 
 use super::models::{
-    CreateInvitationRequest, CreateOrganizationRequest, CurrentOrganizationResponse,
-    InvitationResponse, Organization, OrganizationMember, OrganizationMembersResponse,
-    OrganizationProgressResponse, UpdateMemberRequest, UpdateOrganizationRequest,
+    AddMemberRequest, CreateInvitationRequest, CreateOrganizationRequest,
+    CurrentOrganizationResponse, InvitationResponse, Organization, OrganizationMember,
+    OrganizationMembersResponse, OrganizationProgressResponse, UpdateMemberRequest,
+    UpdateOrganizationRequest,
 };
 
 #[utoipa::path(
@@ -85,6 +86,25 @@ pub async fn list_current_members(
         .list_current_members(&auth.user_id)
         .await?;
     Ok(Json(members))
+}
+
+#[utoipa::path(
+    post,
+    path = "/organizations/current/members",
+    request_body = AddMemberRequest,
+    responses((status = 201, body = OrganizationMember))
+)]
+pub async fn add_member(
+    State(state): State<SharedState>,
+    auth: AuthUser,
+    Json(body): Json<AddMemberRequest>,
+) -> Result<(StatusCode, Json<OrganizationMember>), AppError> {
+    let member = state
+        .services()
+        .organizations()
+        .add_member(&auth.user_id, body)
+        .await?;
+    Ok((StatusCode::CREATED, Json(member)))
 }
 
 #[utoipa::path(
